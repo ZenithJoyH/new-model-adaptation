@@ -1,0 +1,13 @@
+---
+name: ""
+source:
+  modelscope_id: ""
+  huggingface_id: ""
+  revision: ""
+architecture: ""
+parameter_count: ""
+active_parameter_count: ""
+estimated_weight_size_gb: null
+remote_weight_path: ""
+status: not_started
+notes: ""

@@ -1,0 +1,93 @@
+---
+- name: Validate guarded model download inputs
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  any_errors_fatal: true
+
+  tasks:
+    - name: Require a single explicit host and download parameters
+      ansible.builtin.assert:
+        that:
+          - target | default('') | length > 0
+          - target | default('') not in ['all', 'ppu', '*']
+          - target | default('') in groups['modelscope_hosts']
+          - model_id | default('') | length > 0
+          - model_local_dir | default('') | length > 1
+          - model_local_dir | default('') is match('^/')
+        fail_msg: >-
+          Pass one host, a model ID, and an absolute directory, for example:
+          -e target=PPU-01 -e model_id=Qwen/Qwen3.5-397B-A17B
+          -e model_local_dir=/models/Qwen3.5-397B-A17B
+
+- name: Start one guarded model download
+  hosts: "{{ target | default('none') }}"
+  gather_facts: false
+
+  pre_tasks:
+    - name: Check ModelScope CLI
+      ansible.builtin.command:
+        argv:
+          - /usr/local/bin/modelscope
+          - download
+          - --help
+      changed_when: false
+
+    - name: Check the download parent directory
+      ansible.builtin.stat:
+        path: "{{ model_local_dir | dirname }}"
+      register: download_parent
+
+    - name: Require a pre-existing download parent directory
+      ansible.builtin.assert:
+        that:
+          - download_parent.stat.exists
+          - download_parent.stat.isdir
+        fail_msg: >-
+          {{ model_local_dir | dirname }} must already exist as the intended
+          local or mounted storage path.
+
+    - name: Read free space at the destination
+      ansible.builtin.command:
+        argv:
+          - df
+          - -Pk
+          - "{{ model_local_dir | dirname }}"
+      register: download_disk
+      changed_when: false
+
+    - name: Require sufficient free disk space
+      vars:
+        free_kb: "{{ download_disk.stdout_lines[-1].split()[3] | int }}"
+        required_kb: "{{ model_download_min_free_gb | int * 1024 * 1024 }}"
+      ansible.builtin.assert:
+        that:
+          - free_kb | int >= required_kb | int
+        fail_msg: >-
+          Only {{ (free_kb | int / 1024 / 1024) | round(1) }} GiB is free;
+          {{ model_download_min_free_gb }} GiB is required.
+
+  tasks:
+    - name: Start the resumable ModelScope download
+      ansible.builtin.command:
+        argv:
+          - /usr/local/bin/modelscope
+          - download
+          - --model
+          - "{{ model_id }}"
+          - --local_dir
+          - "{{ model_local_dir }}"
+      async: "{{ model_download_async_seconds }}"
+      poll: 0
+      register: model_download_job
+
+    - name: Report the asynchronous job ID
+      ansible.builtin.debug:
+        msg:
+          - "Download started on {{ inventory_hostname }}."
+          - "ansible_job_id={{ model_download_job.ansible_job_id }}"
+          - >-
+            Check it with: ./scripts/playbook playbooks/check-async-job.yml
+            -e target={{ inventory_hostname }}
+            -e ansible_job_id={{ model_download_job.ansible_job_id }}
+            -e model_local_dir={{ model_local_dir }}

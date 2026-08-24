@@ -1,0 +1,16 @@
+---
+# These aliases intentionally defer user, port, bastion, and key selection to
+# ~/.ssh/config on the control machine.
+ansible_python_interpreter: /usr/local/bin/python3.12
+
+modelscope_version: "1.39.1"
+modelscope_pip_executable: /usr/local/bin/pip
+modelscope_script_dir: /opt/python/3.12/bin
+modelscope_cli_links:
+  modelscope: /opt/python/3.12/bin/modelscope
+  ms: /opt/python/3.12/bin/ms
+
+# Qwen3.5-397B-A17B is currently about 807 GB. The download playbook refuses
+# to start unless this much free space is available, unless explicitly changed.
+model_download_min_free_gb: 850
+model_download_async_seconds: 604800

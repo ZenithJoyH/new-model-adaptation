@@ -1,0 +1,14 @@
+.venv/
+.ansible/
+*.retry
+*.log
+.DS_Store
+
+# Model weights and bulky runtime artifacts must stay on remote storage.
+models/**/weights/
+models/**/logs/
+models/**/results/raw/
+models/**/*.safetensors
+models/**/*.gguf
+models/**/*.pt
+models/**/*.pth

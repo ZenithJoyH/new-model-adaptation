@@ -1,0 +1,13 @@
+---
+name: Qwen3.5-397B-A17B
+source:
+  modelscope_id: Qwen/Qwen3.5-397B-A17B
+  huggingface_id: Qwen/Qwen3.5-397B-A17B
+  revision: ""
+architecture: MoE
+parameter_count: 397B
+active_parameter_count: 17B
+estimated_weight_size_gb: 807
+remote_weight_path: ""
+status: planning
+notes: "Download requires a pre-existing mount with at least 850 GiB free space."

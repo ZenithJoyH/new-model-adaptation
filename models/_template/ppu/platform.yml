@@ -1,0 +1,11 @@
+---
+platform: ppu
+inventory_group: ppu
+accelerator_query: ppu-smi
+status: not_started
+validated_hosts: []
+engine: ""
+engine_version: ""
+container_image: ""
+last_verified: null
+blocker: ""

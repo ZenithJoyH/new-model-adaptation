@@ -1,0 +1,11 @@
+---
+platform: metax
+inventory_group: metax
+accelerator_query: mx-smi
+status: not_started
+validated_hosts: []
+engine: ""
+engine_version: ""
+container_image: ""
+last_verified: null
+blocker: ""
