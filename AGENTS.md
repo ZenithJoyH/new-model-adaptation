@@ -55,6 +55,18 @@
 
 ## Model adaptation workspace
 
+- Treat this repository as a curated model-adaptation workspace, not as a
+  general activity log. Modify or add adaptation files only when the current
+  task actually concerns bringing up a new model, validating it on a hardware
+  platform, or optimizing its inference.
+- Do not record unrelated remote administration, temporary troubleshooting,
+  ordinary package installation, chat content, exploratory commands, or
+  unverified conclusions in this repository or under `models/`.
+- Before writing an adaptation record, identify its exact model and platform.
+  If the work has no clear model/platform scope, leave the adaptation files
+  unchanged unless the user explicitly asks for a repository-level change.
+- Do not commit or push changes merely because a task was completed. Commit or
+  push only when the user explicitly requests it.
 - Organize adaptation work under `models/<model-name>/<platform>/`. Platform
   directory names must match the inventory groups: `nvidia`, `ppu`, `metax`,
   `ascend`, `mthreads`, and `hygon`.
@@ -68,6 +80,12 @@
   chat or shell history.
 - Record exact host aliases, model revision, code revision, engine version,
   container image, launch arguments, test inputs, and verification date.
+- Every model adaptation must produce or update the corresponding
+  `models/<model-name>/<platform>/README.md` before the task is considered
+  complete. Summarize the adaptation scope and outcome, every material problem
+  encountered, its diagnosed cause, and the solution or workaround that was
+  applied. Record unresolved problems and next steps explicitly; do not document
+  only the successful final procedure.
 - Establish a correctness and performance baseline before optimization. Change
   one material variable at a time and retain the baseline comparison.
 - Keep `README.md` and `platform.yml` status synchronized. Do not mark a platform
