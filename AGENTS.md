@@ -145,30 +145,33 @@
      model and platform records.
 4. **Accept the adaptation.** Complete all of the following acceptance work:
 
-   - Run the model successfully in both `eager` mode and `graph` mode.
-   - Use `test/perf_test/` for final inference performance testing or profiling,
-     and use `test/nccl_test/` for communication validation when relevant.
-   - On the target host, enter a container based on
-     `harbor.baai.ac.cn/flageval/flageval-llmeval:v1` or `harbor.baai.ac.cn/flageval/flageval-llmeval:arm64` and run the formal accuracy
-     evaluation with `test/Accuracy_test/llmrun.py`; do not substitute another
-     runner unless the user explicitly requests it. Prepare a model-specific
-     `llm_config.json`, run `llmrun.py` with `--preflight-only`, and then run the
-     formal evaluation. Verify the expected sample count, process completion,
-     final result and sample files, accuracy metrics, timeouts, and explicit pass
-     criterion.
-   - Record the exact test scripts, configuration, dataset or case set, service
-     mode, container name and image, commands, environment, result locations,
-     metrics, pass criteria, and outcomes. Keep large datasets and raw outputs
-     local or on remote storage. If a common test asset needs model-specific
-     changes, place a copy or wrapper in the platform directory instead of
-     silently changing the common baseline.
-   - Create or update
-     `models/<model-name>/<platform>/adaptation-summary.md`. Summarize the scope,
-     environment, reference files, implementation changes, reproducible procedure
-     and configuration, correctness and performance verification, encountered
-     problems and solutions, final status, unresolved limitations, and next
-     steps. Do not mark the adaptation complete until every acceptance item has
-     passed and the summary reflects the verified outcome.
+   1. Run the model successfully in both `eager` mode and `graph` mode.
+   2. Run the formal accuracy evaluation on the target host inside a container
+      based on `harbor.baai.ac.cn/flageval/flageval-llmeval:v1` or
+      `harbor.baai.ac.cn/flageval/flageval-llmeval:arm64`, as appropriate for the
+      target platform. Use `test/Accuracy_test/llmrun.py`; do not substitute
+      another runner unless the user explicitly requests it. Prepare a
+      model-specific `llm_config.json`, run `llmrun.py` with `--preflight-only`,
+      and then run the formal evaluation. Verify the expected sample count,
+      process completion, final result and sample files, accuracy metrics,
+      timeouts, and explicit pass criterion.
+   3. Only after the accuracy evaluation in step 2 has completed and met its pass
+      criterion, use `test/perf_test/` for final inference performance testing or
+      profiling. Do not start performance testing while accuracy is incomplete or
+      failing. Use `test/nccl_test/` for communication validation when relevant.
+   4. Record the exact test scripts, configuration, dataset or case set, service
+      mode, container name and image, commands, environment, result locations,
+      metrics, pass criteria, and outcomes. Keep large datasets and raw outputs
+      local or on remote storage. If a common test asset needs model-specific
+      changes, place a copy or wrapper in the platform directory instead of
+      silently changing the common baseline.
+   5. Create or update
+      `models/<model-name>/<platform>/adaptation-summary.md`. Summarize the scope,
+      environment, reference files, implementation changes, reproducible
+      procedure and configuration, correctness and performance verification,
+      encountered problems and solutions, final status, unresolved limitations,
+      and next steps. Do not mark the adaptation complete until every acceptance
+      item has passed and the summary reflects the verified outcome.
 
 ## Validation and reporting
 
