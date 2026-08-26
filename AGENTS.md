@@ -96,8 +96,12 @@
 1. **Analyze the model architecture and inference path.** Before platform
    adaptation begins, create or update
    `models/<model-name>/architecture-and-inference.md`. Analyze the model's
-   overall architecture and end-to-end inference path. Break down and enumerate
-   the complete model structure, including the relevant configuration, major
+   overall architecture and end-to-end inference path. This document must be
+   written in Chinese, including its explanations, structure breakdown, operator
+   inventory, conclusions, assumptions, and unresolved questions; code symbols,
+   configuration field names, and established technical terms may remain in
+   their original form. Break down and enumerate the complete model structure,
+   including the relevant configuration, major
    components, layer organization, attention and MoE/routing behavior when
    applicable, tensor and data flow, parallelism requirements, execution stages,
    and implementation dependencies or compatibility risks. Also enumerate the
