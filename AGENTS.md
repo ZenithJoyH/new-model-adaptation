@@ -86,11 +86,19 @@
 
 1. Before platform adaptation begins, create or update
    `models/<model-name>/architecture-and-inference.md`. Analyze the model's
-   architecture and end-to-end inference path, including the relevant model
-   configuration, major components, attention and MoE/routing behavior when
+   overall architecture and end-to-end inference path. Break down and enumerate
+   the complete model structure, including the relevant configuration, major
+   components, layer organization, attention and MoE/routing behavior when
    applicable, tensor and data flow, parallelism requirements, execution stages,
-   and implementation dependencies or compatibility risks. Clearly distinguish
-   verified facts from assumptions and unresolved questions.
+   and implementation dependencies or compatibility risks. Also enumerate the
+   key operators actually used by the model, grouped by component or execution
+   stage, such as normalization, projection and matrix multiplication, positional
+   encoding, attention and softmax, activation and MLP, routing and expert
+   dispatch/combine, KV-cache operations, quantization/dequantization, sampling,
+   and communication collectives when applicable. Derive operator claims from
+   the model configuration or implementation rather than a generic architecture
+   template, and clearly distinguish verified facts from assumptions and
+   unresolved questions.
 2. For each adaptation platform explicitly requested by the user, create or
    update `models/<model-name>/<platform>/environment-analysis.md` before making
    platform changes. Record the target host aliases, accelerator model and
