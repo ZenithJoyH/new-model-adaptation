@@ -23,21 +23,9 @@
 - Never use broad destructive commands, disable SSH host-key checking, overwrite
   an unexpected file, or suppress a failed verification.
 - Require explicit user confirmation before deleting data, replacing an existing
-  configuration owned outside this repository, rebooting, stopping a service,
-  or starting a large download on more than one host.
+  configuration owned outside this repository, rebooting, or stopping a service.
 - Prefer idempotent Ansible modules over shell commands. If a command is needed,
   define `changed_when` and `failed_when` deliberately.
-
-## Model downloads
-
-- Require one explicit target in `modelscope_hosts`, a model ID, and an absolute
-  destination path. Validate a new host before adding it to that group.
-- Check free disk space before starting. Do not lower the configured threshold
-  without explaining why.
-- Start long downloads asynchronously and return the Ansible job ID. Use the
-  async-status playbook to monitor them.
-- A completed command is not enough: verify expected model metadata and report
-  the final directory size.
 
 ## Accelerator queries
 
@@ -72,9 +60,9 @@
   `ascend`, `mthreads`, and `hygon`.
 - Use `./scripts/new-model <model-name>` to create a new workspace from
   `models/_template`. Never overwrite an existing model directory.
-- Keep model-wide downloads, tokenizer work, common patches, and consistency
-  cases in `_shared`. Keep vendor-specific commands, configs, patches, and
-  results inside that platform's directory.
+- Keep model-wide tokenizer work, common patches, and consistency cases in
+  `_shared`. Keep vendor-specific commands, configs, patches, and results inside
+  that platform's directory.
 - Before executing a new remote adaptation command, save the repeatable version
   in the corresponding model/platform directory. Do not leave the only copy in
   chat or shell history.
@@ -93,6 +81,45 @@
   correctness regression and performance results are recorded.
 - Never commit model weights, secrets, complete logs, or bulky raw benchmark
   artifacts. Store only paths and small result summaries.
+
+## Model adaptation analysis workflow
+
+1. Before platform adaptation begins, create or update
+   `models/<model-name>/architecture-and-inference.md`. Analyze the model's
+   architecture and end-to-end inference path, including the relevant model
+   configuration, major components, attention and MoE/routing behavior when
+   applicable, tensor and data flow, parallelism requirements, execution stages,
+   and implementation dependencies or compatibility risks. Clearly distinguish
+   verified facts from assumptions and unresolved questions.
+2. For each adaptation platform explicitly requested by the user, create or
+   update `models/<model-name>/<platform>/environment-analysis.md` before making
+   platform changes. Record the target host aliases, accelerator model and
+   topology, operating system or container environment, driver and runtime,
+   inference framework and platform plugin versions, compiler or toolchain,
+   available resources, verification commands, compatibility gaps, and the
+   environment conclusions that affect the adaptation plan. Do not create
+   environment analyses for platforms the user did not request.
+3. Complete the end-to-end adaptation by combining the model architecture and
+   inference-path analysis, the requested platform's environment analysis, and
+   the adaptation-related reference files provided by the user. Use these inputs
+   to determine the implementation plan, map model operations and parallelism to
+   platform capabilities, resolve compatibility gaps, select configurations and
+   optimization steps, and define correctness and performance verification.
+   Feed verified results, encountered problems, causes, solutions, unresolved
+   risks, and next steps back into the corresponding model and platform records
+   throughout the adaptation.
+   The adaptation must run successfully in both `eager` mode and `graph` mode.
+   After starting the inference service, execute 10 GQQA test cases and verify
+   every response against its expected answer. The adaptation is not complete
+   unless both execution modes pass and all 10 responses are correct (10/10).
+4. After the adaptation is complete, create or update
+   `models/<model-name>/<platform>/adaptation-summary.md` for that model and
+   platform. Summarize the adaptation scope, analyzed environment, reference
+   files used, implementation changes, final reproducible procedure and
+   configuration, correctness and performance verification, encountered
+   problems and their solutions, final status, unresolved limitations, and next
+   steps. Do not mark the adaptation complete until this summary reflects the
+   verified outcome.
 
 ## Validation and reporting
 
