@@ -58,14 +58,23 @@
 - Organize adaptation work under `models/<model-name>/<platform>/`. Platform
   directory names must match the inventory groups: `nvidia`, `ppu`, `metax`,
   `ascend`, `mthreads`, and `hygon`.
+- When adaptation starts for a user-requested platform, create three work
+  directories directly under its platform directory:
+  `environment/`, `adaptation/`, and `acceptance/`. Keep only the platform-level
+  `README.md` and `platform.yml` as the index and status metadata at the platform
+  root. Store environment analysis and collection artifacts in `environment/`;
+  adaptation analysis, reference indexes, commands, configurations, patches,
+  operator implementations, focused tests, and working notes in `adaptation/`;
+  and accuracy, performance, communication-test configurations or wrappers,
+  concise results, and final acceptance documents in `acceptance/`.
 - Use `./scripts/new-model <model-name>` to create a new workspace from
   `models/_template`. Never overwrite an existing model directory.
 - Keep model-wide tokenizer work, common patches, and consistency cases in
-  `_shared`. Keep vendor-specific commands, configs, patches, and results inside
-  that platform's directory.
+  `_shared`. Route vendor-specific files to the appropriate one of the three
+  platform work directories above.
 - Before executing a new remote adaptation command, save the repeatable version
-  in the corresponding model/platform directory. Do not leave the only copy in
-  chat or shell history.
+  under the corresponding platform's `adaptation/` directory. Do not leave the
+  only copy in chat or shell history.
 - Record exact host aliases, model revision, code revision, engine version,
   container image, launch arguments, test inputs, and verification date.
 - Every model adaptation must produce or update the corresponding
@@ -102,13 +111,15 @@
    unresolved questions.
 2. **Analyze the inference environment.** For each adaptation platform explicitly
    requested by the user, create or update
-   `models/<model-name>/<platform>/environment-analysis.md` before making platform
-   changes. Record the target host aliases, accelerator model and topology,
-   operating system or container environment, driver and runtime, inference
-   framework and platform plugin versions, compiler or toolchain, available
-   resources, verification commands, compatibility gaps, and the environment
-   conclusions that affect the adaptation plan. Do not create environment
-   analyses for platforms the user did not request.
+   `models/<model-name>/<platform>/environment/environment-analysis.md` before
+   making platform changes. Keep supporting environment collection scripts and
+   outputs in the same `environment/` directory. Record the target host aliases,
+   accelerator model and topology, operating system or container environment,
+   driver and runtime, inference framework and platform plugin versions,
+   compiler or toolchain, available resources, verification commands,
+   compatibility gaps, and the environment conclusions that affect the
+   adaptation plan. Do not create environment analyses for platforms the user
+   did not request.
 3. **Perform the adaptation.** Combine the model architecture and inference-path
    analysis, the requested platform's environment analysis, and the
    adaptation-related reference files provided by the user. Carry out the work
@@ -134,15 +145,18 @@
      Record the checked FlagGems revision and search evidence, explicitly mark
      the operator as missing from FlagGems, and document the Triton location,
      supported constraints, plugin integration, test results, and remaining
-     limitations in the platform records and final adaptation summary.
+     limitations under the platform's `adaptation/` directory and in the final
+     `acceptance/adaptation-summary.md`.
    - **Complete configuration and integration.** Map model operators,
      parallelism, memory behavior, and execution stages to platform capabilities;
      resolve compatibility gaps and select reproducible runtime configurations
-     and optimization steps without modifying vLLM source code.
+     and optimization steps without modifying vLLM source code. Store the
+     resulting scripts, configurations, patches, implementations, and focused
+     test files under the platform's `adaptation/` directory.
    - **Verify incrementally and keep records current.** Test focused components
      before full service bring-up. Continuously write verified results, problems,
      causes, solutions, unresolved risks, and next steps to the corresponding
-     model and platform records.
+     model record and the platform's `adaptation/` directory.
 4. **Accept the adaptation.** Complete all of the following acceptance work:
 
    1. Run the model successfully in both `eager` mode and `graph` mode.
@@ -161,17 +175,18 @@
       failing. Use `test/nccl_test/` for communication validation when relevant.
    4. Record the exact test scripts, configuration, dataset or case set, service
       mode, container name and image, commands, environment, result locations,
-      metrics, pass criteria, and outcomes. Keep large datasets and raw outputs
-      local or on remote storage. If a common test asset needs model-specific
-      changes, place a copy or wrapper in the platform directory instead of
-      silently changing the common baseline.
+      metrics, pass criteria, and outcomes under the platform's `acceptance/`
+      directory. Keep large datasets and raw outputs local or on remote storage.
+      If a common test asset needs model-specific changes, place a copy or wrapper
+      in `acceptance/` instead of silently changing the common baseline.
    5. Create or update
-      `models/<model-name>/<platform>/adaptation-summary.md`. Summarize the scope,
-      environment, reference files, implementation changes, reproducible
-      procedure and configuration, correctness and performance verification,
-      encountered problems and solutions, final status, unresolved limitations,
-      and next steps. Do not mark the adaptation complete until every acceptance
-      item has passed and the summary reflects the verified outcome.
+      `models/<model-name>/<platform>/acceptance/adaptation-summary.md`. Summarize
+      the scope, environment, reference files, implementation changes,
+      reproducible procedure and configuration, correctness and performance
+      verification, encountered problems and solutions, final status, unresolved
+      limitations, and next steps. Do not mark the adaptation complete until
+      every acceptance item has passed and the summary reflects the verified
+      outcome.
 
 ## Validation and reporting
 
