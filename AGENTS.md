@@ -23,7 +23,14 @@
 - Never use broad destructive commands, disable SSH host-key checking, overwrite
   an unexpected file, or suppress a failed verification.
 - Require explicit user confirmation before deleting data, replacing an existing
-  configuration owned outside this repository, rebooting, or stopping a service.
+  configuration owned outside this repository, rebooting, or stopping a service
+  outside the active model-adaptation scope. During an active adaptation, the
+  agent may stop or restart an inference service or related process that it
+  started for the current task or that the user explicitly assigned to the
+  adaptation, without requesting confirmation each time. The adaptation
+  container itself must remain running and must not be stopped, restarted, or
+  removed. Resolve the exact service or process first, never affect shared or
+  unrelated workloads, and record the reason, command, and verified result.
 - Prefer idempotent Ansible modules over shell commands. If a command is needed,
   define `changed_when` and `failed_when` deliberately.
 
@@ -161,6 +168,12 @@
      before full service bring-up. Continuously write verified results, problems,
      causes, solutions, unresolved risks, and next steps to the corresponding
      model record and the platform's `adaptation/` directory.
+   - **Control the adaptation service lifecycle.** Stop or restart only the
+     current adaptation's inference service or related process when required for
+     configuration changes, recovery, or verification. Never stop, restart, or
+     remove the adaptation container itself. Confirm the exact service or process
+     before acting, do not affect shared or unrelated services, and record each
+     stop or restart and its outcome under `adaptation/`.
 4. **Accept the adaptation.** Complete all of the following acceptance work:
 
    1. Run the model successfully in both `eager` mode and `graph` mode.
