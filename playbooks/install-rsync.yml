@@ -1,5 +1,5 @@
 ---
-- name: Install rsync for the PPU-240 to PPU-01 transfer
+- name: Install rsync on selected transfer hosts
   hosts: rsync_transfer_hosts
   serial: 1
   gather_facts: true

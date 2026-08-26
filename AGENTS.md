@@ -82,9 +82,10 @@
 - Never commit model weights, secrets, complete logs, or bulky raw benchmark
   artifacts. Store only paths and small result summaries.
 
-## Model adaptation analysis workflow
+## Model adaptation workflow
 
-1. Before platform adaptation begins, create or update
+1. **Analyze the model architecture and inference path.** Before platform
+   adaptation begins, create or update
    `models/<model-name>/architecture-and-inference.md`. Analyze the model's
    overall architecture and end-to-end inference path. Break down and enumerate
    the complete model structure, including the relevant configuration, major
@@ -99,35 +100,75 @@
    the model configuration or implementation rather than a generic architecture
    template, and clearly distinguish verified facts from assumptions and
    unresolved questions.
-2. For each adaptation platform explicitly requested by the user, create or
-   update `models/<model-name>/<platform>/environment-analysis.md` before making
-   platform changes. Record the target host aliases, accelerator model and
-   topology, operating system or container environment, driver and runtime,
-   inference framework and platform plugin versions, compiler or toolchain,
-   available resources, verification commands, compatibility gaps, and the
-   environment conclusions that affect the adaptation plan. Do not create
-   environment analyses for platforms the user did not request.
-3. Complete the end-to-end adaptation by combining the model architecture and
-   inference-path analysis, the requested platform's environment analysis, and
-   the adaptation-related reference files provided by the user. Use these inputs
-   to determine the implementation plan, map model operations and parallelism to
-   platform capabilities, resolve compatibility gaps, select configurations and
-   optimization steps, and define correctness and performance verification.
-   Feed verified results, encountered problems, causes, solutions, unresolved
-   risks, and next steps back into the corresponding model and platform records
-   throughout the adaptation.
-   The adaptation must run successfully in both `eager` mode and `graph` mode.
-   After starting the inference service, execute 10 GQQA test cases and verify
-   every response against its expected answer. The adaptation is not complete
-   unless both execution modes pass and all 10 responses are correct (10/10).
-4. After the adaptation is complete, create or update
-   `models/<model-name>/<platform>/adaptation-summary.md` for that model and
-   platform. Summarize the adaptation scope, analyzed environment, reference
-   files used, implementation changes, final reproducible procedure and
-   configuration, correctness and performance verification, encountered
-   problems and their solutions, final status, unresolved limitations, and next
-   steps. Do not mark the adaptation complete until this summary reflects the
-   verified outcome.
+2. **Analyze the inference environment.** For each adaptation platform explicitly
+   requested by the user, create or update
+   `models/<model-name>/<platform>/environment-analysis.md` before making platform
+   changes. Record the target host aliases, accelerator model and topology,
+   operating system or container environment, driver and runtime, inference
+   framework and platform plugin versions, compiler or toolchain, available
+   resources, verification commands, compatibility gaps, and the environment
+   conclusions that affect the adaptation plan. Do not create environment
+   analyses for platforms the user did not request.
+3. **Perform the adaptation.** Combine the model architecture and inference-path
+   analysis, the requested platform's environment analysis, and the
+   adaptation-related reference files provided by the user. Carry out the work
+   through the following substeps:
+
+   - **Adapt the plugin from the model analysis.** Implement all model and
+     platform support within the plugin, its owned operators, dispatch layers,
+     bindings, configuration, or wrappers. Modifying the upstream vLLM source
+     code is prohibited throughout the adaptation. For every required operator
+     that the plugin does not invoke or support, inspect the plugin's
+     dispatch/backend design and verify whether the pinned FlagGems revision has
+     a compatible implementation. If FlagGems contains the operator, follow the
+     existing plugin architecture to add the required dispatch, backend,
+     registration, or platform binding; never bypass the plugin design with an
+     ad hoc direct call. If FlagGems has no compatible implementation, add a
+     plugin-owned Triton operator and connect it through the same plugin dispatch
+     framework. The Triton implementation must support `graph` capture/replay,
+     not only `eager` execution. Follow the target graph runtime constraints by
+     avoiding capture-time host synchronization, unsupported dynamic allocation,
+     data-dependent host control flow, and unstable tensor shapes or addresses.
+     Add applicable numerical, dtype, shape, layout, device, and execution-mode
+     tests, including dedicated `eager` and `graph` capture/replay coverage.
+     Record the checked FlagGems revision and search evidence, explicitly mark
+     the operator as missing from FlagGems, and document the Triton location,
+     supported constraints, plugin integration, test results, and remaining
+     limitations in the platform records and final adaptation summary.
+   - **Complete configuration and integration.** Map model operators,
+     parallelism, memory behavior, and execution stages to platform capabilities;
+     resolve compatibility gaps and select reproducible runtime configurations
+     and optimization steps without modifying vLLM source code.
+   - **Verify incrementally and keep records current.** Test focused components
+     before full service bring-up. Continuously write verified results, problems,
+     causes, solutions, unresolved risks, and next steps to the corresponding
+     model and platform records.
+4. **Accept the adaptation.** Complete all of the following acceptance work:
+
+   - Run the model successfully in both `eager` mode and `graph` mode.
+   - Use `test/perf_test/` for final inference performance testing or profiling,
+     and use `test/nccl_test/` for communication validation when relevant.
+   - On the target host, enter a container based on
+     `harbor.baai.ac.cn/flageval/flageval-llmeval:v1` or `harbor.baai.ac.cn/flageval/flageval-llmeval:arm64` and run the formal accuracy
+     evaluation with `test/Accuracy_test/llmrun.py`; do not substitute another
+     runner unless the user explicitly requests it. Prepare a model-specific
+     `llm_config.json`, run `llmrun.py` with `--preflight-only`, and then run the
+     formal evaluation. Verify the expected sample count, process completion,
+     final result and sample files, accuracy metrics, timeouts, and explicit pass
+     criterion.
+   - Record the exact test scripts, configuration, dataset or case set, service
+     mode, container name and image, commands, environment, result locations,
+     metrics, pass criteria, and outcomes. Keep large datasets and raw outputs
+     local or on remote storage. If a common test asset needs model-specific
+     changes, place a copy or wrapper in the platform directory instead of
+     silently changing the common baseline.
+   - Create or update
+     `models/<model-name>/<platform>/adaptation-summary.md`. Summarize the scope,
+     environment, reference files, implementation changes, reproducible procedure
+     and configuration, correctness and performance verification, encountered
+     problems and solutions, final status, unresolved limitations, and next
+     steps. Do not mark the adaptation complete until every acceptance item has
+     passed and the summary reflects the verified outcome.
 
 ## Validation and reporting
 

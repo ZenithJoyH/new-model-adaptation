@@ -12,3 +12,10 @@ models/**/*.safetensors
 models/**/*.gguf
 models/**/*.pt
 models/**/*.pth
+
+# Keep reusable test scripts in Git, but keep large datasets and generated test
+# artifacts local.
+test/perf_test/ShareGPT_V3_unfiltered_cleaned_split.json
+test/**/outputs/
+test/**/results/
+test/**/logs/
