@@ -99,7 +99,11 @@
 
    - **基于模型分析结果适配 plugin。** 所有模型和平台支持必须在 plugin、plugin 自有
      算子、dispatch 层、平台绑定、配置或包装层中实现；整个适配过程禁止修改上游 vLLM
-     源码。对 plugin 尚未调用或不支持的每个必需算子，先检查 plugin 的
+     源码。允许直接修改正在运行的适配容器内的 plugin 源码，但同一容器中的 vLLM 源码
+     必须保持只读且不得产生任何改动。修改前记录 plugin 仓库路径、基线 revision、分支
+     和工作区状态，并将最终可复现的 diff 或 patch 保存到平台的 `adaptation/` 目录。
+     应用这些修改时不得停止、重启或删除适配容器。对 plugin 尚未调用或不支持的每个
+     必需算子，先检查 plugin 的
      dispatch/backend 设计，再确认固定使用的 FlagGems revision 是否提供兼容实现。
      如果 FlagGems 已有该算子，应遵循 plugin 现有架构补齐所需的 dispatch、backend、
      注册或平台绑定，不得以临时直接调用绕过 plugin 的设计。如果 FlagGems 没有兼容

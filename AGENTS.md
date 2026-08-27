@@ -139,8 +139,14 @@
    - **Adapt the plugin from the model analysis.** Implement all model and
      platform support within the plugin, its owned operators, dispatch layers,
      bindings, configuration, or wrappers. Modifying the upstream vLLM source
-     code is prohibited throughout the adaptation. For every required operator
-     that the plugin does not invoke or support, inspect the plugin's
+     code is prohibited throughout the adaptation. The agent may edit the plugin
+     source code directly inside the running adaptation container; the vLLM
+     source tree inside that container must remain read-only and unchanged. Before
+     editing, record the plugin repository path, baseline revision, branch, and
+     working-tree status. Save the resulting reproducible diff or patch under the
+     platform's `adaptation/` directory, and do not stop, restart, or remove the
+     adaptation container while applying these changes. For every required
+     operator that the plugin does not invoke or support, inspect the plugin's
      dispatch/backend design and verify whether the pinned FlagGems revision has
      a compatible implementation. If FlagGems contains the operator, follow the
      existing plugin architecture to add the required dispatch, backend,
