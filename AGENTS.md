@@ -238,8 +238,8 @@
       require duplicate accuracy or performance acceptance in `eager` mode.
    2. **Eight-concurrency accuracy and performance sanity check.** Before the
       formal accuracy evaluation, send a small, fixed set of simple requests with
-      request concurrency set to 8 against each service configuration being
-      accepted, using `graph` mode only. Check every response against its expected result and record
+      request concurrency set to 8 against the accepted `graph`-mode service
+      configuration. Check every response against its expected result and record
       errors, timeouts, latency, throughput, accelerator utilization, and memory
       usage sufficient to spot an obvious performance regression. If any response
       is incorrect, return to adaptation and fix correctness first. If responses
@@ -260,16 +260,17 @@
    4. **Final performance evaluation.** Only after the formal accuracy evaluation
       in step 3 has completed and met its pass criterion, use `test/perf_test/`
       against the same accepted `graph`-mode configuration for final inference
-      performance testing or profiling. Do not start the
-      formal performance evaluation while full accuracy is incomplete or failing.
+      performance testing or profiling. Do not start the formal performance
+      evaluation while full accuracy is incomplete or failing.
       Use `test/nccl_test/` for communication validation when relevant, also
       under the `graph`-mode acceptance configuration.
    5. **Acceptance evidence.** Record the exact test scripts, configuration,
       dataset or case set, service mode, container name and image, commands,
       environment, result locations, metrics, pass criteria, and outcomes under
       the platform's `acceptance/` directory. Explicitly identify `graph` as the
-      execution mode used for all acceptance work after step 1. Keep large datasets and raw outputs
-      local or on remote storage. If a common test asset needs model-specific
+      execution mode used for all acceptance work after step 1. Keep large
+      datasets and raw outputs local or on remote storage. If a common test asset
+      needs model-specific
       changes, place a copy or wrapper in `acceptance/` instead of silently
       changing the common baseline.
    6. **Final adaptation summary.** Create or update
