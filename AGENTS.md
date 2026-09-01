@@ -136,55 +136,115 @@
    adaptation-related reference files provided by the user. Carry out the work
    through the following substeps:
 
-   - **Adapt the plugin from the model analysis.** Implement all model and
-     platform support within the plugin, its owned operators, dispatch layers,
-     bindings, configuration, or wrappers. Modifying the upstream vLLM source
-     code is prohibited throughout the adaptation. The agent may edit the plugin
-     source code directly inside the running adaptation container; the vLLM
-     source tree inside that container must remain read-only and unchanged. Before
-     editing, record the plugin repository path, baseline revision, branch, and
-     working-tree status. Save the resulting reproducible diff or patch under the
-     platform's `adaptation/` directory, and do not stop, restart, or remove the
-     adaptation container while applying these changes. For every required
-     operator that the plugin does not invoke or support, inspect the plugin's
-     dispatch/backend design and verify whether the pinned FlagGems revision has
-     a compatible implementation. If FlagGems contains the operator, follow the
-     existing plugin architecture to add the required dispatch, backend,
-     registration, or platform binding; never bypass the plugin design with an
-     ad hoc direct call. If FlagGems has no compatible implementation, add a
-     plugin-owned Triton operator and connect it through the same plugin dispatch
-     framework. The Triton implementation must support `graph` capture/replay,
-     not only `eager` execution. Follow the target graph runtime constraints by
-     avoiding capture-time host synchronization, unsupported dynamic allocation,
-     data-dependent host control flow, and unstable tensor shapes or addresses.
-     Add applicable numerical, dtype, shape, layout, device, and execution-mode
-     tests, including dedicated `eager` and `graph` capture/replay coverage.
-     Record the checked FlagGems revision and search evidence, explicitly mark
-     the operator as missing from FlagGems, and document the Triton location,
-     supported constraints, plugin integration, test results, and remaining
-     limitations under the platform's `adaptation/` directory and in the final
-     `acceptance/adaptation-summary.md`.
-   - **Complete configuration and integration.** Map model operators,
-     parallelism, memory behavior, and execution stages to platform capabilities;
-     resolve compatibility gaps and select reproducible runtime configurations
-     and optimization steps without modifying vLLM source code. Store the
-     resulting scripts, configurations, patches, implementations, and focused
-     test files under the platform's `adaptation/` directory.
-   - **Verify incrementally and keep records current.** Test focused components
-     before full service bring-up. Continuously write verified results, problems,
-     causes, solutions, unresolved risks, and next steps to the corresponding
-     model record and the platform's `adaptation/` directory.
-   - **Control the adaptation service lifecycle.** Stop or restart only the
-     current adaptation's inference service or related process when required for
-     configuration changes, recovery, or verification. Never stop, restart, or
-     remove the adaptation container itself. Confirm the exact service or process
-     before acting, do not affect shared or unrelated services, and record each
-     stop or restart and its outcome under `adaptation/`.
+   1. **Define the plugin adaptation plan.** Use the architecture analysis,
+      environment analysis, and user-provided references to map every model
+      component, inference stage, key operator, parallelism requirement, and
+      runtime dependency to the current plugin path and target platform
+      capability. Create a gap list under `adaptation/` that identifies the
+      required plugin changes, operator source, `eager` and `graph` impact,
+      dependencies, risks, and planned verification for each item.
+   2. **Capture the baseline and enforce modification boundaries.** Inside the
+      running adaptation container, record the repository path, revision, branch,
+      and working-tree status for the plugin, vLLM, and FlagGems before editing.
+      The agent may modify the plugin source directly, but the vLLM source tree
+      must remain read-only and unchanged throughout the adaptation. Do not stop,
+      restart, or remove the adaptation container. Preserve before-and-after
+      vLLM revision and status evidence, and store the plugin baseline information
+      under `adaptation/`.
+   3. **Synchronize FlagGems before operator integration.** Before checking or
+      integrating any FlagGems operator, update the FlagGems repository inside
+      the running adaptation container to the latest commit of its intended
+      tracked branch. Record the remote, branch, upstream, revision, and
+      working-tree status before updating. Proceed only when the worktree is clean
+      and the intended branch and upstream are unambiguous; fetch and use a
+      fast-forward-only pull, never reset, force-update, or discard local changes.
+      Record the resulting revision and synchronization command under
+      `adaptation/`. If synchronization cannot complete, report the exact blocker
+      and do not continue operator selection against a stale revision.
+   4. **Integrate operators already available in FlagGems.** For each operator
+      the plugin does not invoke or support, inspect the plugin's
+      dispatch/backend design and the synchronized FlagGems revision. When
+      FlagGems has a compatible implementation, follow the existing plugin architecture to
+      add the required dispatch, backend, registration, or platform binding.
+      Never bypass the plugin design with an ad hoc direct call. Add focused
+      integration and numerical tests, and record the FlagGems symbol, revision,
+      plugin entry point, supported constraints, and results under `adaptation/`.
+   5. **Implement operators missing from FlagGems.** When the synchronized FlagGems
+      revision has no compatible implementation, add a plugin-owned Triton
+      operator and connect it through the same plugin dispatch framework. The
+      Triton implementation must support `graph` capture/replay, not only `eager`
+      execution. Avoid capture-time host synchronization, unsupported dynamic
+      allocation, data-dependent host control flow, and unstable tensor shapes or
+      addresses. Add numerical, dtype, shape, layout, device, boundary-condition,
+      and execution-mode tests, including dedicated `eager` and `graph`
+      capture/replay coverage. Record the checked FlagGems revision and search
+      evidence, explicitly mark the operator as missing from FlagGems, and
+      document the Triton location, supported constraints, plugin integration,
+      results, and limitations under `adaptation/` and in the final
+      `acceptance/adaptation-summary.md`.
+   6. **Package reproducible FlagGems operator bugs.** Whenever a FlagGems
+      operator raises an error or shows a numerical-accuracy problem during any
+      adaptation stage, create `/bug` at the filesystem root of the running
+      adaptation container created from the target adaptation image, and create
+      a dedicated issue directory under it. Do not create this directory at the
+      root of this management repository, the FlagGems repository, the plugin
+      repository, or the vLLM repository. Provide a minimal, independently
+      executable unit test that reproduces the exact operator failure for the
+      operator developers inside the same adaptation image environment. Prefer
+      testing the FlagGems operator directly without requiring the complete model
+      service, vLLM, or the plugin; if the defect only appears through plugin
+      dispatch, graph capture/replay, or another required integration path,
+      include the smallest such path and a direct-operator comparison when
+      possible. Pin the random seed and record the exact container image and
+      container name, FlagGems revision, platform, device, software environment,
+      operator arguments, dtype, shapes, strides/layout, launch mode, command,
+      expected behavior, actual behavior, tolerances, and concise error or
+      numerical-difference evidence. Cover `eager` and `graph` separately when
+      execution mode affects the problem, include a trustworthy reference
+      implementation or expected output for accuracy defects, and verify that
+      the packaged test reproduces inside `/bug` on the affected host. Record the
+      exact container-side issue path and reproduction command in the platform's
+      `adaptation/` record. Do not stop or restart the adaptation container to
+      create or test the reproducer, and do not place model weights, secrets,
+      large logs, or unrelated adaptation artifacts under `/bug`.
+   7. **Complete runtime configuration and integration.** Map parallelism, memory
+      behavior, execution stages, model configuration, and launch arguments to
+      the target platform. Add reproducible plugin-side configurations, wrappers,
+      scripts, and optimization settings without changing vLLM source. Store all
+      resulting files under `adaptation/`.
+   8. **Validate incrementally.** Validate imports and registration first, then
+      individual operators, component combinations, minimal model execution, and
+      finally full service bring-up. After each change, run the smallest relevant
+      regression set and cover both `eager` and `graph` behavior where applicable.
+      Do not continue to a broader test while the narrower test is failing.
+   9. **Control the adaptation service lifecycle.** Stop or restart only the
+      current adaptation's inference service or related process when required for
+      configuration changes, recovery, or verification. Never stop, restart, or
+      remove the adaptation container itself. Confirm the exact service or process
+      before acting and do not affect shared or unrelated services.
+   10. **Consolidate reproducible records.** Continuously record verified results,
+      problems, causes, attempted fixes, final solutions, unresolved risks, and
+      next steps. Save commands, configurations, focused tests, plugin diffs or
+      patches, service lifecycle actions, FlagGems evidence, and proof that vLLM
+      remained unchanged under `adaptation/` before entering acceptance.
 4. **Accept the adaptation.** Complete all of the following acceptance work:
 
-   1. Run the model successfully in both `eager` mode and `graph` mode.
-   2. Run the formal accuracy evaluation on the target host inside a container
-      based on `harbor.baai.ac.cn/flageval/flageval-llmeval:v1` or
+   1. **Execution-mode acceptance.** Run the model successfully in both `eager`
+      mode and `graph` mode.
+   2. **Eight-concurrency accuracy and performance sanity check.** Before the
+      formal accuracy evaluation, send a small, fixed set of simple requests with
+      request concurrency set to 8 against each service configuration being
+      accepted. Check every response against its expected result and record
+      errors, timeouts, latency, throughput, accelerator utilization, and memory
+      usage sufficient to spot an obvious performance regression. If any response
+      is incorrect, return to adaptation and fix correctness first. If responses
+      are correct but performance is clearly abnormal, diagnose and fix the
+      performance problem before the full accuracy run. Repeat this sanity check
+      after every fix; do not proceed until both correctness and the performance
+      sanity check pass.
+   3. **Formal full accuracy evaluation.** Run the evaluation on the target host
+      inside a container based on
+      `harbor.baai.ac.cn/flageval/flageval-llmeval:v1` or
       `harbor.baai.ac.cn/flageval/flageval-llmeval:arm64`, as appropriate for the
       target platform. Use `test/Accuracy_test/llmrun.py`; do not substitute
       another runner unless the user explicitly requests it. Prepare a
@@ -192,17 +252,19 @@
       and then run the formal evaluation. Verify the expected sample count,
       process completion, final result and sample files, accuracy metrics,
       timeouts, and explicit pass criterion.
-   3. Only after the accuracy evaluation in step 2 has completed and met its pass
-      criterion, use `test/perf_test/` for final inference performance testing or
-      profiling. Do not start performance testing while accuracy is incomplete or
-      failing. Use `test/nccl_test/` for communication validation when relevant.
-   4. Record the exact test scripts, configuration, dataset or case set, service
-      mode, container name and image, commands, environment, result locations,
-      metrics, pass criteria, and outcomes under the platform's `acceptance/`
-      directory. Keep large datasets and raw outputs local or on remote storage.
-      If a common test asset needs model-specific changes, place a copy or wrapper
-      in `acceptance/` instead of silently changing the common baseline.
-   5. Create or update
+   4. **Final performance evaluation.** Only after the formal accuracy evaluation
+      in step 3 has completed and met its pass criterion, use `test/perf_test/`
+      for final inference performance testing or profiling. Do not start the
+      formal performance evaluation while full accuracy is incomplete or failing.
+      Use `test/nccl_test/` for communication validation when relevant.
+   5. **Acceptance evidence.** Record the exact test scripts, configuration,
+      dataset or case set, service mode, container name and image, commands,
+      environment, result locations, metrics, pass criteria, and outcomes under
+      the platform's `acceptance/` directory. Keep large datasets and raw outputs
+      local or on remote storage. If a common test asset needs model-specific
+      changes, place a copy or wrapper in `acceptance/` instead of silently
+      changing the common baseline.
+   6. **Final adaptation summary.** Create or update
       `models/<model-name>/<platform>/acceptance/adaptation-summary.md`. Summarize
       the scope, environment, reference files, implementation changes,
       reproducible procedure and configuration, correctness and performance
@@ -210,6 +272,28 @@
       limitations, and next steps. Do not mark the adaptation complete until
       every acceptance item has passed and the summary reflects the verified
       outcome.
+5. **Retrospect on the adaptation.** After acceptance, create or update
+   `models/<model-name>/<platform>/acceptance/adaptation-retrospective.md` for
+   each adapted platform. Review the complete work from architecture and
+   inference-path analysis through environment analysis, implementation, and
+   acceptance. Summarize the significant problems encountered, their symptoms,
+   root causes, impact, discovery stage, attempted approaches, final solutions,
+   verification evidence, and any unresolved consequences. Include relevant
+   FlagGems operator reproductions under the container's `/bug` directory and
+   explain whether earlier analysis or narrower tests could have exposed each
+   problem sooner. Identify practices and artifacts worth reusing, as well as
+   repeated work, avoidable detours, missing checks, unclear records, tooling
+   gaps, and weaknesses in correctness, performance, `eager`, or `graph`
+   coverage. Explicitly decide whether the current adaptation workflow needs
+   improvement. For every recommended improvement, state the supporting
+   evidence, expected benefit, scope, priority, risks, and the concrete rule,
+   script, template, test, or automation change proposed. Distinguish verified
+   facts from retrospective judgment, and record improvements that are not yet
+   implemented as follow-up items. Do not silently change shared repository
+   rules, templates, or tooling solely from a retrospective; implement those
+   changes only when the user requests or approves them. The overall adaptation
+   workflow is not closed until this retrospective is complete and consistent
+   with the final adaptation summary.
 
 ## Validation and reporting
 
