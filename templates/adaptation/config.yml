@@ -1,0 +1,51 @@
+schema_version: 1
+model: ""
+platform: ""
+
+target:
+  hosts: []
+  container_name: ""
+  container_image: ""
+
+boundaries:
+  vllm_source_read_only: true
+  adaptation_container_must_remain_running: true
+
+stack:
+  vllm:
+    path: ""
+    revision: ""
+  plugin:
+    path: ""
+    revision: ""
+  flaggems:
+    path: ""
+    revision: ""
+
+service:
+  model_path: ""
+  served_model_name: ""
+  port: null
+  tensor_parallel_size: null
+  gpu_memory_utilization: 0.9
+  max_model_len:
+    model_supported: null
+    initial: null
+    evidence: ""
+
+execution_modes:
+  eager:
+    enabled: true
+    extra_args: []
+  graph:
+    enabled: true
+    extra_args: []
+
+acceptance:
+  graph_base_url: ""
+  sanity_concurrency: 8
+  accuracy_image: ""
+  accuracy_runner: test/Accuracy_test/llmrun.py
+  accuracy_config: ""
+  performance_directory: test/perf_test
+  communication_directory: test/nccl_test

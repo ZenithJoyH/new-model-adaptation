@@ -1,0 +1,18 @@
+schema_version: 1
+model: ""
+platform: ""
+host: ""
+container_name: ""
+
+service:
+  status: unknown
+  mode: ""
+  pid: null
+  port: null
+  log_path: ""
+  command_record: ""
+  started_at: null
+  readiness_checked_at: null
+  readiness_result: unknown
+
+lifecycle_history: []
