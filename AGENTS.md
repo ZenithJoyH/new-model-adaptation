@@ -98,6 +98,31 @@
 - Never commit model weights, secrets, complete logs, or bulky raw benchmark
   artifacts. Store only paths and small result summaries.
 
+## Workflow invocation and phase isolation
+
+- The user may request any one or more workflow phases by number or name:
+  `architecture` (1), `environment` (2), `adaptation` (3), `acceptance` (4), and
+  `retrospective` (5). Execute only the selected phases and always order multiple
+  selected phases from 1 through 5, regardless of the order in the request.
+- Unselected prerequisite phases may be inspected for completeness, freshness,
+  model identity, platform identity, and evidence, but must not be executed or
+  rewritten automatically. If a required prerequisite is missing, stale, failed,
+  or inconsistent, stop before the dependent phase and report the exact blocker.
+- An acceptance request may select individual substeps: `execution-mode`,
+  `sanity`, `accuracy`, `performance`, `evidence`, or `summary`. Do not run an
+  unselected acceptance substep. Preserve the acceptance ordering constraints;
+  selecting a later substep does not waive an incomplete prerequisite.
+- Use `./scripts/adapt-model <model> [--platform <platform> --hosts <aliases>] --steps <steps>`
+  to initialize only missing files for the selected phases,
+  validate structured prerequisites and configuration, and generate a canonical
+  Codex request. Steps 2 through 5 require exact host aliases either through
+  `--hosts` or an existing adaptation config. Use `--check-only` when no files
+  may be created. The helper does not run remote commands, mark phases passed,
+  commit, or push.
+- Update `platform.yml` phase or acceptance-substep status only after the named
+  phase has actually reached that state and its evidence file has been updated.
+  Never infer `passed` or `complete` from file existence alone.
+
 ## Model adaptation workflow
 
 1. **Analyze the model architecture and inference path.** Before platform
