@@ -2,6 +2,8 @@
 .ansible/
 *.retry
 *.log
+__pycache__/
+*.pyc
 .DS_Store
 
 # Model weights and bulky runtime artifacts must stay on remote storage.
