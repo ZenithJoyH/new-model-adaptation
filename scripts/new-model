@@ -23,4 +23,6 @@ fi
 
 cp -R "${template_dir}" "${target_dir}"
 printf 'Created model workspace: %s\n' "${target_dir}"
-printf 'Next: fill model.yml and update the platform status matrix.\n'
+printf 'Next: fill model.yml, then prepare a selected workflow stage with:\n'
+printf '  ./scripts/adapt-model %s --steps architecture\n' "${model_name}"
+printf '  ./scripts/adapt-model %s --platform <platform> --hosts <host> --steps environment\n' "${model_name}"

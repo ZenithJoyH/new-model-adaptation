@@ -3,11 +3,20 @@ set -euo pipefail
 
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 
+if [[ -x "${repo_root}/.venv/bin/python" ]]; then
+  python_bin="${repo_root}/.venv/bin/python"
+else
+  python_bin="$(command -v python3)"
+fi
+
 cd "${repo_root}"
 "${repo_root}/scripts/inventory" >/dev/null
+
+bash -n scripts/adapt-model scripts/new-model
+"${python_bin}" -B -m unittest discover -s test/workflow_test -p 'test_*.py'
 
 for playbook in playbooks/*.yml; do
   "${repo_root}/scripts/playbook" "${playbook}" --syntax-check
 done
 
-printf 'Inventory and playbook syntax checks passed.\n'
+printf 'Inventory, workflow helper, and playbook checks passed.\n'
