@@ -211,7 +211,15 @@
       behavior, execution stages, model configuration, and launch arguments to
       the target platform. Add reproducible plugin-side configurations, wrappers,
       scripts, and optimization settings without changing vLLM source. Store all
-      resulting files under `adaptation/`.
+      resulting files under `adaptation/`. Do not configure an unnecessarily
+      small `--max-model-len` when starting the model service. First verify the
+      model's actual maximum supported context length from its configuration and
+      implementation. If that length is greater than 50000 tokens, use 50000 for
+      the initial service configuration; if it is 50000 or fewer, use the model's
+      full supported maximum. If the supported maximum cannot be verified, stop
+      and resolve it rather than guessing. Record the evidence, computed value,
+      and final launch argument under `adaptation/`, and do not silently reduce
+      it to conceal memory, graph-capture, or runtime problems.
    8. **Validate incrementally.** Validate imports and registration first, then
       individual operators, component combinations, minimal model execution, and
       finally full service bring-up. After each change, run the smallest relevant
