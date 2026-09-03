@@ -27,6 +27,10 @@ models/Qwen3.5-397B-A17B/
 前，应选择与目标平台适用的测试工具执行验证，并把模型专用配置和简要结果记录在对应
 的平台目录中。
 
+修改模型适配 plugin 代码前，可参考
+[vllm-plugin-FL 项目分析与新模型适配代码修改指南](docs/vllm-plugin-FL-analysis.md)，按模型
+注册、算子 dispatch、平台 backend、量化、attention/MoE 和 graph 执行链路选择最小改动面。
+
 创建下一个模型：
 
 ```bash
@@ -35,11 +39,11 @@ models/Qwen3.5-397B-A17B/
 
 ## 当前管理范围
 
-`managed` 总组当前包含 12 个具体主机别名：
+`managed` 总组当前包含 13 个具体主机别名：
 
 | 子组 | 主机 |
 |---|---|
-| `nvidia` | `H20-141`、`H100-205` |
+| `nvidia` | `H100-145`、`H100-149`、`H100-205` |
 | `metax` | `mx-103`、`mx-104` |
 | `mthreads` | `mthread-07`、`mthread-08` |
 | `ascend` | `910C-120`、`910C-121` |
@@ -125,7 +129,7 @@ python --version
 ./scripts/accelerator-check --limit metax
 
 # 查看某台机器的完整原始输出
-./scripts/accelerator-check --limit H20-141 -e full_output=true
+./scripts/accelerator-check --limit H100-145 -e full_output=true
 
 # 海光平台查询加速卡进程
 ./scripts/accelerator-check --limit hygon -e show_processes=true
