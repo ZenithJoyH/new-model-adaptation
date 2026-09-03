@@ -61,6 +61,35 @@ models/Qwen3.5-397B-A17B/
 完成条件：<完成后停止，或继续到下一个指定步骤>
 ```
 
+也可以先使用阶段工具初始化所选步骤的缺失文件、检查结构化前置条件，并生成上述
+Codex 调用文本。该工具本身不执行远程命令，也不会修改阶段状态：
+
+```bash
+# 步骤 1 不要求平台
+./scripts/adapt-model Qwen3.5-397B-A17B --steps architecture
+
+# 多个步骤始终按 1 到 5 的顺序解析
+./scripts/adapt-model Qwen3.5-397B-A17B --platform ppu \
+  --hosts PPU-01 --steps architecture,environment,adaptation
+
+# 步骤 3 已通过后，只准备指定验收子步骤
+./scripts/adapt-model Qwen3.5-397B-A17B --platform ppu \
+  --hosts PPU-01 --steps acceptance --acceptance-substeps execution-mode,sanity
+
+# 只检查，不创建任何文件
+./scripts/adapt-model Qwen3.5-397B-A17B --platform ppu \
+  --hosts PPU-01 --steps adaptation --check-only
+```
+
+首次为某个平台调用阶段工具时，它会在需要的阶段内从 `templates/adaptation/` 创建缺失
+文件，但不会覆盖已有记录。旧模型的 `platform.yml` 如果尚无五阶段状态结构，非
+`--check-only` 模式只补充缺失字段，不改写已有字段。
+
+进入步骤 3 或步骤 4 前，需要填写平台 `adaptation/config.yml`。工具会检查目标 Host
+是否属于对应 inventory 组、是否误存敏感连接字段、vLLM 只读和容器保持运行边界、
+软件 revision、`eager`/`graph` 配置、模型长度计算规则，以及所选验收子步骤需要的
+graph 服务、FlagEval 镜像和测试配置。配置不完整时只报告缺项，不会绕过门禁。
+
 只执行模型分析：
 
 ```text
