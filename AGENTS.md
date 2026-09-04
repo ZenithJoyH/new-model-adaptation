@@ -287,7 +287,16 @@
       target platform. Use `test/Accuracy_test/llmrun.py`; do not substitute
       another runner unless the user explicitly requests it. Prepare a
       model-specific `llm_config.json`, run `llmrun.py` with `--preflight-only`,
-      and then run the formal evaluation. Verify the expected sample count,
+      and then run the formal evaluation. Formal full accuracy evaluation must
+      use request concurrency of at least 32; the concurrency of 8 applies only
+      to the preceding small-batch sanity check. Start at 32 or a higher verified
+      safe concurrency and increase it as resources and service stability allow
+      to minimize evaluation time. Do not sacrifice valid results, complete
+      sample coverage, or service stability for speed. If concurrency 32 cannot
+      run reliably, diagnose and resolve the blocker rather than silently running
+      formal acceptance below 32. Record the configured and observed effective
+      concurrency, tuning rationale, throughput, elapsed time, errors, and
+      timeouts under `acceptance/`. Verify the expected sample count,
       process completion, final result and sample files, accuracy metrics,
       timeouts, and explicit pass criterion.
    4. **Final performance evaluation.** Only after the formal accuracy evaluation
