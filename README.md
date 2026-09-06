@@ -20,8 +20,12 @@ models/Qwen3.5-397B-A17B/
 └── hygon/
 ```
 
-每个平台目录保存自己的环境信息、启动/停止命令、配置、补丁、正确性用例和
-性能结果，跨平台内容放在 `_shared`。完整约定见 [models/README.md](models/README.md)。
+每个平台目录分为三类材料：`environment/` 保存环境分析、平台适配计划、结构化运行
+配置和服务状态；`adaptation/` 只保存按问题编号的 Markdown 台账及其索引；
+`acceptance/` 保存验收配置、简要证据、总结与复盘。Plugin 仓库只保存必要的产品实现和
+可长期维护的回归测试；一次性诊断、部署、日志分析、探针和试验代码放在适配容器中独立的
+临时工作目录，不得放入 Plugin 仓库。问题台账只引用准确路径、revision、命令和结论。
+跨平台内容放在 `_shared`。完整约定见 [models/README.md](models/README.md)。
 
 公共的最终性能、精度和通信测试工具位于 [test/](test/README.md)。每次模型适配完成
 前，应选择与目标平台适用的测试工具执行验证，并把模型专用配置和简要结果记录在对应
@@ -30,6 +34,12 @@ models/Qwen3.5-397B-A17B/
 修改模型适配 plugin 代码前，可参考
 [vllm-plugin-FL 项目分析与新模型适配代码修改指南](docs/vllm-plugin-FL-analysis.md)，按模型
 注册、算子 dispatch、平台 backend、量化、attention/MoE 和 graph 执行链路选择最小改动面。
+
+开始环境变更、适配实现或验收前，应先检索
+[新模型适配故障知识库](docs/troubleshooting/README.md)。已有经验只能作为需要在当前
+模型、平台和软件 revision 上重新验证的候选方案；新经验先记录在当前模型平台
+`adaptation/` 下对应的编号问题记录中，并登记到 `adaptation/README.md`，验证充分后
+再提升到仓库级知识库，并在复盘中审计。
 
 创建下一个模型：
 
@@ -85,7 +95,7 @@ Codex 调用文本。该工具本身不执行远程命令，也不会修改阶�
 文件，但不会覆盖已有记录。旧模型的 `platform.yml` 如果尚无五阶段状态结构，非
 `--check-only` 模式只补充缺失字段，不改写已有字段。
 
-进入步骤 3 或步骤 4 前，需要填写平台 `adaptation/config.yml`。工具会检查目标 Host
+进入步骤 3 或步骤 4 前，需要填写平台 `environment/runtime-config.yml`。工具会检查目标 Host
 是否属于对应 inventory 组、是否误存敏感连接字段、vLLM 只读和容器保持运行边界、
 软件 revision、`eager`/`graph` 配置、模型长度计算规则，以及所选验收子步骤需要的
 graph 服务、FlagEval 镜像和测试配置。配置不完整时只报告缺项，不会绕过门禁。

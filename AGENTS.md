@@ -69,19 +69,46 @@
   directories directly under its platform directory:
   `environment/`, `adaptation/`, and `acceptance/`. Keep only the platform-level
   `README.md` and `platform.yml` as the index and status metadata at the platform
-  root. Store environment analysis and collection artifacts in `environment/`;
-  adaptation analysis, reference indexes, commands, configurations, patches,
-  operator implementations, focused tests, and working notes in `adaptation/`;
-  and accuracy, performance, communication-test configurations or wrappers,
+  root. Store environment analysis, collection artifacts, the platform adaptation
+  plan, structured runtime configuration, and service-state metadata in
+  `environment/`. Treat `adaptation/` strictly as a concise, Markdown-only issue
+  ledger: keep `README.md` as the issue index and use one numbered Markdown file
+  per material problem to record its symptoms, diagnosis, attempted actions,
+  root cause or current hypothesis, solution, verification, and remaining limits.
+  Store accuracy, performance, communication-test configurations or wrappers,
   concise results, and final acceptance documents in `acceptance/`.
+- Do not store standalone scripts, playbooks, source snapshots, patches, operator
+  implementations, copied test suites, raw logs, JSON/YAML runtime artifacts, or
+  temporary command output under a model platform's `adaptation/` directory.
+  The plugin repository inside the running adaptation container is also not a
+  general adaptation workspace. Add only code that is necessary to the plugin's
+  shipped runtime behavior and focused, maintainable regression tests that belong
+  in the plugin's normal test suite. Do not add one-off diagnostic probes,
+  deployment or patch-application helpers, launch wrappers, log parsers, evidence
+  collectors, experiment scripts, generated snapshots, or copied reference code
+  to the plugin repository.
+- Keep one-off process scripts and code in an explicitly named temporary work
+  directory inside the running adaptation container but outside the plugin,
+  vLLM, and FlagGems repositories. Do not commit them. Record the exact temporary
+  path, command, purpose, and result in the relevant numbered issue, and retain
+  the smallest necessary evidence before cleaning temporary files. Environment
+  collection helpers belong in `environment/`; model-specific acceptance
+  wrappers belong in `acceptance/`; reusable cross-model tooling may be promoted
+  to the repository-level `scripts/` only after its generality is verified and
+  the user requests or approves that shared change. Keep a FlagGems reproducer in
+  the container-root `/bug` location required below. Common repository test tools
+  remain under `test/`.
 - Use `./scripts/new-model <model-name>` to create a new workspace from
   `models/_template`. Never overwrite an existing model directory.
 - Keep model-wide tokenizer work, common patches, and consistency cases in
   `_shared`. Route vendor-specific files to the appropriate one of the three
   platform work directories above.
-- Before executing a new remote adaptation command, save the repeatable version
-  under the corresponding platform's `adaptation/` directory. Do not leave the
-  only copy in chat or shell history.
+- Before executing a new remote command, record its repeatable form in the
+  document that owns the operation: use `environment/` for collection, baseline,
+  preparation, and planned adaptation commands; the relevant numbered
+  `adaptation/*.md` issue record for diagnostic or corrective commands; and
+  `acceptance/` for validation commands. Do not create a standalone command
+  script in `adaptation/`, and do not leave chat or shell history as the only copy.
 - Record exact host aliases, model revision, code revision, engine version,
   container image, launch arguments, test inputs, and verification date.
 - Every model adaptation must produce or update the corresponding
@@ -97,6 +124,52 @@
   correctness regression and performance results are recorded.
 - Never commit model weights, secrets, complete logs, or bulky raw benchmark
   artifacts. Store only paths and small result summaries.
+
+## Adaptation experience accumulation and reuse
+
+- Treat verified adaptation experience as a maintained knowledge base, not as
+  informal memory. Before environment changes, implementation, or acceptance,
+  search `docs/troubleshooting/`, relevant prior platform retrospectives, and
+  closely related model records for matching symptoms and constraints.
+- Match an experience by the complete failure signature and context: symptom
+  sequence, first failing rank or component, model structure, platform, software
+  revisions, dtype and shapes, parallel topology, load, and `eager` or `graph`
+  mode. A shared error keyword alone is not sufficient evidence that two failures
+  have the same cause or solution.
+- Record a new material problem in a numbered issue file under the current
+  platform's `adaptation/`, and add it to `adaptation/README.md`. Label it as a
+  hypothesis until a controlled experiment verifies it. Start new records from
+  `templates/adaptation/issue-record.md`. Change one
+  material variable at a time, retain the before-and-after evidence, and state
+  whether the action is a diagnostic probe, workaround, mitigation, or root-cause
+  fix.
+- Promote an experience to `docs/troubleshooting/` once its trigger conditions,
+  action, outcome, limits, revisions, and verification evidence are sufficient
+  for safe reuse. A second model or platform confirmation strengthens confidence
+  but is not required when the minimal reproducer and causal evidence are
+  conclusive. Retrospectives must audit candidate experiences and identify which
+  entries were promoted, rejected, superseded, or still need validation.
+- When reusing an entry, cite it in the corresponding numbered adaptation issue,
+  record the similarities and differences, and revalidate it on the current stack. Add
+  new evidence and a revalidation date after success. Downgrade, constrain, or
+  deprecate the entry when a counterexample is found; never silently preserve
+  stale guidance.
+- Knowledge entries must be concise and searchable. Include the failure
+  signature, applicability, confidence, diagnostic sequence, safe action,
+  stop/rollback conditions, verification, performance impact, `eager`/`graph`
+  coverage, and source record. Do not include secrets, weights, complete logs, or
+  unsupported conclusions.
+- For a TP failure where a worker does not answer `sample_tokens` within 300
+  seconds, rank communication work sequence numbers then diverge, and EngineCore
+  exits on RPC timeout, increasing `VLLM_EXECUTE_MODEL_TIMEOUT_SECONDS` is an
+  allowed controlled diagnostic or mitigation only after preserving per-rank
+  evidence. Verify that the installed runtime recognizes the variable, record
+  the original and trial values, and restart only the scoped inference service
+  if required. A longer timeout is appropriate when workers remain alive and
+  make forward progress; it is not a fix for a rank exception, OOM, data-dependent
+  branch divergence, collective-order mismatch, or deadlock. If progress stops or
+  work sequence divergence remains, stop increasing the timeout and investigate
+  the earliest divergent rank and collective instead.
 
 ## Workflow invocation and phase isolation
 
@@ -165,17 +238,22 @@
       environment analysis, and user-provided references to map every model
       component, inference stage, key operator, parallelism requirement, and
       runtime dependency to the current plugin path and target platform
-      capability. Create a gap list under `adaptation/` that identifies the
-      required plugin changes, operator source, `eager` and `graph` impact,
-      dependencies, risks, and planned verification for each item.
+      capability. Create the gap list in
+      `environment/platform-adaptation-plan.md`; identify the required plugin
+      changes, operator source, `eager` and `graph` impact, dependencies, risks,
+      and planned verification for each item. This plan is preparation context,
+      not an issue record.
    2. **Capture the baseline and enforce modification boundaries.** Inside the
       running adaptation container, record the repository path, revision, branch,
       and working-tree status for the plugin, vLLM, and FlagGems before editing.
       The agent may modify the plugin source directly, but the vLLM source tree
       must remain read-only and unchanged throughout the adaptation. Do not stop,
       restart, or remove the adaptation container. Preserve before-and-after
-      vLLM revision and status evidence, and store the plugin baseline information
-      under `adaptation/`.
+      vLLM revision and status evidence. Store baseline and environment facts in
+      `environment/environment-analysis.md` or
+      `environment/platform-adaptation-plan.md`. If a dirty tree, revision
+      mismatch, or modification-boundary violation becomes an adaptation issue,
+      create a numbered Markdown issue record under `adaptation/`.
    3. **Synchronize FlagGems before operator integration.** Before checking or
       integrating any FlagGems operator, update the FlagGems repository inside
       the running adaptation container to the latest commit of its intended
@@ -183,17 +261,21 @@
       working-tree status before updating. Proceed only when the worktree is clean
       and the intended branch and upstream are unambiguous; fetch and use a
       fast-forward-only pull, never reset, force-update, or discard local changes.
-      Record the resulting revision and synchronization command under
-      `adaptation/`. If synchronization cannot complete, report the exact blocker
-      and do not continue operator selection against a stale revision.
+      Record the resulting revision and synchronization command in
+      `environment/platform-adaptation-plan.md`. If synchronization cannot
+      complete, report the exact blocker, create a numbered issue record under
+      `adaptation/`, and do not continue operator selection against a stale
+      revision.
    4. **Integrate operators already available in FlagGems.** For each operator
       the plugin does not invoke or support, inspect the plugin's
       dispatch/backend design and the synchronized FlagGems revision. When
       FlagGems has a compatible implementation, follow the existing plugin architecture to
       add the required dispatch, backend, registration, or platform binding.
       Never bypass the plugin design with an ad hoc direct call. Add focused
-      integration and numerical tests, and record the FlagGems symbol, revision,
-      plugin entry point, supported constraints, and results under `adaptation/`.
+      integration and numerical tests. When this work resolves a compatibility
+      gap or failure, record the FlagGems symbol, revision, plugin entry point,
+      supported constraints, solution, and results in the corresponding numbered
+      Markdown issue record under `adaptation/`.
    5. **Implement operators missing from FlagGems.** When the synchronized FlagGems
       revision has no compatible implementation, add a plugin-owned Triton
       operator and connect it through the same plugin dispatch framework. The
@@ -205,8 +287,8 @@
       capture/replay coverage. Record the checked FlagGems revision and search
       evidence, explicitly mark the operator as missing from FlagGems, and
       document the Triton location, supported constraints, plugin integration,
-      results, and limitations under `adaptation/` and in the final
-      `acceptance/adaptation-summary.md`.
+      results, and limitations in a numbered Markdown issue record under
+      `adaptation/` and in the final `acceptance/adaptation-summary.md`.
    6. **Package reproducible FlagGems operator bugs.** Whenever a FlagGems
       operator raises an error or shows a numerical-accuracy problem during any
       adaptation stage, create `/bug` at the filesystem root of the running
@@ -228,23 +310,34 @@
       execution mode affects the problem, include a trustworthy reference
       implementation or expected output for accuracy defects, and verify that
       the packaged test reproduces inside `/bug` on the affected host. Record the
-      exact container-side issue path and reproduction command in the platform's
-      `adaptation/` record. Do not stop or restart the adaptation container to
-      create or test the reproducer, and do not place model weights, secrets,
+      exact container-side issue path and reproduction command in the applicable
+      numbered Markdown issue record under `adaptation/`. Do not stop or restart
+      the adaptation container to create or test the reproducer, and do not place
+      model weights, secrets,
       large logs, or unrelated adaptation artifacts under `/bug`.
    7. **Complete runtime configuration and integration.** Map parallelism, memory
       behavior, execution stages, model configuration, and launch arguments to
       the target platform. Add reproducible plugin-side configurations, wrappers,
-      scripts, and optimization settings without changing vLLM source. Store all
-      resulting files under `adaptation/`. Do not configure an unnecessarily
+      scripts, and optimization settings without changing vLLM source. Keep the
+      only necessary production implementation and maintainable plugin regression
+      tests in the plugin repository inside the running adaptation container.
+      Keep one-off process code in the container-local temporary workspace
+      outside all source repositories, as defined above. Store structured launch configuration in
+      `environment/runtime-config.yml`, and reference exact container paths,
+      branches, revisions or commits, and verification commands from the relevant
+      numbered issue record; do not copy these artifacts into `adaptation/`. Do
+      not configure an unnecessarily
       small `--max-model-len` when starting the model service. First verify the
       model's actual maximum supported context length from its configuration and
       implementation. If that length is greater than 50000 tokens, use 50000 for
       the initial service configuration; if it is 50000 or fewer, use the model's
       full supported maximum. If the supported maximum cannot be verified, stop
-      and resolve it rather than guessing. Record the evidence, computed value,
-      and final launch argument under `adaptation/`, and do not silently reduce
-      it to conceal memory, graph-capture, or runtime problems.
+      and resolve it rather than guessing. Do not silently reduce the value to
+      conceal memory, graph-capture, or runtime problems. Record the evidence,
+      computed value, and final launch argument in
+      `environment/runtime-config.yml`; when a context-length setting causes or
+      resolves a problem, also capture that reasoning in its numbered issue
+      record.
    8. **Validate incrementally.** Validate imports and registration first, then
       individual operators, component combinations, minimal model execution, and
       finally full service bring-up. After each change, run the smallest relevant
@@ -255,11 +348,19 @@
       configuration changes, recovery, or verification. Never stop, restart, or
       remove the adaptation container itself. Confirm the exact service or process
       before acting and do not affect shared or unrelated services.
-   10. **Consolidate reproducible records.** Continuously record verified results,
-      problems, causes, attempted fixes, final solutions, unresolved risks, and
-      next steps. Save commands, configurations, focused tests, plugin diffs or
-      patches, service lifecycle actions, FlagGems evidence, and proof that vLLM
-      remained unchanged under `adaptation/` before entering acceptance.
+   10. **Consolidate reproducible issue records.** Maintain
+      `adaptation/README.md` as the issue index and one numbered Markdown file per
+      material problem. Each issue must capture symptoms, scope, evidence,
+      diagnosis, controlled attempts, root cause or current hypothesis, solution
+      or workaround, verification, limitations, and next steps. Commands and
+      concise excerpts may be embedded in the issue Markdown. Necessary plugin
+      implementation and maintainable regression tests remain in the plugin
+      repository; one-off process scripts and code remain in the container-local
+      temporary workspace outside all source repositories; configurations, raw logs, and other artifacts
+      remain in their owning location. Reference each retained item by exact path,
+      revision or commit when applicable, command, and result. Include service
+      lifecycle actions, FlagGems evidence, and proof that
+      vLLM remained unchanged in the applicable issue record before acceptance.
 4. **Accept the adaptation.** Complete all of the following acceptance work:
 
    1. **Execution-mode acceptance.** Run the model successfully in both `eager`
