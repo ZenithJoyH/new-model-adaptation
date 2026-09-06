@@ -166,6 +166,7 @@ all:
         config = copy.deepcopy(template)
         config["model"] = "Example"
         config["platform"] = "ppu"
+        config["configuration_status"] = "ready"
         config["target"].update(
             hosts=["PPU-01"], container_name="adaptation", container_image="image:tag"
         )
@@ -192,6 +193,14 @@ all:
             self.assertEqual(
                 adapt_model.validate_adaptation_config(path, "Example", "ppu"), []
             )
+            config["configuration_status"] = "draft"
+            path.write_text(
+                yaml.safe_dump(config, allow_unicode=True, sort_keys=False),
+                encoding="utf-8",
+            )
+            errors = adapt_model.validate_adaptation_config(path, "Example", "ppu")
+            self.assertTrue(any("configuration_status" in error for error in errors))
+            config["configuration_status"] = "ready"
             config["service"]["max_model_len"]["initial"] = 8192
             path.write_text(
                 yaml.safe_dump(config, allow_unicode=True, sort_keys=False),

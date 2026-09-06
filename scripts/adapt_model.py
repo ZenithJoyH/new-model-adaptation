@@ -163,6 +163,8 @@ def validate_adaptation_config(
         errors.append(f"model 必须为 {model!r}")
     if config.get("platform") != platform:
         errors.append(f"platform 必须为 {platform!r}")
+    if config.get("configuration_status") != "ready":
+        errors.append("configuration_status 必须在远程状态复核完成后设为 ready")
 
     target = require_mapping(config, "target", path)
     hosts = target.get("hosts")
