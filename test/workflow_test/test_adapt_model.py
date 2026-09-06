@@ -74,6 +74,15 @@ all:
             self.assertTrue(
                 (platform_dir / "environment" / "environment-analysis.md").is_file()
             )
+            self.assertFalse(
+                (platform_dir / "environment" / "platform-adaptation-plan.md").exists()
+            )
+            self.assertFalse(
+                (platform_dir / "environment" / "runtime-config.yml").exists()
+            )
+            self.assertFalse(
+                (platform_dir / "environment" / "service-state.yml").exists()
+            )
             self.assertFalse((platform_dir / "adaptation").exists())
             self.assertFalse((platform_dir / "acceptance").exists())
 
@@ -96,7 +105,19 @@ all:
             )
             self.assertEqual(combined.returncode, 0, combined.stderr)
             self.assertTrue((root / "models" / "Example" / "architecture-and-inference.md").is_file())
-            self.assertTrue((platform_dir / "adaptation" / "config.yml").is_file())
+            self.assertTrue(
+                (platform_dir / "environment" / "platform-adaptation-plan.md").is_file()
+            )
+            self.assertTrue(
+                (platform_dir / "environment" / "runtime-config.yml").is_file()
+            )
+            self.assertTrue(
+                (platform_dir / "environment" / "service-state.yml").is_file()
+            )
+            self.assertEqual(
+                sorted(path.name for path in (platform_dir / "adaptation").iterdir()),
+                ["README.md"],
+            )
             self.assertIn("适配配置仍需完善", combined.stdout)
 
     def test_steps_are_deduplicated_and_ordered(self) -> None:
@@ -140,7 +161,7 @@ all:
 
     def test_config_enforces_max_model_len_rule(self) -> None:
         template = adapt_model.load_yaml(
-            REPO_ROOT / "templates" / "adaptation" / "config.yml"
+            REPO_ROOT / "templates" / "adaptation" / "runtime-config.yml"
         )
         config = copy.deepcopy(template)
         config["model"] = "Example"

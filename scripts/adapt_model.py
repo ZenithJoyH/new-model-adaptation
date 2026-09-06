@@ -478,7 +478,7 @@ def main() -> int:
         platform_config = load_yaml(platform_yml)
         if platform_config.get("platform") != args.platform:
             raise WorkflowError(f"{platform_yml} 中的平台名与 --platform 不一致")
-        config_path = platform_dir / "adaptation" / "config.yml"
+        config_path = platform_dir / "environment" / "runtime-config.yml"
         configured_hosts: list[str] = []
         if config_path.is_file():
             existing_config = load_yaml(config_path)
@@ -490,14 +490,14 @@ def main() -> int:
             raise WorkflowError("--hosts 不得包含重复别名")
         if requested_hosts and configured_hosts and set(requested_hosts) != set(configured_hosts):
             raise WorkflowError(
-                "--hosts 与 adaptation/config.yml 的 target.hosts 不一致；"
+                "--hosts 与 environment/runtime-config.yml 的 target.hosts 不一致；"
                 "请先核实目标，工具不会自动覆盖已有配置"
             )
         effective_hosts = requested_hosts or configured_hosts
         if needs_platform and not effective_hosts:
             raise WorkflowError(
                 "步骤 2 至 5 必须使用 --hosts 指定目标，"
-                "或在 adaptation/config.yml 中已有 target.hosts"
+                "或在 environment/runtime-config.yml 中已有 target.hosts"
             )
         unknown_hosts = sorted(set(effective_hosts) - inventory_platform_hosts(repo_root, args.platform))
         if unknown_hosts:
@@ -534,11 +534,9 @@ def main() -> int:
                 ("environment-analysis.md", "environment/environment-analysis.md"),
             ),
             "adaptation": (
-                ("adaptation-plan.md", "adaptation/adaptation-plan.md"),
-                ("progress.md", "adaptation/progress.md"),
-                ("references.md", "adaptation/references.md"),
-                ("commands.md", "adaptation/commands.md"),
-                ("service-state.yml", "adaptation/service-state.yml"),
+                ("platform-adaptation-plan.md", "environment/platform-adaptation-plan.md"),
+                ("service-state.yml", "environment/service-state.yml"),
+                ("issue-index.md", "adaptation/README.md"),
             ),
             "acceptance": (
                 ("acceptance-plan.md", "acceptance/acceptance-plan.md"),
@@ -576,7 +574,7 @@ def main() -> int:
                 created.append(destination)
         if "adaptation" in steps or "acceptance" in steps:
             if prepare_config(
-                template_dir / "config.yml",
+                template_dir / "runtime-config.yml",
                 config_path,
                 args.model,
                 args.platform,
@@ -584,6 +582,7 @@ def main() -> int:
                 args.check_only,
             ):
                 created.append(config_path)
+        if "adaptation" in steps or "acceptance" in steps:
             config_errors = validate_adaptation_config(
                 config_path,
                 args.model,
@@ -628,7 +627,10 @@ def main() -> int:
         print(f"验收子步骤：{','.join(substeps)}")
     print("执行边界：只执行指定步骤；其他步骤只检查前置产物，不自动执行")
     if configuration_warnings:
-        print("前置要求：先完善并重新校验 adaptation/config.yml，再执行任何远程变更")
+        print(
+            "前置要求：先完善并重新校验 environment/runtime-config.yml，"
+            "再执行任何远程变更"
+        )
     print("完成条件：完成全部指定步骤后停止，并更新相应阶段证据和 platform.yml 状态")
     return 0
 
