@@ -4,7 +4,16 @@
 
 ## 模型适配工作区
 
-模型相关工作统一放在 `models/<model-name>/<platform>/`。现有模型与状态入口：
+模型适配工作区分为两部分，二者用途不同，不做整目录镜像：
+
+- **远端工作目录**：用户在目标服务器上明确指定的绝对目录，使用 `01-repos/` 至
+  `08-bugs/` 的带序号目录保存实际源码 checkout、环境采集、临时诊断、运行日志、缓存、
+  验收结果和算子复现。涉及容器时还要核实对应的容器绝对路径及挂载关系。
+- **本地工作目录**：当前 Git 仓库，保存 `models/` 下精简、可追溯的模型/平台记录，以及
+  `scripts/`、`test/`、`templates/` 和 `docs/` 中的通用工具与规范。本地只记录准确远端路径、
+  revision、命令和结论，不复制完整远端日志、缓存或临时文件。
+
+本地模型记录统一放在 `models/<model-name>/<platform>/`。现有模型与状态入口：
 
 - [GLM-5.3-Flash-BF16](models/GLM-5.3-Flash-BF16/README.md)
 - [Hy4-preview](models/Hy4-preview/README.md)

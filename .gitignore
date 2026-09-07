@@ -6,6 +6,9 @@ __pycache__/
 *.pyc
 .DS_Store
 
+# Verified local historical snapshots; never source them as active operations.
+.local/adaptation-history/
+
 # Model weights and bulky runtime artifacts must stay on remote storage.
 models/**/weights/
 models/**/logs/
