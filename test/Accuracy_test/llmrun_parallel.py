@@ -2,13 +2,14 @@
 """Run sharded lm-eval API accuracy jobs against multiple model services."""
 
 import argparse
+import hashlib
 import json
 import os
 import re
 import shutil
 import signal
-import subprocess
 import threading
+import tempfile
 import time
 import urllib.error
 import urllib.request
@@ -16,6 +17,10 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
+
+from llmrun import (ConfigSnapshot, ProcessCleanupError, RunInterrupted, cache_identity,
+                    run_streaming as supervised_streaming, termination_signals,
+                    validate_samples)
 
 
 _LOG_LOCK = threading.Lock()
@@ -67,8 +72,13 @@ def parse_api_list(value: str) -> List[Tuple[str, str]]:
 def load_config(config_path: Path) -> Dict:
     if not config_path.is_file():
         fail(f"Configuration file does not exist: {config_path}")
-    with config_path.open("r", encoding="utf-8") as handle:
-        cfg = json.load(handle)
+    source_bytes = config_path.read_bytes()
+    cfg = json.loads(source_bytes)
+    if not isinstance(cfg, dict):
+        fail("Configuration must be a JSON object")
+    if cfg.get("formal_acceptance"):
+        fail("The parallel runner is diagnostic only; use llmrun.py for formal acceptance")
+    cfg = ConfigSnapshot(cfg, source_bytes)
 
     legacy_retries = cfg.get("max_retries", 3)
     defaults = {
@@ -134,8 +144,12 @@ def load_config(config_path: Path) -> Dict:
     for key in ("output_root", "cache_root", "dataset_dir", "hf_datasets_cache"):
         cfg[key] = resolve_path(cfg[key], config_dir)
     cfg["services"] = parse_api_list(str(cfg["api_list"]))
+    if type(cfg.get("merge_only")) is not bool:
+        fail("merge_only must be a JSON boolean")
+    if cfg["merge_only"] and (not cfg.get("run_id") or cfg["run_id"] == "auto"):
+        fail("merge_only requires the explicit run_id of the completed shard run")
     if not cfg.get("run_id") or cfg["run_id"] == "auto":
-        cfg["run_id"] = datetime.now().strftime("%Y%m%d-%H%M%S")
+        cfg["run_id"] = datetime.now().strftime("%Y%m%d-%H%M%S-%f")
     else:
         cfg["run_id"] = safe_name(str(cfg["run_id"]))
 
@@ -186,10 +200,12 @@ def probe_service(model_name: str, base_url: str, timeout: int = 10) -> Tuple[bo
         return False, f"{type(exc).__name__}: {exc}"
 
 
-def wait_for_services(cfg: Dict, selected: List[Tuple[str, str]]) -> None:
+def wait_for_services(cfg: Dict, selected: List[Tuple[str, str]], cancel_event=None) -> None:
     started = time.monotonic()
     attempt = 0
     while True:
+        if cancel_event is not None and cancel_event.is_set():
+            raise RunInterrupted()
         attempt += 1
         failures = []
         for model_name, url in selected:
@@ -209,7 +225,11 @@ def wait_for_services(cfg: Dict, selected: List[Tuple[str, str]]) -> None:
         if wait_timeout:
             interval = min(interval, max(1, wait_timeout - elapsed))
         log("WAIT", f"Services not ready (probe {attempt}); retry in {interval}s: {'; '.join(failures)}")
-        time.sleep(interval)
+        if cancel_event is not None:
+            if cancel_event.wait(interval):
+                raise RunInterrupted()
+        else:
+            time.sleep(interval)
 
 
 def sample_stats(samples_file: Path) -> Dict[str, int]:
@@ -276,7 +296,39 @@ LOCAL_TASKS = {
 
 
 def output_base(cfg: Dict) -> Path:
-    return Path(cfg["output_root"]) / safe_name(cfg["eval_model"]) / safe_name(cfg["task"])
+    return Path(cfg["output_root"]) / safe_name(cfg["eval_model"]) / safe_name(cfg["task"]) / safe_name(cfg["run_id"])
+
+
+def manifest_config(cfg: Dict) -> Dict:
+    # Partial shard invocations and merge-only may select different operations,
+    # but cannot change the model, services, task or generation configuration.
+    return {key: value for key, value in cfg.items()
+            if key not in {"shards", "merge_only", "services"} and not key.startswith("_")}
+
+
+def initialize_run(cfg: Dict) -> None:
+    base = output_base(cfg)
+    manifest = {"schema_version": 1, "config": manifest_config(cfg),
+                "runner_sha256": hashlib.sha256(Path(__file__).read_bytes()).hexdigest(),
+                "shared_runner_sha256": hashlib.sha256(Path(__file__).with_name("llmrun.py").read_bytes()).hexdigest()}
+    encoded = json.dumps(manifest, sort_keys=True, indent=2, allow_nan=False) + "\n"
+    manifest_path = base / "run-manifest.json"
+    if base.exists():
+        if not manifest_path.is_file() or manifest_path.read_text(encoding="utf-8") != encoded:
+            fail("Existing run has no matching immutable manifest; use a new run_id")
+    else:
+        if cfg.get("merge_only"):
+            fail("merge_only cannot create a new run")
+        base.mkdir(parents=True, exist_ok=False)
+        with manifest_path.open("x", encoding="utf-8") as handle:
+            handle.write(encoded)
+        with (base / "effective_config.json").open("x", encoding="utf-8") as handle:
+            json.dump({key: value for key, value in cfg.items() if key != "services"}, handle, indent=2)
+            handle.write("\n")
+        if isinstance(cfg, ConfigSnapshot):
+            with (base / "source_config.json").open("xb") as handle:
+                handle.write(cfg.source_bytes)
+    cfg["_manifest_sha256"] = hashlib.sha256(encoded.encode()).hexdigest()
 
 
 def build_shard_command(cfg: Dict, model_name: str, url: str, shard_idx: int, output_path: Path) -> List[str]:
@@ -297,7 +349,10 @@ def build_shard_command(cfg: Dict, model_name: str, url: str, shard_idx: int, ou
         model_args += f",tokenized_requests=False,tokenizer={cfg['tokenizer']}"
 
     # Never put SQLite on the shared NFS output filesystem.
-    cache_dir = Path(cfg["cache_root"]) / safe_name(cfg["eval_model"]) / cfg["run_id"] / f"shard-{shard_idx}"
+    identity_cfg = {**manifest_config(cfg), "manifest_sha256": cfg["_manifest_sha256"],
+                    "output_path": str(output_path.resolve()), "model_name": model_name, "base_url": url}
+    cache_dir = (Path(cfg["cache_root"]) / safe_name(cfg["eval_model"]) / cfg["run_id"]
+                 / f"shard-{shard_idx}" / cache_identity(identity_cfg, task))
     cache_dir.mkdir(parents=True, exist_ok=True)
     command = [
         "lm_eval", "--tasks", task, "--output_path", str(output_path),
@@ -322,34 +377,11 @@ def run_streaming(
     command: List[str],
     log_file: Path,
     sidecar_command: Optional[List[str]] = None,
+    *,
+    cancel_event=None,
 ) -> int:
-    with log_file.open("a", encoding="utf-8") as handle:
-        handle.write(f"[{datetime.now().isoformat(timespec='seconds')}] command={' '.join(command)}\n")
-        handle.flush()
-        process = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
-                                   text=True, bufsize=1, start_new_session=True)
-        sidecar = None
-        if sidecar_command:
-            sidecar = subprocess.Popen(sidecar_command + ["--pid", str(process.pid)])
-        try:
-            assert process.stdout is not None
-            for line in process.stdout:
-                handle.write(line)
-                handle.flush()
-                with _LOG_LOCK:
-                    print(line, end="", flush=True)
-            return_code = process.wait()
-        except KeyboardInterrupt:
-            os.killpg(process.pid, signal.SIGINT)
-            return_code = process.wait()
-        finally:
-            if sidecar is not None:
-                try:
-                    sidecar.wait(timeout=15)
-                except subprocess.TimeoutExpired:
-                    sidecar.terminate()
-                    sidecar.wait(timeout=5)
-        return return_code
+    return supervised_streaming(command, log_file, sidecar_command,
+                                cancel_event=cancel_event, logger=log)
 
 
 def newest_samples(task: str, directory: Path) -> Optional[Path]:
@@ -358,6 +390,16 @@ def newest_samples(task: str, directory: Path) -> Optional[Path]:
 
 
 def validate_shard(cfg: Dict, shard_idx: int, directory: Path) -> bool:
+    results = list(directory.rglob("results_*.json"))
+    samples = list(directory.rglob(f"samples_{cfg['task']}_*.jsonl"))
+    if len(results) != 1 or len(samples) != 1 or results[0].parent != samples[0].parent:
+        log("ERROR", f"[shard-{shard_idx}] expected one co-located result/sample pair for this attempt")
+        return False
+    try:
+        if not json.loads(results[0].read_text()).get("results", {}).get(cfg["task"]):
+            return False
+    except (OSError, ValueError, AttributeError):
+        return False
     samples_file = newest_samples(cfg["task"], directory)
     if samples_file is None:
         log("ERROR", f"[shard-{shard_idx}] no samples JSONL found under {directory}")
@@ -369,14 +411,31 @@ def validate_shard(cfg: Dict, shard_idx: int, directory: Path) -> bool:
         return False
     if stats["timeouts"]:
         log("WARN", f"[shard-{shard_idx}] accepting {stats['timeouts']} timeout samples")
-    return stats["samples"] > 0
+    # Reuse strict row/schema validation but defer total coverage until merge.
+    return validate_samples({**cfg, "formal_acceptance": True, "limit": 0,
+                             "expected_samples": 0}, cfg["task"], directory)
 
 
-def run_shard(cfg: Dict, shard_idx: int, model_name: str, url: str) -> bool:
+def write_shard_receipt(cfg: Dict, shard_idx: int, directory: Path) -> None:
     base = output_base(cfg)
-    base.mkdir(parents=True, exist_ok=True)
+    paths = {"results": next(directory.rglob("results_*.json")),
+             "samples": next(directory.rglob(f"samples_{cfg['task']}_*.jsonl"))}
+    receipt = {"schema_version": 1, "shard_id": shard_idx,
+               "manifest_sha256": cfg["_manifest_sha256"],
+               "artifacts": {name: {"path": str(path.relative_to(base)),
+                                    "sha256": hashlib.sha256(path.read_bytes()).hexdigest()}
+                             for name, path in paths.items()}}
+    with (base / f"shard-{shard_idx}" / "shard-result.json").open("x", encoding="utf-8") as handle:
+        json.dump(receipt, handle, indent=2)
+        handle.write("\n")
+
+
+def run_shard(cfg: Dict, shard_idx: int, model_name: str, url: str, cancel_event=None) -> bool:
+    base = output_base(cfg)
     shard_output = base / f"shard-{shard_idx}"
-    shard_output.mkdir(parents=True, exist_ok=True)
+    # An existing directory may belong to an active process or a failed run;
+    # never overwrite it or consider its old files part of this invocation.
+    shard_output.mkdir(exist_ok=False)
     command = build_shard_command(cfg, model_name, url, shard_idx, shard_output)
     label = f"shard-{shard_idx}"
     log("STEP", f"[{label}] model={model_name}, url={url}")
@@ -405,59 +464,119 @@ def run_shard(cfg: Dict, shard_idx: int, model_name: str, url: str) -> bool:
             ]
     attempts = cfg["eval_max_retries"] + 1
     for attempt in range(1, attempts + 1):
-        monitor = ProgressMonitor(shard_output, cfg["task"], cfg["progress_interval"], cfg["limit"], label)
+        attempt_output = shard_output / f"attempt-{attempt}"
+        attempt_output.mkdir(exist_ok=False)
+        attempt_command = command.copy()
+        attempt_command[attempt_command.index("--output_path") + 1] = str(attempt_output)
+        monitor = ProgressMonitor(attempt_output, cfg["task"], cfg["progress_interval"], cfg["limit"], label)
         monitor.start()
-        return_code = run_streaming(
-            command,
-            base / f"lm_eval_shard-{shard_idx}.log",
-            score_command,
-        )
-        monitor.stop()
-        if return_code == 0 and validate_shard(cfg, shard_idx, shard_output):
+        valid = False
+        return_code = None
+        try:
+            return_code = run_streaming(
+                attempt_command,
+                base / f"lm_eval_shard-{shard_idx}.log",
+                score_command,
+                **({"cancel_event": cancel_event} if cancel_event is not None else {}),
+            )
+            valid = return_code == 0 and validate_shard(cfg, shard_idx, attempt_output)
+        except ProcessCleanupError:
+            raise  # No retry if the previous scoped worker could still exist.
+        except Exception as exc:
+            log("ERROR", f"[{label}] process or result validation failed: {exc}")
+        finally:
+            monitor.stop()
+        if valid:
+            write_shard_receipt(cfg, shard_idx, attempt_output)
             log("INFO", f"[{label}] completed on attempt {attempt}/{attempts}")
             return True
-        log("ERROR", f"[{label}] lm_eval terminated by signal {-return_code}" if return_code < 0
-            else f"[{label}] lm_eval exited with code {return_code}")
+        log("ERROR", f"[{label}] lm_eval terminated by signal {-return_code}"
+            if return_code is not None and return_code < 0
+            else f"[{label}] lm_eval/result validation failed (returncode={return_code})")
         if attempt >= attempts:
             return False
         healthy, detail = probe_service(model_name, url)
         log("WARN", f"[{label}] retry preflight: healthy={healthy}, detail={detail}")
         if not healthy and cfg.get("wait_for_service", False):
-            wait_for_services(cfg, [(model_name, url)])
+            wait_for_services(cfg, [(model_name, url)], cancel_event)
         elif not healthy:
             return False
         log("WARN", f"[{label}] retrying in {cfg['retry_delay']}s; local cache preserves successes")
-        time.sleep(cfg["retry_delay"])
+        if cancel_event is not None:
+            if cancel_event.wait(cfg["retry_delay"]):
+                return False
+        else:
+            time.sleep(cfg["retry_delay"])
     return False
 
 
-def merge_results(cfg: Dict) -> bool:
+def merge_results(cfg: Dict, cancel_event=None) -> bool:
     base = output_base(cfg)
-    merge_dirs = sorted({str(path.parent) for path in base.rglob("results_*.json") if path.parent != base})
-    if not merge_dirs:
-        log("ERROR", f"No shard result directories found under {base}")
+    merge_dirs = []
+    seen_ids = set()
+    try:
+        for shard in range(cfg["data_parallel_size"]):
+            shard_root = (base / f"shard-{shard}").resolve()
+            receipt = json.loads((shard_root / "shard-result.json").read_text())
+            if (receipt.get("schema_version") != 1 or receipt.get("shard_id") != shard
+                    or receipt.get("manifest_sha256") != cfg["_manifest_sha256"]):
+                raise ValueError(f"shard-{shard}: receipt does not belong to this run")
+            paths = {}
+            for name in ("results", "samples"):
+                item = receipt["artifacts"][name]
+                path = (base / item["path"]).resolve()
+                if not path.is_relative_to(shard_root) or not path.is_file():
+                    raise ValueError(f"shard-{shard}: artifact escapes its shard or is missing")
+                if hashlib.sha256(path.read_bytes()).hexdigest() != item["sha256"]:
+                    raise ValueError(f"shard-{shard}: artifact changed after validation")
+                paths[name] = path
+            if paths["results"].parent != paths["samples"].parent:
+                raise ValueError(f"shard-{shard}: result/sample pair differs")
+            if not validate_shard(cfg, shard, paths["samples"].parent):
+                raise ValueError(f"shard-{shard}: sample validation failed")
+            ids = {str(json.loads(line)["doc_id"]) for line in paths["samples"].read_text().splitlines() if line.strip()}
+            if seen_ids.intersection(ids):
+                raise ValueError(f"shard-{shard}: document IDs overlap another shard")
+            seen_ids.update(ids)
+            merge_dirs.append(str(paths["results"].parent))
+        expected = cfg["limit"] if cfg["limit"] > 0 else cfg["expected_samples"]
+        if expected and len(seen_ids) != expected:
+            raise ValueError(f"Full shard union has {len(seen_ids)} documents; expected {expected}")
+    except (OSError, ValueError, KeyError, TypeError, AttributeError) as exc:
+        log("ERROR", f"Cannot merge current shards: {exc}")
         return False
-    command = ["lm_eval", "--merge_results", ",".join(merge_dirs), "--output_path", str(base)]
+    # Each merge attempt also gets fresh output; a previous successful result
+    # cannot rescue a current merger that exits zero without writing anything.
+    merged = Path(tempfile.mkdtemp(prefix="merge-", dir=base))
+    cfg["_merge_dir"] = str(merged)
+    command = ["lm_eval", "--merge_results", ",".join(merge_dirs), "--output_path", str(merged)]
     log("INFO", "Merge command: " + " ".join(command))
-    return run_streaming(command, base / "merge.log") == 0
+    return run_streaming(command, merged / "merge.log",
+                         **({"cancel_event": cancel_event} if cancel_event is not None else {})) == 0
 
 
 def report_merged_result(cfg: Dict) -> bool:
-    base = output_base(cfg)
+    base = Path(cfg["_merge_dir"])
     files = sorted(base.glob("results_*.json"), key=lambda path: path.stat().st_mtime, reverse=True)
     if not files:
         log("ERROR", f"No merged results JSON found directly under {base}")
         return False
-    with files[0].open("r", encoding="utf-8") as handle:
-        data = json.load(handle)
-    task_data = data.get("results", {}).get(cfg["task"], {})
-    if not task_data:
+    try:
+        with files[0].open("r", encoding="utf-8") as handle:
+            data = json.load(handle)
+        task_data = data.get("results", {}).get(cfg["task"], {})
+        counts = data.get("n-samples", {}).get(cfg["task"], {})
+        if not isinstance(counts, dict):
+            raise ValueError("n-samples task counts must be an object")
+    except (OSError, ValueError, AttributeError, TypeError) as exc:
+        log("ERROR", f"Malformed merged result: {exc}")
+        return False
+    if not isinstance(task_data, dict) or not task_data:
         log("ERROR", f"No metrics for {cfg['task']} in {files[0]}")
         return False
     for key, value in task_data.items():
         if isinstance(value, (int, float, str, bool)) or value is None:
             log("RESULT", f"{cfg['task']}: {key}={value}")
-    counts = data.get("n-samples", {}).get(cfg["task"], {})
     effective = counts.get("effective", counts.get("original", 0))
     timeouts = counts.get("timeout", 0)
     expected = cfg["limit"] if cfg["limit"] > 0 else cfg["expected_samples"]
@@ -483,12 +602,6 @@ def main() -> None:
         fail("lm_eval is not available on PATH")
 
     selected = [cfg["services"][idx] for idx in range(len(cfg["shards"]))]
-    base = output_base(cfg)
-    base.mkdir(parents=True, exist_ok=True)
-    effective_config = {key: value for key, value in cfg.items() if key != "services"}
-    with (base / "effective_config.json").open("w", encoding="utf-8") as handle:
-        json.dump(effective_config, handle, ensure_ascii=False, indent=2)
-        handle.write("\n")
     log("INFO", f"model={cfg['eval_model']}, task={cfg['task']}, shards={cfg['shards']}, "
         f"parallel_size={cfg['data_parallel_size']}, concurrency={cfg['num_concurrent']}")
     log("INFO", f"output={output_base(cfg)}, local_cache={cfg['cache_root']}/{safe_name(cfg['eval_model'])}/{cfg['run_id']}")
@@ -497,28 +610,44 @@ def main() -> None:
         log("INFO", "Preflight completed; lm-eval was not started")
         return
 
+    initialize_run(cfg)
+    cancel_event = threading.Event()
+    try:
+        with termination_signals(cancel_event):
+            execute_run(cfg, selected, cancel_event)
+    except KeyboardInterrupt as exc:
+        raise SystemExit(128 + getattr(exc, "signum", signal.SIGINT)) from None
+
+
+def execute_run(cfg, selected, cancel_event):
     started = time.time()
     if not cfg.get("merge_only", False):
-        wait_for_services(cfg, selected)
+        wait_for_services(cfg, selected, cancel_event)
         failed: List[int] = []
         with ThreadPoolExecutor(max_workers=len(selected)) as executor:
             futures = {}
-            for service_index, shard_idx in enumerate(cfg["shards"]):
-                model_name, url = selected[service_index]
-                futures[executor.submit(run_shard, cfg, shard_idx, model_name, url)] = shard_idx
-            for future in as_completed(futures):
-                shard_idx = futures[future]
-                try:
-                    if not future.result():
+            try:
+                for service_index, shard_idx in enumerate(cfg["shards"]):
+                    model_name, url = selected[service_index]
+                    futures[executor.submit(run_shard, cfg, shard_idx, model_name, url, cancel_event)] = shard_idx
+                for future in as_completed(futures):
+                    shard_idx = futures[future]
+                    try:
+                        if not future.result():
+                            failed.append(shard_idx)
+                    except Exception as exc:
+                        log("ERROR", f"[shard-{shard_idx}] unexpected error: {exc}")
                         failed.append(shard_idx)
-                except Exception as exc:
-                    log("ERROR", f"[shard-{shard_idx}] unexpected error: {exc}")
-                    failed.append(shard_idx)
+            except BaseException:
+                cancel_event.set()
+                for future in futures:
+                    future.cancel()
+                raise
         if failed:
             fail(f"Failed shards: {sorted(failed)}")
 
     if cfg.get("merge_only", False) or len(cfg["shards"]) == cfg["data_parallel_size"]:
-        if not merge_results(cfg):
+        if not merge_results(cfg, cancel_event):
             fail("Failed to merge shard results")
         if not report_merged_result(cfg):
             fail("Merged result validation failed")

@@ -2,19 +2,35 @@
 """Run reproducible lm-eval API accuracy jobs in flageval_llmeval."""
 
 import argparse
+import hashlib
 import json
 import os
+import queue
 import re
 import shutil
 import signal
 import subprocess
 import sys
+import tempfile
+import threading
 import time
 import urllib.error
 import urllib.request
+import uuid
+from contextlib import contextmanager
 from datetime import datetime
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
+
+from acceptance_contract import metric_errors, validate_formal_config
+
+
+class ConfigSnapshot(dict):
+    """Keep the exact source bytes out of the effective JSON configuration."""
+
+    def __init__(self, values: Dict, source_bytes: bytes):
+        super().__init__(values)
+        self.source_bytes = source_bytes
 
 
 def log(level: str, message: str) -> None:
@@ -39,8 +55,14 @@ def resolve_path(value: str, config_dir: Path) -> str:
 def load_config(config_path: Path) -> Dict:
     if not config_path.is_file():
         fail(f"Configuration file does not exist: {config_path}")
-    with config_path.open("r", encoding="utf-8") as handle:
-        cfg = json.load(handle)
+    source_bytes = config_path.read_bytes()
+    cfg = json.loads(source_bytes)
+    if not isinstance(cfg, dict):
+        fail("Configuration must be a JSON object")
+    for error in validate_formal_config(cfg):
+        fail(error)
+    cfg = ConfigSnapshot(cfg, source_bytes)
+    cfg["source_config_sha256"] = hashlib.sha256(source_bytes).hexdigest()
 
     defaults = {
         "model_type": "openai-chat-completions",
@@ -114,6 +136,8 @@ def load_config(config_path: Path) -> Dict:
         fail("num_concurrent must be >= 1")
     if cfg["timeout"] < 1:
         fail("timeout must be >= 1")
+    if cfg["eval_max_retries"] < 0 or cfg["retry_delay"] < 0:
+        fail("eval_max_retries and retry_delay must be >= 0")
     if cfg["service_poll_interval"] < 1:
         fail("service_poll_interval must be >= 1")
     if cfg["service_wait_timeout"] < 0:
@@ -220,10 +244,26 @@ def create_run_dir(cfg: Dict) -> Path:
         run_id = datetime.now().strftime("%Y%m%d-%H%M%S")
     run_dir = Path(cfg["output_root"]) / safe_name(cfg["eval_model"]) / safe_name(run_id)
     run_dir.mkdir(parents=True, exist_ok=False)
-    with (run_dir / "effective_config.json").open("w", encoding="utf-8") as handle:
-        json.dump(cfg, handle, ensure_ascii=False, indent=2)
-        handle.write("\n")
+    # A fresh output root or a reused human-readable label must not resume a
+    # previous service's responses. Only retries within this invocation share it.
+    cfg["run_nonce"] = uuid.uuid4().hex
+    if isinstance(cfg, ConfigSnapshot):
+        cfg.snapshot_hashes = {"source_config": cfg["source_config_sha256"]}
+        with (run_dir / "source_config.json").open("xb") as handle:
+            handle.write(cfg.source_bytes)
+    effective_bytes = (json.dumps(cfg, ensure_ascii=False, indent=2) + "\n").encode("utf-8")
+    if isinstance(cfg, ConfigSnapshot):
+        cfg.snapshot_hashes["effective_config"] = hashlib.sha256(effective_bytes).hexdigest()
+    with (run_dir / "effective_config.json").open("xb") as handle:
+        handle.write(effective_bytes)
     return run_dir
+
+
+def cache_identity(cfg: Dict, task: str) -> str:
+    """Bind a response cache to this invocation and its complete configuration."""
+    identity = {"schema_version": 1, "task": task, "config": cfg,
+                "runner_sha256": hashlib.sha256(Path(__file__).read_bytes()).hexdigest()}
+    return hashlib.sha256(json.dumps(identity, sort_keys=True, allow_nan=False).encode()).hexdigest()
 
 
 def build_command(cfg: Dict, task: str, task_dir: Path) -> List[str]:
@@ -234,6 +274,7 @@ def build_command(cfg: Dict, task: str, task_dir: Path) -> List[str]:
         / safe_name(cfg["eval_model"])
         / task_dir.parent.name
         / safe_name(task)
+        / cache_identity(cfg, task)
     )
     cache_dir.mkdir(parents=True, exist_ok=True)
     cache_file = cache_dir / "responses.sqlite"
@@ -276,44 +317,147 @@ def build_command(cfg: Dict, task: str, task_dir: Path) -> List[str]:
     return command
 
 
+class RunInterrupted(KeyboardInterrupt):
+    def __init__(self, signum=signal.SIGINT):
+        self.signum = signum
+        super().__init__(f"Run interrupted by signal {signum}")
+
+
+class ProcessCleanupError(RuntimeError):
+    """Do not retry while a previously created worker may still be running."""
+
+
+@contextmanager
+def termination_signals(cancel_event=None):
+    """CLI-only signal handling; worker threads observe the shared cancellation."""
+    previous = {}
+    interrupted = False
+
+    def interrupt(signum, _frame):
+        nonlocal interrupted
+        if cancel_event is not None:
+            cancel_event.set()
+        if interrupted:
+            return  # A repeated signal must not interrupt owned-process cleanup.
+        interrupted = True
+        raise RunInterrupted(signum)
+
+    try:
+        for signum in (signal.SIGINT, signal.SIGTERM):
+            previous[signum] = signal.signal(signum, interrupt)
+        yield
+    finally:
+        for signum, handler in previous.items():
+            signal.signal(signum, handler)
+
+
+def stop_owned_process(process) -> None:
+    """Reap only a Popen started below with its own new POSIX session.
+
+    No external PID, service, or process-name discovery is permitted here.
+    SIGKILL of this supervisor itself cannot execute this cleanup; callers must
+    not claim the supervisor can control descendants that escape its process group.
+    """
+    try:
+        os.killpg(process.pid, signal.SIGTERM)
+    except ProcessLookupError:
+        pass
+    try:
+        process.wait(timeout=5)
+    except subprocess.TimeoutExpired:
+        pass
+    # The leader may have exited while its children still own stdout or run.
+    # This group was created exclusively for this invocation, not a service.
+    try:
+        os.killpg(process.pid, signal.SIGKILL)
+    except ProcessLookupError:
+        pass
+    process.wait(timeout=5)
+
+
 def run_streaming(
     command: List[str],
     log_file: Path,
     sidecar_command: Optional[List[str]] = None,
+    *,
+    cancel_event=None,
+    logger=None,
 ) -> int:
-    log("INFO", "Command: " + " ".join(command))
+    (logger or log)("INFO", "Command: " + " ".join(command))
     with log_file.open("a", encoding="utf-8") as handle:
         handle.write(f"[{datetime.now().isoformat(timespec='seconds')}] command={' '.join(command)}\n")
         handle.flush()
-        process = subprocess.Popen(
-            command,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.STDOUT,
-            text=True,
-            bufsize=1,
-            start_new_session=True,
-        )
-        sidecar = None
-        if sidecar_command:
-            sidecar = subprocess.Popen(sidecar_command + ["--pid", str(process.pid)])
+        process = sidecar = reader = None
+        lines = queue.Queue()
+        reader_stop = threading.Event()
+
+        def read_output():
+            try:
+                for line in process.stdout:
+                    if reader_stop.is_set():
+                        break
+                    lines.put(line)
+            except Exception as exc:
+                lines.put(exc)
+            finally:
+                lines.put(None)
+
         try:
+            if cancel_event is not None and cancel_event.is_set():
+                raise RunInterrupted()
+            process = subprocess.Popen(
+                command, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
+                text=True, bufsize=1, start_new_session=True,
+            )
+            if sidecar_command:
+                sidecar = subprocess.Popen(sidecar_command + ["--pid", str(process.pid)],
+                                           start_new_session=True)
             assert process.stdout is not None
-            for line in process.stdout:
+            # A blocking readline in a shard thread cannot observe cancellation.
+            # The consumer polls while this daemon only reads its owned pipe.
+            reader = threading.Thread(target=read_output, daemon=True)
+            reader.start()
+            while True:
+                if cancel_event is not None and cancel_event.is_set():
+                    raise RunInterrupted()
+                try:
+                    line = lines.get(timeout=0.1)
+                except queue.Empty:
+                    continue
+                if line is None:
+                    break
+                if isinstance(line, Exception):
+                    raise line
                 handle.write(line)
                 handle.flush()
                 print(line, end="", flush=True)
-            return_code = process.wait()
-        except KeyboardInterrupt:
-            os.killpg(process.pid, signal.SIGINT)
-            return_code = process.wait()
+            while process.poll() is None:
+                if cancel_event is not None and cancel_event.is_set():
+                    raise RunInterrupted()
+                time.sleep(0.1)
+            return process.wait()
         finally:
-            if sidecar is not None:
+            reader_stop.set()
+            cleanup_errors = []
+            for owned in (sidecar, process):
+                if owned is None:
+                    continue
                 try:
-                    sidecar.wait(timeout=15)
-                except subprocess.TimeoutExpired:
-                    sidecar.terminate()
-                    sidecar.wait(timeout=5)
-        return return_code
+                    stop_owned_process(owned)
+                except Exception as exc:
+                    cleanup_errors.append(f"PID {owned.pid}: {exc}")
+            if reader is not None:
+                reader.join(timeout=5)
+                if reader.is_alive():
+                    cleanup_errors.append("owned stdout reader did not stop (detached descendants are unsupported)")
+            if (process is not None and process.stdout is not None
+                    and (reader is None or not reader.is_alive())):
+                try:
+                    process.stdout.close()
+                except OSError as exc:
+                    cleanup_errors.append(f"Cannot close owned stdout: {exc}")
+            if cleanup_errors:
+                raise ProcessCleanupError("Owned process cleanup failed: " + "; ".join(cleanup_errors))
 
 
 def newest_result(task_dir: Path) -> Optional[Path]:
@@ -333,12 +477,22 @@ def validate_samples(cfg: Dict, task: str, task_dir: Path) -> bool:
         return False
     row_count = 0
     doc_timeouts: Dict[str, bool] = {}
+    doc_filters = {}
+    doc_identities = {}
+    schema = None
     with samples_file.open("r", encoding="utf-8") as handle:
         for line in handle:
             if not line.strip():
                 continue
             row_count += 1
-            record = json.loads(line)
+            try:
+                record = json.loads(line)
+            except ValueError:
+                log("ERROR", f"Malformed samples JSON at row {row_count}")
+                return False
+            if not isinstance(record, dict):
+                log("ERROR", f"Sample row {row_count} must be an object")
+                return False
             responses = json.dumps(
                 {
                     "resps": record.get("resps"),
@@ -347,10 +501,70 @@ def validate_samples(cfg: Dict, task: str, task_dir: Path) -> bool:
                 ensure_ascii=False,
             )
             doc_id = str(record.get("doc_id", f"line-{row_count}"))
+            if cfg.get("formal_acceptance"):
+                if type(record.get("doc_id")) not in (int, str) or not doc_id.strip():
+                    log("ERROR", f"Missing or invalid doc_id at row {row_count}")
+                    return False
+                def valid_response(value):
+                    if isinstance(value, str):
+                        return bool(value.strip())
+                    return isinstance(value, list) and bool(value) and all(valid_response(v) for v in value)
+                if record.get("error") or record.get("errors") or not valid_response(record.get("resps")):
+                    log("ERROR", f"Empty or failed response at row {row_count}")
+                    return False
+                # The prescribed FlagEval version writes one row per filter;
+                # other harness versions write one row per document. Never mix
+                # the two schemas or silently deduplicate a repeated result.
+                row_schema = "filter" if "filter" in record else "document"
+                if schema is not None and schema != row_schema:
+                    log("ERROR", "Mixed document and per-filter sample schemas")
+                    return False
+                schema = row_schema
+                sample_filter = record.get("filter")
+                if row_schema == "filter" and (not isinstance(sample_filter, str) or not sample_filter.strip()):
+                    log("ERROR", f"Invalid filter at row {row_count}")
+                    return False
+                filters = doc_filters.setdefault(doc_id, set())
+                if sample_filter in filters:
+                    log("ERROR", f"Duplicate (doc_id, filter) at row {row_count}")
+                    return False
+                filters.add(sample_filter)
+                identity_fields = ("doc", "arguments", "target", "resps", "doc_hash", "prompt_hash", "target_hash")
+                try:
+                    identity = hashlib.sha256(json.dumps(
+                        {key: record[key] for key in identity_fields if key in record},
+                        sort_keys=True, ensure_ascii=False, allow_nan=False).encode()).hexdigest()
+                except (ValueError, TypeError):
+                    log("ERROR", f"Invalid sample identity at row {row_count}")
+                    return False
+                # Per-filter rows must carry real input identity, not just the
+                # same document number. Keep legacy single-row samples usable.
+                has_input = bool(record.get("arguments")) or bool(record.get("prompt_hash"))
+                if doc_id in doc_identities:
+                    previous_identity, previous_has_input = doc_identities[doc_id]
+                    if not has_input or not previous_has_input or previous_identity != identity:
+                        log("ERROR", f"Conflicting or unidentified input/response across filters for doc_id={doc_id}")
+                        return False
+                doc_identities[doc_id] = (identity, has_input)
             is_timeout = bool(record.get("timeout")) or "<TIMEOUT>" in responses
             doc_timeouts[doc_id] = doc_timeouts.get(doc_id, False) or is_timeout
     sample_count = len(doc_timeouts)
     timeout_count = sum(doc_timeouts.values())
+    if cfg.get("formal_acceptance"):
+        if not doc_filters:
+            log("ERROR", "Samples file is empty")
+            return False
+        coverage = next(iter(doc_filters.values()))
+        if any(filters != coverage for filters in doc_filters.values()):
+            log("ERROR", "Incomplete per-filter document coverage")
+            return False
+        if len(coverage) > 1 and coverage != {"strict-match", "flexible-extract"}:
+            log("ERROR", "Unsupported multi-filter schema; add a versioned schema fixture before using it")
+            return False
+        metric = cfg.get("acceptance_criteria", {}).get(task, {}).get("metric", "")
+        if schema == "filter" and "," in metric and metric.rsplit(",", 1)[1] not in coverage:
+            log("ERROR", "Samples do not cover the acceptance criterion's filter")
+            return False
     expected = cfg["limit"] if cfg["limit"] > 0 else cfg.get("expected_samples", 0)
     log(
         "INFO",
@@ -376,20 +590,35 @@ def report_result(cfg: Dict, task: str, task_dir: Path) -> bool:
     if result_file is None:
         log("ERROR", f"lm-eval exited successfully but no results JSON was found under {task_dir}")
         return False
-    with result_file.open("r", encoding="utf-8") as handle:
-        result = json.load(handle)
-    metrics = result.get("results", {}).get(task)
-    if not metrics:
+    try:
+        with result_file.open("r", encoding="utf-8") as handle:
+            result = json.load(handle)
+        metrics = result.get("results", {}).get(task)
+    except (OSError, ValueError, AttributeError, TypeError) as exc:
+        log("ERROR", f"Unreadable or malformed results JSON {result_file}: {exc}")
+        return False
+    if not isinstance(metrics, dict) or not metrics:
         log("ERROR", f"No metrics for task {task} in {result_file}")
         return False
     log("INFO", f"Result file: {result_file}")
     for key, value in metrics.items():
         if isinstance(value, (int, float, str, bool)) or value is None:
             log("RESULT", f"{task}: {key}={value}")
-    return validate_samples(cfg, task, task_dir)
+    errors = metric_errors(cfg, task, metrics)
+    if errors:
+        for error in errors:
+            log("ERROR", error)
+        return False
+    try:
+        return validate_samples(cfg, task, task_dir)
+    except (OSError, ValueError, TypeError) as exc:
+        log("ERROR", f"Cannot validate samples for {task}: {exc}")
+        return False
 
 
-def run_task(cfg: Dict, task: str, run_dir: Path) -> bool:
+def run_task(cfg: Dict, task: str, run_dir: Path, attempt_records=None) -> bool:
+    if attempt_records is None:
+        attempt_records = []
     task_dir = run_dir / safe_name(task)
     task_dir.mkdir(parents=True, exist_ok=False)
     command = build_command(cfg, task, task_dir)
@@ -420,14 +649,35 @@ def run_task(cfg: Dict, task: str, run_dir: Path) -> bool:
     attempts = cfg["eval_max_retries"] + 1
     for attempt in range(1, attempts + 1):
         log("STEP", f"Starting {task}, attempt {attempt}/{attempts}")
-        return_code = run_streaming(command, log_file, score_command)
+        # Isolate result files by attempt; only the response cache is shared.
+        attempt_dir = task_dir / f"attempt-{attempt}"
+        attempt_dir.mkdir(exist_ok=False)
+        attempt_command = command.copy()
+        attempt_command[attempt_command.index("--output_path") + 1] = str(attempt_dir)
+        record = {"attempt": attempt, "output_dir": str(attempt_dir),
+                  "returncode": None, "status": "failed", "errors": []}
+        attempt_records.append(record)
+        try:
+            return_code = run_streaming(attempt_command, log_file, score_command)
+        except (KeyboardInterrupt, ProcessCleanupError):
+            record["errors"].append("evaluation interrupted or owned process cleanup failed")
+            raise
+        except Exception as exc:
+            record["errors"].append(f"{type(exc).__name__}: {exc}")
+            log("ERROR", f"Evaluation process failed: {exc}")
+            return_code = None
+        record["returncode"] = return_code
         if return_code == 0:
-            if report_result(cfg, task, task_dir):
+            if report_result(cfg, task, attempt_dir):
+                record["status"] = "passed"
                 return True
+            record["errors"].append("result validation failed")
             log("ERROR", "lm_eval returned 0, but result validation failed")
-        elif return_code < 0:
+        elif return_code is not None and return_code < 0:
+            record["errors"].append(f"evaluation terminated by signal {-return_code}")
             log("ERROR", f"lm_eval was terminated by signal {-return_code}")
-        else:
+        elif return_code is not None:
+            record["errors"].append(f"evaluation exited with code {return_code}")
             log("ERROR", f"lm_eval exited with code {return_code}")
         if attempt >= attempts:
             return False
@@ -442,9 +692,67 @@ def run_task(cfg: Dict, task: str, run_dir: Path) -> bool:
     return False
 
 
+def write_acceptance_report(cfg, run_dir, failed, task_attempts, errors):
+    """Publish one terminal report, without replacing any earlier evidence."""
+    report = {
+        "schema_version": 1, "kind": "formal_accuracy", "status": "failed" if failed or errors else "passed",
+        "run_id": run_dir.name, "service_mode": cfg["service_mode"],
+        "configured_concurrency": cfg["num_concurrent"], "observed_concurrency": None,
+        "observation_note": "Actual concurrency must be recorded from service or client telemetry separately.",
+        "expected_samples": cfg["expected_samples"], "allow_timeouts": False,
+        "source_config_sha256": cfg["source_config_sha256"],
+        "criteria": cfg["acceptance_criteria"], "failed_tasks": list(failed),
+        "artifacts": {}, "task_attempts": task_attempts, "errors": list(errors),
+        "config_artifacts": {},
+    }
+    for task in cfg["tasks"]:
+        records = task_attempts.get(task, [])
+        directory = Path(records[-1]["output_dir"]) if records else run_dir / safe_name(task)
+        artifacts = {}
+        try:
+            for name, path in (("results", newest_result(directory)),
+                               ("samples", newest_samples(task, directory))):
+                if path:
+                    artifacts[name] = {"path": str(path), "sha256": hashlib.sha256(path.read_bytes()).hexdigest()}
+        except OSError as exc:
+            report["errors"].append(f"{task}: cannot bind result artifacts: {exc}")
+        report["artifacts"][task] = artifacts
+    for name in ("source_config", "effective_config"):
+        path = run_dir / f"{name}.json"
+        try:
+            if path.is_file():
+                digest = hashlib.sha256(path.read_bytes()).hexdigest()
+                report["config_artifacts"][name] = {"path": str(path), "sha256": digest}
+                expected = getattr(cfg, "snapshot_hashes", {}).get(name)
+                if expected is not None and digest != expected:
+                    report["errors"].append(f"{name} snapshot changed after run creation")
+            elif name in getattr(cfg, "snapshot_hashes", {}):
+                report["errors"].append(f"{name} snapshot is missing")
+        except OSError as exc:
+            report["errors"].append(f"Cannot bind {name}: {exc}")
+    if report["errors"]:
+        report["status"] = "failed"
+        if not report["failed_tasks"]:
+            report["failed_tasks"] = list(cfg["tasks"])
+    fd, temporary = tempfile.mkstemp(prefix=".acceptance-result-", suffix=".tmp", dir=run_dir)
+    temporary = Path(temporary)
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8") as handle:
+            json.dump(report, handle, ensure_ascii=False, indent=2, allow_nan=False)
+            handle.write("\n")
+            handle.flush()
+            os.fsync(handle.fileno())
+        # link publishes a complete file atomically and refuses an existing
+        # destination; unlike replace it cannot overwrite historical evidence.
+        os.link(temporary, run_dir / "acceptance-result.json")
+    finally:
+        temporary.unlink(missing_ok=True)
+    return report["status"] == "passed"
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("config", nargs="?", default="llm_config.json")
+    parser.add_argument("config", help="explicit model-specific configuration path")
     parser.add_argument(
         "--preflight-only",
         action="store_true",
@@ -469,9 +777,28 @@ def main() -> None:
         return
     wait_for_service(cfg)
     run_dir = create_run_dir(cfg)
-    log("INFO", f"Run directory: {run_dir}")
 
-    failed = [task for task in cfg["tasks"] if not run_task(cfg, task, run_dir)]
+    failed, completed, errors, task_attempts = [], set(), [], {}
+    try:
+        with termination_signals():
+            log("INFO", f"Run directory: {run_dir}")
+            for task in cfg["tasks"]:
+                task_attempts[task] = []
+                if not run_task(cfg, task, run_dir, task_attempts[task]):
+                    failed.append(task)
+                completed.add(task)
+    except BaseException as exc:
+        failed.extend(task for task in cfg["tasks"] if task not in completed)
+        errors.append(f"{type(exc).__name__}: {exc}")
+        if isinstance(exc, KeyboardInterrupt):
+            raise SystemExit(128 + getattr(exc, "signum", signal.SIGINT)) from None
+        if isinstance(exc, SystemExit) and not exc.code:
+            raise SystemExit(1) from exc
+        raise
+    finally:
+        if cfg.get("formal_acceptance"):
+            if not write_acceptance_report(cfg, run_dir, failed, task_attempts, errors) and not failed:
+                failed.extend(cfg["tasks"])
     if failed:
         fail("Failed tasks: " + ", ".join(failed))
     log("INFO", "All tasks completed successfully")

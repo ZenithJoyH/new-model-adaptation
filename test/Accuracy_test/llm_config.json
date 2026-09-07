@@ -1,6 +1,11 @@
 {
-  "eval_model": "Qwen3.8-flash-gpqa-full-graph-c32",
-  "model_name": "Qwen3.8-flash",
+  "eval_model": "example-gpqa-full-graph-c32",
+  "model_name": "",
+  "formal_acceptance": true,
+  "service_mode": "graph",
+  "acceptance_criteria": {
+    "gpqa_diamond_generative_cot": {"metric": "exact_match,strict-match", "minimum": null}
+  },
   "model_type": "openai-chat-completions",
   "base_url": "http://127.0.0.1:8010/v1/chat/completions",
   "tasks": [
@@ -15,7 +20,7 @@
   "retry_delay": 60,
   "apply_chat_template": true,
   "include_path": "",
-  "output_root": "/mnt/nfs/users/jinghao/qwen3.8-flash/test/Accuracy_test/outputs",
+  "output_root": "./outputs",
   "cache_root": "/tmp/lm_eval_cache",
   "run_id": "auto",
   "offline": true,
@@ -24,7 +29,7 @@
   "dataset_name": "gpqa_diamond",
   "dataset_split": "train",
   "expected_samples": 198,
-  "allow_timeouts": true,
+  "allow_timeouts": false,
   "wait_for_service": true,
   "service_poll_interval": 1800,
   "service_wait_timeout": 0,

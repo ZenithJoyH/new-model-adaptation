@@ -36,6 +36,7 @@ class AdaptModelTests(unittest.TestCase):
             shutil.copytree(REPO_ROOT / "templates", root / "templates")
             platform_dir = root / "models" / "Example" / "ppu"
             platform_dir.mkdir(parents=True)
+            (platform_dir.parent / 'model.yml').write_text('name: Example\n', encoding='utf-8')
             template_platform = REPO_ROOT / "models" / "_template" / "ppu" / "platform.yml"
             destination_template = root / "models" / "_template" / "ppu"
             destination_template.mkdir(parents=True)
@@ -74,9 +75,13 @@ all:
             self.assertTrue(
                 (platform_dir / "environment" / "environment-analysis.md").is_file()
             )
+            target_file = platform_dir / 'environment/environment-target.yml'
+            target_bytes = target_file.read_bytes()
+            self.assertEqual(yaml.safe_load(target_bytes)['target']['hosts'], ['PPU-01'])
             self.assertFalse(
                 (platform_dir / "environment" / "platform-adaptation-plan.md").exists()
             )
+            self.assertFalse((platform_dir / "environment" / "plugin-change-review.md").exists())
             self.assertFalse(
                 (platform_dir / "environment" / "runtime-config.yml").exists()
             )
@@ -93,6 +98,7 @@ all:
                 text=True,
             )
             self.assertEqual(checked.returncode, 0, checked.stderr)
+            self.assertEqual(target_bytes, target_file.read_bytes())
 
             combined = subprocess.run(
                 [
@@ -119,6 +125,27 @@ all:
                 ["README.md"],
             )
             self.assertIn("适配配置仍需完善", combined.stdout)
+            review = platform_dir / "environment" / "plugin-change-review.md"
+            self.assertTrue(review.is_file())
+            review.write_text("Existing design review; preserve its conclusions.\n", encoding="utf-8")
+            repeated = subprocess.run(
+                [*command[:-1], "architecture,environment,adaptation"],
+                check=False, capture_output=True, text=True,
+            )
+            self.assertEqual(repeated.returncode, 0, repeated.stderr)
+            self.assertEqual(review.read_text(encoding="utf-8"),
+                             "Existing design review; preserve its conclusions.\n")
+            saved = review.with_suffix(".saved")
+            review.rename(saved)
+            checked = subprocess.run(
+                [*command[:-1], "architecture,environment,adaptation", "--check-only"],
+                check=False, capture_output=True, text=True,
+            )
+            self.assertNotEqual(checked.returncode, 0)
+            self.assertIn("plugin-change-review.md", checked.stderr)
+            self.assertFalse(review.exists())
+            self.assertEqual(saved.read_text(encoding="utf-8"),
+                             "Existing design review; preserve its conclusions.\n")
 
     def test_steps_are_deduplicated_and_ordered(self) -> None:
         self.assertEqual(
@@ -144,19 +171,18 @@ all:
             platform_dir = Path(directory)
             (platform_dir / "architecture.md").write_text("ok", encoding="utf-8")
             (platform_dir / "environment.md").write_text("ok", encoding="utf-8")
-            self.assertEqual(
-                adapt_model.check_dependencies(
-                    {"workflow": workflow}, ["adaptation"], platform_dir
-                ),
-                [],
-            )
+            errors = adapt_model.check_dependencies({"workflow": workflow}, ["adaptation"], platform_dir)
+            self.assertEqual(sum("verification" in error for error in errors), 2)
+            self.assertTrue(any("environment-target.yml" in error for error in errors))
 
     def test_selected_acceptance_substeps_obey_order(self) -> None:
         statuses = {name: "not_started" for name in adapt_model.ACCEPTANCE_SUBSTEP_ORDER}
         config = {"workflow": {"acceptance": {"substeps": statuses}}}
         errors = adapt_model.check_acceptance_dependencies(config, ["accuracy"])
-        self.assertEqual(len(errors), 1)
+        self.assertEqual(len(errors), 2)
         statuses["sanity"] = "passed"
+        self.assertTrue(adapt_model.check_acceptance_dependencies(config, ["accuracy"]))
+        statuses["execution-mode"] = "passed"
         self.assertEqual(adapt_model.check_acceptance_dependencies(config, ["accuracy"]), [])
 
     def test_config_enforces_max_model_len_rule(self) -> None:
@@ -170,6 +196,8 @@ all:
         config["target"].update(
             hosts=["PPU-01"], container_name="adaptation", container_image="image:tag"
         )
+        config["workspace"] = {"roots": [{"host_alias": "PPU-01", "host_root": "/operator/Example",
+                                           "container_root": "/work/Example"}]}
         for component in config["stack"].values():
             component.update(path="/workspace/repo", revision="abc123")
         config["service"].update(

@@ -1,340 +1,207 @@
-# Accuracy_test 评测脚本说明
+# 精度评测工具
 
-本目录保存 GPQA Diamond 精度评测工具。新模型适配的正式精度验收固定使用：
+本目录保存可复用工具和通用配置示例。模型名称、输出路径、生成参数和验收阈值放在
+`models/<model>/<platform>/acceptance/` 的专用配置中，不修改公共配置承载一次评测。
 
-- `llmrun.py`：基于 `lm-evaluation-harness`（命令为 `lm_eval`）的正式单服务评测入口。
-- `llmrun_parallel.py`：保留用于明确指定的多服务、多 shard 场景，不能替代新模型适配的默认正式验收入口。
+## 正式入口
 
-正式评测必须在目标机器上进入基于
-`harbor.baai.ac.cn/flageval/flageval-llmeval:v1` 镜像的容器执行。默认评测完整的
-198 道 `gpqa_diamond_generative_cot`。
+正式验收仍使用 `llmrun.py`，在目标主机的 FlagEval v1 或 arm64 镜像容器内执行。
+部署时将 `llmrun.py`、`acceptance_contract.py`、`score_progress.py` 一起复制到同一目录。
+需要 `lm_eval`、`datasets`、已缓存的数据集和可访问的模型服务。
 
-## 文件说明
+先复制公共 `llm_config.json`，再填写：
 
-| 文件 | 作用 |
-| --- | --- |
-| `llmrun.py` | 单服务、单评测进程入口；支持服务等待、重试、本地响应缓存、结果校验和阶段计分。 |
-| `llm_config.json` | `llmrun.py` 的配置。 |
-| `llmrun_parallel.py` | 多服务、多 shard 并行评测入口；各 shard 完成后合并正式结果。 |
-| `llm_parallel_config.json` | `llmrun_parallel.py` 的配置。 |
-| `score_progress.py` | GPQA 阶段计分辅助进程；由两个 runner 自动启动，不建议单独修改。 |
+- `eval_model`：本轮输出标签；`model_name`：服务 /v1/models 返回的精确模型 ID。
+- `base_url`：完整的 Chat Completions 地址；`service_mode` 固定为 graph。
+- `gen_kwargs`：根据模型约定明确设置；公共示例值不代表所有模型的推荐值。
+- `expected_samples`：目标任务完整样本数；GPQA Diamond 为 198。
+- `acceptance_criteria`：每个 task 的精确指标键和事先确定的准确率下限（0 到 1）。
 
-`score_progress.py` 必须和 `llmrun.py`、`llmrun_parallel.py` 放在同一目录，否则正式评测仍可运行，但不会输出中间得分。
-
-## 运行环境
-
-在目标机器上先找到并核对用于评测的容器：
+公共示例故意留空模型名和阈值，直接运行会失败，避免无意启动错误任务。
+`llmrun.py` 必须显式接收配置路径：
 
 ```bash
-docker ps --filter ancestor=harbor.baai.ac.cn/flageval/flageval-llmeval:v1 \
-  --format '{{.ID}} {{.Names}} {{.Image}}'
-docker inspect --format '{{.Config.Image}}' <container-name>
-docker exec -it <container-name> bash
+python3 llmrun.py <模型专用配置路径> --preflight-only
+python3 llmrun.py <模型专用配置路径>
 ```
 
-`docker inspect` 的镜像必须是
-`harbor.baai.ac.cn/flageval/flageval-llmeval:v1`。进入容器后，正式 `lm_eval`
-流程至少需要：
+预检校验配置、任务数据集和服务模型 ID，不发起正式评测。正式配置要求：
 
-- `python3`
-- `lm_eval`
-- `datasets`
-- 已缓存的 GPQA Diamond 数据集（当前配置为离线模式）
-- 可访问的 OpenAI 兼容接口及 `/v1/models` 接口
+| 字段 | 要求 |
+|---|---|
+| formal_acceptance | true |
+| service_mode | graph |
+| limit | 0，全量 |
+| num_concurrent | 至少 32 |
+| expected_samples | 正整数 |
+| allow_timeouts | false |
+| acceptance_criteria | 每个 task 都有 metric、minimum |
 
-进入脚本目录：
+八并发只用于前置 sanity，不用于正式全量精度验收。
+完整流程及证据绑定见 [工作流指南](../../docs/workflow-guide.md)。
 
-```bash
-cd <容器内测试目录>/test/Accuracy_test
-```
+## 结果和退出码
 
-先做只读预检：
-
-```bash
-python3 llmrun.py llm_config.json --preflight-only
-```
-
-预检会验证配置、离线数据集、模型服务和服务返回的模型 ID，但不会发起正式评测请求。
-
-## 单服务评测
-
-### 后台启动
-
-```bash
-nohup python3 llmrun.py llm_config.json \
-  > gpqa_full_c32_launcher.log 2>&1 &
-
-echo $!
-```
-
-启动前应检查 `llm_config.json` 中以下关键字段：
-
-| 字段 | 含义 |
-| --- | --- |
-| `eval_model` | 本次评测的目录标签，不是发送给服务的模型名。建议把权重版本、graph/eager 和并发写进名称。 |
-| `model_name` | 请求中的模型名，必须出现在 `/v1/models` 返回结果中。 |
-| `base_url` | Chat Completions 完整地址，例如 `http://127.0.0.1:8010/v1/chat/completions`。 |
-| `tasks` | 任务列表；阶段计分目前只支持 `gpqa_diamond_generative_cot`。 |
-| `limit` | `0` 表示全量；正整数表示只跑前 N 道。 |
-| `num_concurrent` | 单个 `lm_eval` 进程的请求并发数。 |
-| `gen_kwargs` | 采样和最大生成长度，例如温度、`top_p`、`top_k`、`max_gen_toks`。 |
-| `timeout` | 单次 API 请求超时，单位为秒。 |
-| `api_max_retries` | API 客户端内部重试次数。 |
-| `eval_max_retries` | 整个任务失败后的 runner 重试次数。重试时复用同一轮响应缓存。 |
-| `allow_timeouts` | 是否允许最终样本中存在超时记录。 |
-| `run_id` | `auto` 时每次生成新的时间戳；固定旧值时可尝试复用同一响应缓存。 |
-| `progress_score_interval` | 每新增多少条缓存回复打印一次阶段得分；`0` 表示关闭。 |
-| `progress_score_poll_seconds` | 阶段计分器扫描 SQLite 的周期，单位为秒。 |
-| `service_poll_interval` | 服务未就绪时的再次探测间隔，单位为秒；当前 1800 即半小时。 |
-| `service_wait_timeout` | 等待服务的总超时秒数；`0` 表示持续等待。 |
-
-如果要启动 64 并发，至少同时修改：
-
-```json
-{
-  "eval_model": "Qwen3.8-flash-gpqa-full-graph-c64",
-  "num_concurrent": 64
-}
-```
-
-其中真正控制并发的是 `num_concurrent`；`eval_model` 只是便于区分结果的标签。
-
-### 查看运行日志和阶段得分
-
-查看完整 launcher 日志：
-
-```bash
-tail -F gpqa_full_c32_launcher.log
-```
-
-只看阶段得分：
-
-```bash
-tail -F gpqa_full_c32_launcher.log \
-  | grep --line-buffered '\[SCORE\]'
-```
-
-阶段得分也会单独写入：
+输出保存在 `<output_root>/<eval_model>/<run_id>/`：
 
 ```text
-<output_root>/<eval_model>/<run_id>/<task>/progress_score.log
+source_config.json
+effective_config.json
+acceptance-result.json
+<task>/
+  lm_eval.log
+  progress_score.log
+  attempt-1/results_*.json
+  attempt-1/samples_*.jsonl
 ```
 
-自动查找并查看最新计分日志：
+正式模式会检查精确指标阈值、完整样本数、有效 doc_id、有效回复及错误/超时。
+支持单文档单行，以及规定 FlagEval GPQA 的 strict-match/flexible-extract 双 filter 行格式。
+后者要求 `(doc_id, filter)` 唯一、每题 filter 覆盖一致，且跨 filter 的原始输入、响应和
+已有哈希一致；不接受把真正重复、冲突记录或混合 schema 静默去重。
+配置只读取一次：解析与 `source_config_sha256` 使用同一份原始 bytes，
+`source_config.json` 保留该原文，`effective_config.json` 保存补齐默认值、解析路径后的有效配置。
+生成终态报告时复核两个 snapshot；内容变化或丢失都不能生成 passed。
+源配置路径之后的修改不会改变已启动任务的 snapshot，也不会被错误绑定为本轮配置。
+
+失败返回非零；已有 run 目录且存储可用时，正常失败、可处理异常和中断会生成 failed 报告。
+成功报告包含 passed、运行 ID、配置哈希、阈值、结果/样本路径及 SHA256，新增
+`config_artifacts`、`task_attempts` 和 `errors` 用于追踪配置、各次尝试及终止原因。
+报告保持原有 schema_version=1 和 passed/failed 字段，以临时文件完整写入后独占发布，
+不会覆盖已有 `acceptance-result.json`；成功重试只绑定最终通过 attempt 的产物。
+可将本轮报告复制到模型平台 acceptance/ 作为 accuracy 证据。
+
+这不是“任何异常必有报告”的保证：创建 run 目录之前的预检失败、SIGKILL、断电、
+存储不可写/不支持所需原子发布操作等可能没有终态文件。文件缺失、残缺或退出非零必须
+按未完成/失败处理，不能自动回退到其他目录的历史 passed 报告。
+
+报告只知道配置并发；实际有效并发、吞吐、耗时、利用率和显存必须另行观测。
+不得用早期完成样本的阶段得分代替全量结果：短题往往先完成，阶段得分不是随机抽样。
 
 ```bash
-SCORE_LOG=$(find outputs -name progress_score.log -type f -print0 \
-  | xargs -0 ls -t | head -1)
-echo "$SCORE_LOG"
-tail -F "$SCORE_LOG"
+tail -F <本轮输出目录>/<task>/progress_score.log
 ```
 
-典型输出：
+通用诊断可以不启用 formal_acceptance，并使用小样本、低并发或明确允许超时；
+这种模式的成功退出只表示评测完成，不代表正式验收通过。
 
-```text
-[SCORE] completed=30/198, matched=30, timeouts=0, strict=30/30 (100.00%), flexible=13/30 (43.33%)
-```
+## 缓存、重试和等待
 
-- `completed`：SQLite 中已有的回复数。
-- `matched`：成功映射到 GPQA 题目的回复数。正常情况下应等于 `completed`。
-- `timeouts`：已缓存的超时回复数。
-- `strict`：正式 GPQA 汇总采用的严格答案提取得分，重点观察这一项。
-- `flexible`：任务附带的另一种提取结果，不是当前 group 的正式汇总指标。
+响应缓存位于容器本地 `<cache_root>/<eval_model>/<run_id>/<task>/<identity>/responses.sqlite_rank0.db`，
+通用 runner 的旧默认在 /tmp，不是新远端任务可以直接沿用的目录授权；下述新后台入口
+要求显式配置本轮目录内缓存。应核实存储的 SQLite/锁语义，不把响应缓存放到未经验证的
+NFS。大结果和数据集不提交到本仓库。
+identity 绑定完整有效配置、runner 源码和本次调用的随机 nonce；即使换输出根后复用运行标签，
+也不会命中上一次服务的缓存。同一进程内重试仍复用同一身份，不自动跨进程恢复。
 
-并发运行时先完成的往往是生成较短的题，因此前 10、20、30 道的阶段得分不是严格随机抽样，只适合早期排障，不能代替全量结果。
+直接使用通用 runner 时 `run_id=auto` 每轮生成新目录；下述新后台入口拒绝 `auto`，要求
+配置与运行计划有相同的显式 ID。已经存在的输出目录会被拒绝，当前 runner 没有跨进程
+恢复旧输出目录的接口。进程内 eval_max_retries 重试可以复用同轮响应缓存，结果文件按
+attempt-N 隔离，当前尝试缺失结果时不会用旧文件充数。
+损坏 JSON、结果结构错误或 samples 验证失败会消耗本次尝试，并按配置重试；耗尽后失败。
+子进程回收失败则立即中止，不在上一轮 worker 可能仍存活时启动重试。
+模型权重、服务参数、生成参数或任务模板变化后必须开启新轮次。
 
-## 输出、模型回复和缓存
+`wait_for_service=true` 时可等待服务，service_poll_interval 控制轮询间隔，
+service_wait_timeout=0 表示无总等待上限。API timeout 与服务等待超时不同。
+formal 模式始终禁止最终超时样本通过。
 
-单服务评测的持久化输出结构：
+## 子进程生命周期
 
-```text
-<output_root>/<eval_model>/<run_id>/
-├── effective_config.json
-└── <task>/
-    ├── lm_eval.log
-    ├── progress_score.log
-    ├── results_*.json
-    └── samples_*.jsonl
-```
+两个 runner 共用 `llmrun.py` 的本地进程监督代码，不增加独立部署依赖。
+每个 lm_eval 和阶段计分 sidecar 都由本次调用新建专属 POSIX session；正常完成、
+sidecar 启动失败、输出异常及可处理的 SIGINT/SIGTERM 路径会回收这些进程组。
+SIGINT/SIGTERM 分别非零退出 130/143；parallel 的 silent worker 和重试等待能响应取消，
+progress monitor 在异常时也会停止。工具不按名称扫描进程，不触碰旧服务或其他任务。
 
-- `effective_config.json`：补齐默认值并解析路径后的实际配置。
-- `lm_eval.log`：该任务的完整 `lm_eval` 输出。
-- `progress_score.log`：运行中的阶段得分。
-- `results_*.json`：最终汇总指标，通常在任务完成时生成。
-- `samples_*.jsonl`：每道题的输入、回复、过滤后的答案和得分，通常在任务完成时生成。
+当前 lm_eval 子进程使用 `close_fds=True`。仅 runner 被 SIGKILL，或子进程主动
+setsid/daemonize 逃离本次进程组时，supervisor 可能无法清理残留后代。后台运行必须由
+实际 worker 管理完整生命周期，不能把短暂 launcher 的退出视为任务结束。
 
-运行中的模型回复先保存在容器本地 SQLite：
+本轮真实本地用例验证正常父子进程组、sidecar、静默客户端取消和 SIGTERM 失败报告。
+macOS 在 leader 已退出的 orphan group 上可能在 TERM 后对 KILL 返回 EPERM，生产代码仍
+按回收失败中止，不忽略权限错误；该特殊用例仅在 Linux 运行，当前没有 Linux 实测证据。
 
-```text
-<cache_root>/<eval_model>/<run_id>/<task>/responses.sqlite_rank0.db
-```
+## 多服务和多 shard
 
-默认 `cache_root=/tmp/lm_eval_cache`。SQLite 内的值是序列化数据，不适合直接 `cat`；评测结束后优先查看 NFS 输出目录中的 `samples_*.jsonl`。
-
-`/tmp` 缓存可能在容器删除或重建后丢失，而 NFS 下的结果会保留。
-
-### run_id 和断点续跑
-
-正常的新一轮评测使用：
-
-```json
-"run_id": "auto"
-```
-
-每次会生成形如 `20260825-153357` 的新目录，不会复用上一轮模型回复。Hugging Face 数据集缓存仍会复用，但它只包含题目，不包含模型答案。
-
-查找最近一次单服务运行 ID：
+`llmrun_parallel.py` 仅用于用户明确指定的多服务、多 shard 场景，不能替代默认正式入口。
+它保留通用评测语义，不输出上述正式验收契约报告。公共 llm_parallel_config.json 中
+api_list 故意留空，复制到模型 acceptance/ 并填写真实服务后使用：
 
 ```bash
-ls -dt outputs/<eval_model>/*/ | head -1
+python3 llmrun_parallel.py <模型专用并行配置> --preflight-only
+python3 llmrun_parallel.py <模型专用并行配置>
 ```
 
-如果任务意外中断，并且模型权重、推理参数和 prompt 均未变化，可以把 `run_id` 固定为旧值以尝试断点续跑：
+num_concurrent 是每 shard 并发，data_parallel_size / shards 定义完整分片范围。
+仅全部分片完成且合并结果通过检查后才能报告完整结果；部分分片不能代表全量。
 
-```json
-"run_id": "20260825-153357"
-```
+并行部署需要 `llmrun_parallel.py` 及上述三个公共文件。输出位于
+`<output_root>/<eval_model>/<task>/<run_id>/`，包含不可变 `run-manifest.json`；
+首次创建时保存该调用的 `source_config.json` 与 `effective_config.json`，后续分片调用不覆写；
+跨调用的一致性以排除 shards/merge_only 操作选择项后的 manifest 为准。
+`shard-N/attempt-M/` 按尝试隔离，成功分片的 `shard-result.json` 绑定结果与样本哈希。
+merge 只接受同一 manifest 下完整分片的有效 receipt，并检查文档不重叠、总量正确，
+不递归吸收未列入 receipt 的历史文件。已存在的分片目录不会被覆写或自动重跑。
+分片样本必须保留全局 `doc_id`；若某个 evaluator 使用分片内局部编号，应先提供经过验证的
+schema 适配，不自动猜测编号映射。此轮只验证了本地合成分片，未执行远端多服务评测。
+分批运行时保留同一 run_id、服务列表与评测设置，只改变 shards；`merge_only=true` 必须
+指定已有 run_id。旧版无 manifest 的目录仅供历史取证，不能自动迁移为新正式结果。
 
-使用前必须确认对应 SQLite 仍存在。权重、服务配置、生成参数或任务模板变化后不要复用旧响应。
+## 阶段计分与部署边界
 
-## 多服务 / 多 shard 并行评测
+阶段计分仅适配 `flageval-gpqa-v1-top-k-numeric` 请求 schema（可通过
+`progress_score_cache_schema` 显式指定），识别已验证的 `top_k=-1` / `-1.0` 两种缓存编码，
+不修改正式请求或缓存。未知键、重复文档编码或无法读取的缓存显示 `UNAVAILABLE`，
+空缓存显示 `PENDING`，都不解释为 0 分；最终成绩仍以 lm-eval 全量产物为准。
 
-先做预检：
+### Hy4 新后台准入与部署
 
-```bash
-python3 llmrun_parallel.py llm_parallel_config.json --preflight-only
-```
+Hy4 fixed c32/c64 的 prepare/start 使用同目录 `hy4_accuracy_tasks.yml`，要求控制端本轮
+`run_plan_src`，不再按日期文件名复制旧配置。完整声明、字段来源和 prepare/start
+命令模板见[新后台入口](../../docs/workflow-guide.md#hy4-新后台精度入口)。
 
-后台启动：
+计划必须为 schema 4，包含模型、平台、主机、服务端口、新 `run_id`，以及严格的
+`workspace: {host_root, container_root, evaluator_container, evaluator_root}`。runtime target
+必须恰好为该主机；前两个路径绑定 runtime workspace，另行确认评测容器到同一宿主根目录
+的映射。公共 helper 仍由模型 wrapper 显式提供 `expected_scope`。
+实际评测镜像还须匹配 manifest 的 `evaluator_image`；当前两个 wrapper 使用本机 8010
+端口，只支持两个容器均为 host network，不猜测 bridge/代理映射，也不自动改网络。
 
-```bash
-nohup python3 llmrun_parallel.py llm_parallel_config.json \
-  > gpqa_parallel_launcher.log 2>&1 &
-```
+运行目录固定为宿主 `host_root/05-runs/run_id`、评测容器
+`evaluator_root/05-runs/run_id`。
+配置只能来自当前 runtime `acceptance.accuracy_config` 的原始字节，必须已有同一显式
+`run_id`，`output_root`、`cache_root` 和 `hf_datasets_cache` 均在本轮容器运行目录内，
+后者必须是绝对路径。不会改旧配置、迁移旧结果或自动复用旧缓存。
 
-主要配置：
+新准入要求 `service-state.yml` 中实际 API 监听进程的 `service.pid`（不是 EngineCore）和严格四项
+`service.process_identity: {container_id, boot_id, start_ticks, cmdline_sha256}`；分别来自只读
+容器 inspect、Linux boot ID、该 PID 的 `/proc/<pid>/stat` 启动 ticks 和原始 cmdline 字节
+摘要。缺失即拒绝，不从历史 PID 或旧通过标签回填。
 
-```json
-{
-  "api_list": "model-a:http://host-a:8010/v1/chat/completions,model-b:http://host-b:8010/v1/chat/completions",
-  "data_parallel_size": 2,
-  "shards": [0, 1],
-  "num_concurrent": 32
-}
-```
+prepare 先在控制端执行原 canonical accuracy gate，再核实实际 bind/真实路径，独占创建
+新 run，部署三件精度公共文件、`background_worker.py`、模型 wrapper 和唯一源
+`scripts/{remote_workspace,accuracy_admission,service_observation}.py`。
+所需 canonical gate 源码、配置与绑定证据的原字节放到 `run/workflow/`，另存 manifest 和
+原运行计划，核验完整 hash/导入及 `--check-plan`。PyYAML 缺失会拒绝，不自动安装。
+快照不是一个 `passed` 标签，也不是远端实时证明；start 必须重新导出当前快照比对已有
+manifest/bundle/config，不更新它们，任何差异都须保留旧 run 并重新准备。
 
-- `api_list`：逗号分隔的 `模型名:URL`；顺序与本次启动的 shard 顺序对应。
-- `data_parallel_size`：完整评测的总 shard 数。
-- `shards`：本次实际执行的 shard ID。
-- `num_concurrent`：每个 shard 的并发数；总请求并发约为运行中的 shard 数乘以该值。
-- `merge_only`：不再发请求，只合并已经存在的 shard 结果。
+prepare `--check --diff` 只有本地 gate 和远端只读映射检查，不创建 run。实际 prepare
+也不运行 runner preflight 或发 HTTP。start `--check --diff` 检查已有部署，不派发或观察
+服务；标准 Ansible 模块的临时文件仅在已核实的 `host_run_dir/tmp/ansible` 内。正常 start
+才派发 worker 并配对运行宿主观察器，宿主/容器命令分别指定 cwd / `--workdir`。
 
-只有全部 shard 都执行完成时，脚本才会自动调用 `lm_eval --merge_results` 并校验全量样本数；部分 shard 运行结束后需等其余 shard 完成，再用 `merge_only` 合并。
+worker 重跑 canonical 快照 gate，发出随机 nonce challenge，由 start
+配对的宿主观察器读取并核对精确服务进程身份，响应绑定本次 nonce；之后才执行
+preflight、健康/忙闲检查和评测。直接 detached wrapper 没有观察器时，会限时失败，不发
+正式请求。`launch.json: dispatched` 只表示派发；`worker-started.json` 表示准入后开始，
+`exit-status.json` 是退出状态，均不能替代本轮 `acceptance-result.json`。
+观察器同时核对该 PID 的 fd 与服务端口 LISTEN socket 的归属；这只是启动前瞬时观察，
+不能保证整个评测期间服务身份不变或阻止非协作方替换服务。
+监听检查仅支持 IPv4 localhost，同端口存在 IPv6 listener 时拒绝；具体地址与全部 socket
+归属要求见[支持边界](../../docs/workflow-guide.md#hy4-新后台精度入口)。
 
-并行输出目录与单服务模式不同，不包含 `run_id` 层级：
-
-```text
-<output_root>/<eval_model>/<task>/
-├── effective_config.json
-├── lm_eval_shard-0.log
-├── lm_eval_shard-1.log
-├── shard-0/progress_score.log
-├── shard-1/progress_score.log
-├── merge.log
-└── results_*.json
-```
-
-并行响应缓存仍按 `run_id` 隔离：
-
-```text
-<cache_root>/<eval_model>/<run_id>/shard-<N>/responses.sqlite_rank0.db
-```
-
-### 查看各 shard 的中间得分
-
-```bash
-watch -n 30 '
-for f in outputs/*/gpqa_diamond_generative_cot/shard-*/progress_score.log; do
-    echo "===== $f ====="
-    tail -n 1 "$f"
-done
-'
-```
-
-当前版本输出的是每个 shard 的独立阶段得分，不会实时打印跨 shard 汇总分。全局阶段正确率应按样本数加权：
-
-```text
-全局阶段正确率 = 所有 shard 的 strict 正确数之和 / 所有 shard 的 matched 数之和
-```
-
-当 `data_parallel_size=1`、`shards=[0]` 时，单个 shard 的阶段得分就是当前全局阶段得分。
-
-并行输出目录没有 `run_id` 层级。同一个 `eval_model` 和 task 重复运行时应先确认旧结果不会与新结果混淆，或者为新一轮使用新的 `eval_model` 标签。
-
-## 服务等待、超时和重试
-
-当前配置：
-
-```json
-{
-  "wait_for_service": true,
-  "service_poll_interval": 1800,
-  "service_wait_timeout": 0,
-  "timeout": 7200,
-  "api_max_retries": 3,
-  "eval_max_retries": 1,
-  "allow_timeouts": true
-}
-```
-
-含义：
-
-- runner 启动后先访问 `/v1/models`。
-- 服务未就绪时每 1800 秒（半小时）探测一次。
-- `service_wait_timeout=0` 表示不设置总等待上限。
-- 单个 API 请求允许等待 7200 秒。
-- API 层最多重试 3 次。
-- 整个任务失败后 runner 最多重试 1 次，并复用本轮已成功的 SQLite 缓存。
-- 最终结果中允许存在超时样本，但日志会明确报告超时数量。
-
-## 常用排查命令
-
-查看评测进程：
-
-```bash
-ps -ef | grep -E '[l]lmrun|[l]m_eval|[s]core_progress'
-```
-
-查看最新阶段得分：
-
-```bash
-find outputs -name progress_score.log -type f -print0 \
-  | xargs -0 ls -t | head
-```
-
-查看最终样本文件：
-
-```bash
-find outputs -name 'samples_*.jsonl' -type f
-```
-
-查看最终结果文件：
-
-```bash
-find outputs -name 'results_*.json' -type f
-```
-
-查看容器本地响应缓存：
-
-```bash
-find /tmp/lm_eval_cache -name 'responses.sqlite_rank0.db' -type f -ls
-```
-
-## 注意事项
-
-1. 修改权重、服务启动参数、生成参数或任务模板后，应使用新的 `run_id`，不要混用旧响应。
-2. `allow_timeouts=true` 只表示接受含超时的结果，不代表超时请求会被判为正确。
-3. 阶段得分用于发现明显异常；最终报告以完整评测生成的 `results_*.json` 为准。
-4. `score_progress.py` 当前只支持 `gpqa_diamond_generative_cot`。
-5. 离线模式下，如果容器中没有 GPQA 数据集缓存，预检会直接失败。
-6. 不建议把 SQLite 响应缓存放在 NFS 上；当前脚本有意将它保存在容器本地 `/tmp`，避免网络文件系统锁和性能问题。
+支持的客户端缓存、临时文件与输出留在本轮目录，但不重配现有推理服务日志、FlagGems
+数据库或其他服务端外部写入；不是 OS sandbox。上文 SIGKILL 等
+生命周期边界仍有效。历史远端副本与结果不自动迁移，没有新增远端部署或评测验证。

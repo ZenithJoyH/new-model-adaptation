@@ -18,6 +18,7 @@ STRICT_PATTERN = re.compile(
     r"answer is[\s*]*[\(\[]?([ABCDEFGHIJ])[\)\]]?[\s*]*[.\s]"
 )
 PRIMARY_FLEXIBLE_PATTERN = re.compile(r"(\([A-Z]\))")
+CACHE_SCHEMA = "flageval-gpqa-v1-top-k-numeric"
 
 
 def log(message: str, output_file: Optional[Path] = None) -> None:
@@ -93,6 +94,8 @@ def build_answer_map(cfg: Dict) -> Dict[str, Dict]:
     task = cfg.get("task") or (cfg.get("tasks") or [""])[0]
     if task != "gpqa_diamond_generative_cot":
         raise ValueError(f"Interim scoring currently supports gpqa_diamond_generative_cot, not {task!r}")
+    if cfg.get("progress_score_cache_schema", CACHE_SCHEMA) != CACHE_SCHEMA:
+        raise ValueError("Unsupported progress-score cache schema; verify the pinned evaluator before adding an adapter")
     from datasets import load_dataset
 
     dataset = load_dataset(
@@ -118,14 +121,23 @@ def build_answer_map(cfg: Dict) -> Dict[str, Dict]:
         target = chr(65 + choices.index(correct))
         prompt = build_prompt(doc["Question"], choices)
         chat = json.dumps([{"role": "user", "content": prompt}], ensure_ascii=False)
-        cache_args = ["generate_until", [chat], gen_kwargs]
-        key = hashlib.sha256(json.dumps(cache_args).encode("utf-8")).hexdigest()
-        answer_map[key] = {
-            "doc_id": doc_id,
-            "target": target,
-            "choices": choices,
-        }
+        for key in cache_keys(chat, gen_kwargs):
+            answer_map[key] = {"doc_id": doc_id, "target": target, "choices": choices}
     return answer_map
+
+
+def cache_keys(chat: str, gen_kwargs: Dict) -> List[str]:
+    """Two verified FlagEval encodings, not a general numeric coercion.
+
+    The pinned GPQA evaluator has emitted top_k=-1 as both int and float.
+    Probe exact keys for these encodings without changing requests or the DB.
+    Unrecognized task/prompt/serialization changes remain visibly unsupported.
+    """
+    variants = [gen_kwargs]
+    if type(gen_kwargs.get("top_k")) in (int, float) and gen_kwargs["top_k"] == -1:
+        variants = [dict(gen_kwargs, top_k=-1), dict(gen_kwargs, top_k=-1.0)]
+    return list(dict.fromkeys(hashlib.sha256(json.dumps(
+        ["generate_until", [chat], value]).encode("utf-8")).hexdigest() for value in variants))
 
 
 def safe_pickle_string(blob: bytes) -> Optional[str]:
@@ -176,23 +188,35 @@ def flexible_extract(response: str, choices: List[str]) -> str:
 
 
 def read_scores(cache_db: Path, answer_map: Dict[str, Dict]) -> Dict[str, float]:
-    result = {"completed": 0, "matched": 0, "timeouts": 0, "strict": 0, "flexible": 0}
+    result = {"completed": 0, "matched": 0, "timeouts": 0, "strict": 0, "flexible": 0,
+              "unmatched": 0, "duplicate_docs": 0}
     if not cache_db.is_file():
         return result
-    connection = sqlite3.connect(f"file:{cache_db}?mode=ro", uri=True, timeout=5)
-    connection.execute("PRAGMA query_only=ON")
     try:
-        rows = connection.execute('SELECT key, value FROM "unnamed"').fetchall()
-    finally:
-        connection.close()
+        connection = sqlite3.connect(f"file:{cache_db}?mode=ro", uri=True, timeout=5)
+        try:
+            connection.execute("PRAGMA query_only=ON")
+            rows = connection.execute('SELECT key, value FROM "unnamed"').fetchall()
+        finally:
+            connection.close()
+    except sqlite3.Error as exc:
+        result["unavailable"] = f"cache read failed: {type(exc).__name__}"
+        return result
     result["completed"] = len(rows)
+    seen_docs = set()
     for key, blob in rows:
         info = answer_map.get(key)
         if info is None:
+            result["unmatched"] += 1
             continue
         response = safe_pickle_string(blob)
         if response is None:
+            result["unmatched"] += 1
             continue
+        if info["doc_id"] in seen_docs:
+            result["duplicate_docs"] += 1
+            continue
+        seen_docs.add(info["doc_id"])
         result["matched"] += 1
         if response == "<TIMEOUT>":
             result["timeouts"] += 1
@@ -206,6 +230,14 @@ def read_scores(cache_db: Path, answer_map: Dict[str, Dict]) -> Dict[str, float]
 
 def format_score(stats: Dict[str, float], total: int) -> str:
     matched = int(stats["matched"])
+    if stats.get("unavailable") or stats.get("unmatched") or stats.get("duplicate_docs"):
+        return (f"UNAVAILABLE: cache/schema mismatch or unreadable cache; completed={stats['completed']}, "
+                f"matched={matched}, unmatched={stats.get('unmatched', 0)}, "
+                f"duplicate_docs={stats.get('duplicate_docs', 0)}; "
+                f"detail={stats.get('unavailable', 'verify the pinned evaluator/request schema')}. "
+                "This is not an accuracy score; use final lm-eval artifacts.")
+    if not matched:
+        return f"PENDING: completed={int(stats['completed'])}/{total}, matched=0; no scored responses yet"
     strict_pct = 100.0 * stats["strict"] / matched if matched else 0.0
     flexible_pct = 100.0 * stats["flexible"] / matched if matched else 0.0
     return (
@@ -228,8 +260,12 @@ def main() -> None:
     args = parser.parse_args()
     cfg = json.loads(Path(args.config).read_text(encoding="utf-8"))
     output_file = Path(args.output) if args.output else None
-    answer_map = build_answer_map(cfg)
-    total = len(answer_map)
+    try:
+        answer_map = build_answer_map(cfg)
+    except Exception as exc:
+        log(f"UNAVAILABLE: cannot initialize progress-score schema ({type(exc).__name__}: {exc}); not an accuracy score", output_file)
+        raise SystemExit(2) from exc
+    total = len({info["doc_id"] for info in answer_map.values()})
     last_bucket = -1
     while True:
         stats = read_scores(Path(args.cache_db), answer_map)
@@ -238,6 +274,8 @@ def main() -> None:
             log(format_score(stats, total), output_file)
             last_bucket = bucket
         if args.once:
+            if stats.get("unavailable") or stats.get("unmatched") or stats.get("duplicate_docs"):
+                raise SystemExit(2)
             return
         if args.pid and not Path(f"/proc/{args.pid}").exists():
             stats = read_scores(Path(args.cache_db), answer_map)
