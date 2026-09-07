@@ -5,13 +5,19 @@ from __future__ import annotations
 
 import argparse
 import copy
+import hashlib
+import json
+import posixpath
 import re
 import shutil
 import sys
 from pathlib import Path
+from datetime import date
 from typing import Any
 
 import yaml
+
+from workflow_state import deployment_fingerprint, service_state_errors, model_identity, environment_target
 
 
 STEP_ALIASES = {
@@ -44,7 +50,8 @@ DEPENDENCIES = {
 }
 PLATFORMS = ("nvidia", "ppu", "metax", "ascend", "mthreads", "hygon")
 COMPLETE_STATUSES = {"passed", "complete"}
-VALID_STATUSES = {"not_started", "in_progress", "blocked", "passed", "complete"}
+VALID_STATUSES = {"not_started", "in_progress", "blocked", "failed", "passed", "complete"}
+PLATFORM_STATUSES = {"not_started", "environment_ready", "model_loading", "functional", "optimized", "blocked"}
 ACCEPTANCE_SUBSTEP_ORDER = (
     "execution-mode",
     "sanity",
@@ -62,7 +69,13 @@ ACCEPTANCE_DEPENDENCIES = {
     "evidence": ("performance",),
     "summary": ("evidence",),
 }
-SECRET_KEY_PARTS = ("password", "passwd", "token", "secret", "private_key", "identity_file")
+SECRET_KEYS = {
+    "password", "passwd", "token", "secret", "api_key", "access_token",
+    "auth_token", "private_key", "private_key_path", "identity_file",
+    "hf_token", "huggingface_token", "github_token", "bearer_token", "session_token",
+    "ansible_host", "ansible_user", "ansible_port", "ssh_user", "ssh_host",
+    "ssh_private_key_file", "ansible_ssh_private_key_file", "proxy_jump",
+}
 MODEL_NAME_RE = re.compile(r"^[A-Za-z0-9._-]+$")
 
 
@@ -129,7 +142,7 @@ def reject_secret_keys(value: Any, path: str = "") -> None:
         for key, child in value.items():
             key_text = str(key).lower()
             child_path = f"{path}.{key}" if path else str(key)
-            if any(part in key_text for part in SECRET_KEY_PARTS):
+            if sensitive_key(key_text):
                 raise WorkflowError(
                     f"配置中禁止出现敏感连接字段 {child_path}；请使用 ~/.ssh/config 或密钥管理"
                 )
@@ -139,11 +152,199 @@ def reject_secret_keys(value: Any, path: str = "") -> None:
             reject_secret_keys(child, f"{path}[{index}]")
 
 
+def sensitive_key(key: str) -> bool:
+    key = key.lower().lstrip("-").replace("-", "_")
+    return key in SECRET_KEYS or key.endswith(("_password", "_passwd", "_secret", "_api_key", "_access_token", "_auth_token"))
+
+
+def ancestors(name: str, dependencies: dict[str, tuple[str, ...]]) -> set[str]:
+    result: set[str] = set()
+    for dependency in dependencies[name]:
+        result.add(dependency)
+        result.update(ancestors(dependency, dependencies))
+    return result
+
+
+def file_sha256(path: Path) -> str:
+    return hashlib.sha256(path.read_bytes()).hexdigest()
+
+
+def context_sha256(platform_dir: Path, stage: str, platform_config: dict | None = None) -> str:
+    """Bind evidence to recorded inputs; this never attests remote state."""
+    model_dir = platform_dir.parent
+    try:
+        model_identity(model_dir)
+        if stage == "environment":
+            environment_target(platform_dir)
+    except ValueError as exc:
+        raise WorkflowError(str(exc)) from exc
+    inputs = {"model": model_dir.name, "platform": platform_dir.name, "stage": stage}
+    files = [model_dir / "model.yml"]
+    if stage == "environment":
+        files.append(platform_dir / "environment/environment-target.yml")
+    if stage != "architecture":
+        files += [model_dir / "architecture-and-inference.md",
+                  platform_dir / "environment/environment-analysis.md"]
+    if stage not in {"architecture", "environment"}:
+        try:
+            inputs["deployment_identity"] = deployment_fingerprint(platform_dir)
+        except ValueError as exc:
+            raise WorkflowError(str(exc)) from exc
+        inputs["binding_schema"] = 2
+        cfg = platform_config
+        if cfg is None:
+            cfg = load_yaml(platform_dir / "platform.yml")
+        phases = cfg.get("workflow", {})
+        # Bind receipts, not the entire mutable platform.yml. No self-reference,
+        # status timestamps or unrelated progress notes enter this acyclic chain.
+        if stage in ACCEPTANCE_SUBSTEPS:
+            prerequisites = ("adaptation", *ACCEPTANCE_DEPENDENCIES[stage])
+        elif stage == "acceptance":
+            prerequisites = ("adaptation", *ACCEPTANCE_SUBSTEP_ORDER)
+        else:
+            prerequisites = DEPENDENCIES[stage]
+        receipts = {}
+        for prerequisite in prerequisites:
+            if prerequisite in ACCEPTANCE_SUBSTEPS:
+                record = phases.get("acceptance", {}).get("records", {}).get(prerequisite, {})
+            else:
+                record = phases.get(prerequisite, {}).get("verification", {})
+            if not isinstance(record, dict):
+                raise WorkflowError(f"{prerequisite} verification 必须为映射")
+            receipts[prerequisite] = {key: record.get(key) for key in
+                                     ("run_id", "evidence", "evidence_sha256", "context_sha256", "service_instance_id")}
+        inputs["prerequisites"] = receipts
+        runtime = platform_dir / "environment/runtime-config.yml"
+        files.append(runtime)
+        if stage == "adaptation":
+            files.append(platform_dir / "environment/plugin-change-review.md")
+        if runtime.is_file() and stage in {"accuracy", "performance", "evidence", "summary", "acceptance", "retrospective"}:
+            config = load_yaml(runtime)
+            accuracy_path = config.get("acceptance", {}).get("accuracy_config")
+            if isinstance(accuracy_path, str) and accuracy_path:
+                path = Path(accuracy_path)
+                files.append(path if path.is_absolute() else model_dir.parents[1] / path)
+    for path in files:
+        if not path.is_file():
+            raise WorkflowError(f"证据上下文缺少输入文件: {path}")
+        inputs[str(path.relative_to(model_dir)) if path.is_relative_to(model_dir) else str(path)] = file_sha256(path)
+    return hashlib.sha256(json.dumps(inputs, sort_keys=True).encode()).hexdigest()
+
+
+def verification_errors(record: Any, platform_dir: Path, stage: str,
+                        platform_config: dict | None = None) -> list[str]:
+    if not isinstance(record, dict) or not record:
+        return [f"{stage} 缺少 verification 记录；历史 passed 不能代替当前验证"]
+    errors = []
+    for key in ("run_id", "last_verified", "evidence", "evidence_sha256", "context_sha256"):
+        if not isinstance(record.get(key), str) or not record[key].strip():
+            errors.append(f"{stage}.verification.{key} 不能为空")
+    if errors:
+        return errors
+    try:
+        if date.fromisoformat(record["last_verified"]) > date.today():
+            errors.append(f"{stage} 验证日期不能在未来")
+    except ValueError:
+        errors.append(f"{stage} 验证日期必须为 YYYY-MM-DD")
+    evidence = (platform_dir / record["evidence"]).resolve()
+    owner = platform_dir.parent if stage == "architecture" else platform_dir
+    if not evidence.is_relative_to(owner.resolve()) or not evidence.is_file():
+        errors.append(f"{stage} 证据必须属于当前{'模型' if stage == 'architecture' else '平台'}: {evidence}")
+    elif evidence.stat().st_size == 0 or file_sha256(evidence) != record["evidence_sha256"]:
+        errors.append(f"{stage} 证据为空或内容已变化，需要重新验证")
+    elif stage == "accuracy":
+        try:
+            report = json.loads(evidence.read_text(encoding="utf-8"))
+            if (report.get("kind") != "formal_accuracy" or report.get("status") != "passed"
+                    or report.get("service_mode") != "graph" or report.get("failed_tasks") != []
+                    or type(report.get("configured_concurrency")) is not int
+                    or report["configured_concurrency"] < 32):
+                errors.append("accuracy 需要 llmrun.py 生成的通过验收报告 acceptance-result.json")
+            runtime = load_yaml(platform_dir / "environment/runtime-config.yml")
+            config_path = Path(runtime["acceptance"]["accuracy_config"])
+            if not config_path.is_absolute():
+                config_path = platform_dir.parents[2] / config_path
+            if report.get("source_config_sha256") != file_sha256(config_path):
+                errors.append("accuracy 报告使用的配置与当前精度配置不一致")
+            config = json.loads(config_path.read_text(encoding="utf-8"))
+            if (report.get("run_id") != record["run_id"]
+                    or report.get("expected_samples") != config.get("expected_samples")
+                    or report.get("criteria") != config.get("acceptance_criteria")
+                    or report.get("allow_timeouts") is not False):
+                errors.append("accuracy 报告的运行标识、样本数或验收标准不一致")
+        except (OSError, ValueError, KeyError, AttributeError) as exc:
+            errors.append(f"无法验证正式精度报告: {exc}")
+    elif stage == "performance":
+        # Full artifacts remain with the benchmark run. Only the compact receipt
+        # exported after perf_common.validate_report may be bound in the workspace.
+        sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "test/perf_test"))
+        try:
+            from perf_acceptance import validate_evidence
+            runtime_path = platform_dir / "environment/runtime-config.yml"
+            report = json.loads(evidence.read_text(encoding="utf-8"))
+            errors.extend(validate_evidence(
+                report, runtime=load_yaml(runtime_path), runtime_sha256=file_sha256(runtime_path),
+                model=platform_dir.parent.name, platform=platform_dir.name,
+                deployment_fingerprint=deployment_fingerprint(platform_dir),
+                service_instance_id=record.get("service_instance_id"), run_id=record["run_id"],
+            ))
+        except (OSError, ValueError, TypeError, KeyError, AttributeError) as exc:
+            errors.append(f"无法验证正式性能回执: {exc}")
+        finally:
+            sys.path.pop(0)
+    try:
+        if context_sha256(platform_dir, stage, platform_config) != record["context_sha256"]:
+            errors.append(f"{stage} 模型、配置或前置证据已变化，需要重新验证")
+    except WorkflowError as exc:
+        errors.append(str(exc))
+    return errors
+
+
 def require_mapping(config: dict[str, Any], key: str, source: Path) -> dict[str, Any]:
     value = config.get(key)
     if not isinstance(value, dict):
         raise WorkflowError(f"{source} 缺少映射字段: {key}")
     return value
+
+
+def workspace_errors(config: dict[str, Any]) -> list[str]:
+    """Check declared remote roots, not remote mounts, permissions or confinement."""
+    workspace = config.get("workspace")
+    if not isinstance(workspace, dict) or set(workspace) != {"roots"}:
+        return ["workspace 必须为仅含 roots 的映射；远端工作目录必须由用户明确指定"]
+    roots = workspace.get("roots")
+    if not isinstance(roots, list) or not roots:
+        return ["workspace.roots 必须显式列出每台目标主机的 host_alias/host_root/container_root"]
+    target = config.get("target")
+    hosts = target.get("hosts") if isinstance(target, dict) else None
+    errors = []
+    container_name = target.get("container_name") if isinstance(target, dict) else None
+    if (not isinstance(container_name, str) or not container_name
+            or container_name != container_name.strip()
+            or any(ord(char) < 32 or ord(char) == 127 for char in container_name)):
+        errors.append("workspace.container_root 需要明确对应的 target.container_name")
+    declared = []
+    for index, item in enumerate(roots):
+        prefix = f"workspace.roots[{index}]"
+        if not isinstance(item, dict) or set(item) != {"host_alias", "host_root", "container_root"}:
+            errors.append(f"{prefix} 必须且只能包含 host_alias、host_root、container_root")
+            continue
+        host = item.get("host_alias")
+        if not isinstance(host, str) or not re.fullmatch(r"[A-Za-z0-9_][A-Za-z0-9_.-]*", host):
+            errors.append(f"{prefix}.host_alias 必须是明确的 SSH Host 别名")
+        else:
+            declared.append(host)
+        for field in ("host_root", "container_root"):
+            value = item.get(field)
+            if (not isinstance(value, str) or not value.startswith("/") or value.startswith("//")
+                    or value == "/" or value != value.strip() or posixpath.normpath(value) != value
+                    or any(ord(char) < 32 or ord(char) == 127 or char in "$~<>\\" for char in value)):
+                errors.append(f"{prefix}.{field} 必须是用户明确指定的规范 POSIX 绝对目录，不得为 /、变量或占位符")
+    if (not isinstance(hosts, list) or not hosts or not all(isinstance(host, str) for host in hosts)
+            or len(set(hosts)) != len(hosts) or len(set(declared)) != len(declared)
+            or set(declared) != set(hosts)):
+        errors.append("workspace.roots 的 host_alias 必须无重复且精确覆盖 target.hosts，不能跨主机猜测目录")
+    return errors
 
 
 def validate_adaptation_config(
@@ -193,6 +394,8 @@ def validate_adaptation_config(
         if not isinstance(target.get(field), str) or not target[field].strip():
             errors.append(f"target.{field} 不能为空")
 
+    errors.extend(workspace_errors(config))
+
     boundaries = require_mapping(config, "boundaries", path)
     if boundaries.get("vllm_source_read_only") is not True:
         errors.append("boundaries.vllm_source_read_only 必须为 true")
@@ -214,10 +417,10 @@ def validate_adaptation_config(
         if not isinstance(service.get(field), str) or not service[field].strip():
             errors.append(f"service.{field} 不能为空")
     for field in ("port", "tensor_parallel_size"):
-        if not isinstance(service.get(field), int) or service[field] <= 0:
+        if type(service.get(field)) is not int or service[field] <= 0:
             errors.append(f"service.{field} 必须是正整数")
     gpu_utilization = service.get("gpu_memory_utilization")
-    if not isinstance(gpu_utilization, (int, float)) or not 0 < gpu_utilization <= 1:
+    if type(gpu_utilization) not in (int, float) or not 0 < gpu_utilization <= 1:
         errors.append("service.gpu_memory_utilization 必须大于 0 且不超过 1")
 
     max_len = service.get("max_model_len")
@@ -227,9 +430,9 @@ def validate_adaptation_config(
         supported = max_len.get("model_supported")
         initial = max_len.get("initial")
         evidence = max_len.get("evidence")
-        if not isinstance(supported, int) or supported <= 0:
+        if type(supported) is not int or supported <= 0:
             errors.append("service.max_model_len.model_supported 必须是正整数")
-        if not isinstance(initial, int) or initial <= 0:
+        if type(initial) is not int or initial <= 0:
             errors.append("service.max_model_len.initial 必须是正整数")
         if isinstance(supported, int) and supported > 0 and isinstance(initial, int):
             expected = min(supported, 50000)
@@ -251,11 +454,7 @@ def validate_adaptation_config(
         extra_args = item.get("extra_args")
         if not isinstance(extra_args, list) or not all(isinstance(arg, str) for arg in extra_args):
             errors.append(f"execution_modes.{mode}.extra_args 必须是参数数组")
-        elif any(
-            sensitive in arg.lower()
-            for arg in extra_args
-            for sensitive in ("password", "token", "secret", "private-key", "identity-file")
-        ):
+        elif any(sensitive_key(arg.split("=", 1)[0]) for arg in extra_args if arg.startswith("--")):
             errors.append(f"execution_modes.{mode}.extra_args 不得包含敏感参数")
         if mode == "graph" and isinstance(extra_args, list) and "--enforce-eager" in extra_args:
             errors.append("execution_modes.graph.extra_args 不得包含 --enforce-eager")
@@ -284,6 +483,30 @@ def validate_adaptation_config(
             "accuracy_config"
         ].strip():
             errors.append("正式精度验收前 acceptance.accuracy_config 不能为空")
+        elif repo_root is not None:
+            accuracy_path = Path(acceptance["accuracy_config"])
+            if not accuracy_path.is_absolute():
+                accuracy_path = repo_root / accuracy_path
+            owner = repo_root / "models" / model / platform / "acceptance"
+            if not accuracy_path.resolve().is_relative_to(owner.resolve()):
+                errors.append("accuracy_config 必须位于当前模型平台的 acceptance/ 下")
+            elif not accuracy_path.is_file():
+                errors.append(f"精度配置文件不存在: {accuracy_path}")
+            else:
+                # Import the same contract the runner uses; do not duplicate policy.
+                sys.path.insert(0, str(repo_root / "test/Accuracy_test"))
+                try:
+                    from acceptance_contract import validate_formal_config
+                    accuracy = json.loads(accuracy_path.read_text(encoding="utf-8"))
+                    errors.extend(validate_formal_config(accuracy, require_formal=True))
+                    if accuracy.get("model_name") != service.get("served_model_name"):
+                        errors.append("精度配置 model_name 与 served_model_name 不一致")
+                    if accuracy.get("base_url", "").rstrip("/").removesuffix("/v1/chat/completions").removesuffix("/v1/completions") != acceptance.get("graph_base_url", "").rstrip("/").removesuffix("/v1"):
+                        errors.append("精度配置 base_url 与 graph_base_url 不一致")
+                except (OSError, ValueError, TypeError, AttributeError) as exc:
+                    errors.append(f"无法读取精度配置: {exc}")
+                finally:
+                    sys.path.pop(0)
 
     return errors
 
@@ -341,6 +564,66 @@ def workflow_status(platform_config: dict[str, Any], step: str) -> str:
     return status
 
 
+def platform_schema_errors(config: dict, platform: str, allowed_hosts: set[str] | None = None) -> list[str]:
+    """Structural/semantic errors only; historical receipt freshness is audited separately."""
+    errors = []
+    for key in ("platform", "inventory_group"):
+        if config.get(key) != platform:
+            errors.append(f"{key} 必须与平台目录 {platform} 一致")
+    status = config.get("status")
+    if not isinstance(status, str) or status not in PLATFORM_STATUSES:
+        errors.append(f"非法平台 status: {status!r}")
+        status = None
+    hosts = config.get("validated_hosts")
+    valid_hosts = (isinstance(hosts, list) and all(isinstance(h, str) and h.strip() for h in hosts))
+    if not valid_hosts or len(hosts) != len(set(hosts)):
+        errors.append("validated_hosts 必须是无重复的 SSH Host 别名列表")
+    elif allowed_hosts is not None and set(hosts) - allowed_hosts:
+        errors.append("validated_hosts 包含不属于当前平台 inventory 的别名")
+    if status in {"functional", "optimized"}:
+        if not valid_hosts or not hosts:
+            errors.append(f"{status} 必须记录非空 validated_hosts")
+        try:
+            verified = date.fromisoformat(str(config.get("last_verified")))
+            if verified > date.today():
+                raise ValueError("future")
+        except ValueError:
+            errors.append(f"{status} 必须记录有效且非未来的 last_verified")
+    phases = config.get("workflow")
+    if not isinstance(phases, dict):
+        return errors + ["platform.yml 缺少 workflow 映射"]
+    for stage in STEP_ORDER:
+        try:
+            workflow_status(config, stage)
+        except (WorkflowError, TypeError) as exc:
+            errors.append(str(exc))
+        item = phases.get(stage)
+        if isinstance(item, dict) and not isinstance(item.get("verification"), dict):
+            errors.append(f"workflow.{stage}.verification 必须是映射（待复核可为 {{}}）")
+    acceptance = phases.get("acceptance")
+    if not isinstance(acceptance, dict):
+        return errors
+    substeps, records = acceptance.get("substeps"), acceptance.get("records")
+    if not isinstance(substeps, dict) or set(substeps) != ACCEPTANCE_SUBSTEPS:
+        errors.append("workflow.acceptance.substeps 必须完整包含六个规定子步骤")
+    if isinstance(substeps, dict):
+        for name, value in substeps.items():
+            if not isinstance(value, str) or value not in VALID_STATUSES:
+                errors.append(f"非法验收子步骤状态: {name}={value!r}")
+    if not isinstance(records, dict) or set(records) - ACCEPTANCE_SUBSTEPS:
+        errors.append("workflow.acceptance.records 必须是仅含已知子步骤的映射（待复核可为 {}）")
+    if status == "not_started" and any(isinstance(v, dict) and v.get("status") != "not_started" for v in phases.values()):
+        errors.append("平台 not_started 与已开始的 workflow 状态冲突")
+    acceptance_status = acceptance.get("status")
+    acceptance_complete = isinstance(acceptance_status, str) and acceptance_status in COMPLETE_STATUSES
+    if status == "optimized" or acceptance_complete:
+        if not isinstance(substeps, dict) or any(not isinstance(substeps.get(s), str) or substeps[s] not in COMPLETE_STATUSES for s in ACCEPTANCE_SUBSTEP_ORDER):
+            errors.append("optimized 或已完成 acceptance 必须完成全部验收子步骤")
+    if status == "optimized" and not acceptance_complete:
+        errors.append("optimized 必须有已完成的 acceptance 阶段")
+    return errors
+
+
 def inventory_platform_hosts(repo_root: Path, platform: str) -> set[str]:
     inventory = load_yaml(repo_root / "inventory" / "hosts.yml")
     try:
@@ -353,12 +636,13 @@ def inventory_platform_hosts(repo_root: Path, platform: str) -> set[str]:
 
 
 def check_dependencies(
-    platform_config: dict[str, Any], selected: list[str], platform_dir: Path
+    platform_config: dict[str, Any], selected: list[str], platform_dir: Path,
+    *, expected_hosts: list[str] | None = None,
 ) -> list[str]:
     errors: list[str] = []
     selected_set = set(selected)
     for step in selected:
-        for dependency in DEPENDENCIES[step]:
+        for dependency in sorted(ancestors(step, DEPENDENCIES), key=STEP_ORDER.index):
             if dependency in selected_set:
                 continue
             status = workflow_status(platform_config, dependency)
@@ -378,13 +662,34 @@ def check_dependencies(
                 errors.append(
                     f"步骤 {STEP_NUMBER[dependency]} 已通过，但证据文件不存在: {evidence_path}"
                 )
+            verification = dependency_item.get("verification")
+            if isinstance(verification, dict) and verification.get("evidence") != evidence:
+                errors.append(f"{dependency} 的 evidence 与 verification.evidence 不一致")
+            errors.extend(verification_errors(dependency_item.get("verification"), platform_dir, dependency, platform_config))
+            if dependency == "environment":
+                try:
+                    declared = environment_target(platform_dir)
+                    hosts = expected_hosts
+                    if hosts is None:
+                        runtime = load_yaml(platform_dir / "environment/runtime-config.yml")
+                        target = runtime.get("target")
+                        hosts = target.get("hosts") if isinstance(target, dict) else None
+                    if (not isinstance(hosts, list) or not hosts or
+                            not all(isinstance(host, str) for host in hosts) or
+                            len(set(hosts)) != len(hosts) or sorted(hosts) != declared):
+                        errors.append("environment target.hosts 与本次目标 hosts 不一致；需现场复核，不能跨主机复用环境证据")
+                except (ValueError, WorkflowError) as exc:
+                    errors.append(str(exc))
+            if dependency == "acceptance":
+                errors.extend(check_acceptance_dependencies(platform_config, [], platform_dir, require_all=True))
     return errors
 
 
 def check_acceptance_dependencies(
-    platform_config: dict[str, Any], selected_substeps: list[str]
+    platform_config: dict[str, Any], selected_substeps: list[str],
+    platform_dir: Path | None = None, *, require_all: bool = False,
 ) -> list[str]:
-    if not selected_substeps:
+    if not selected_substeps and not require_all:
         return []
     workflow = platform_config.get("workflow")
     acceptance = workflow.get("acceptance") if isinstance(workflow, dict) else None
@@ -393,8 +698,12 @@ def check_acceptance_dependencies(
         raise WorkflowError("platform.yml 缺少 workflow.acceptance.substeps")
     errors: list[str] = []
     selected = set(selected_substeps)
-    for substep in selected_substeps:
-        for dependency in ACCEPTANCE_DEPENDENCIES[substep]:
+    records = acceptance.get("records", {})
+    for substep in (ACCEPTANCE_SUBSTEP_ORDER if require_all else selected_substeps):
+        required = ancestors(substep, ACCEPTANCE_DEPENDENCIES)
+        if require_all:
+            required.add(substep)
+        for dependency in sorted(required, key=ACCEPTANCE_SUBSTEP_ORDER.index):
             if dependency in selected:
                 continue
             status = statuses.get(dependency)
@@ -403,7 +712,27 @@ def check_acceptance_dependencies(
                     f"验收子步骤 {substep} 依赖 {dependency}，"
                     f"但其状态为 {status!r}，且本次未选择该前置子步骤"
                 )
-    return errors
+            elif platform_dir is not None:
+                errors.extend(verification_errors(records.get(dependency), platform_dir, dependency, platform_config))
+    return list(dict.fromkeys(errors))
+
+
+def check_execution_readiness(platform_config: dict, selected_substeps: list[str], platform_dir: Path) -> list[str]:
+    """New execution gate only. Evidence/summary/retrospective need no running service."""
+    live = set(selected_substeps) & {"execution-mode", "sanity", "accuracy", "performance"}
+    if not live:
+        return []
+    errors = service_state_errors(platform_dir, require_ready=True,
+                                  require_graph="execution-mode" not in live)
+    if errors:
+        return errors
+    state = load_yaml(platform_dir / "environment/service-state.yml")
+    records = platform_config["workflow"]["acceptance"].get("records", {})
+    for stage in live:
+        for dependency in ancestors(stage, ACCEPTANCE_DEPENDENCIES) - set(selected_substeps):
+            if records.get(dependency, {}).get("service_instance_id") != state["service"]["instance_id"]:
+                errors.append(f"{dependency} 未绑定当前 service.instance_id；不能沿用其他服务实例的验收")
+    return list(dict.fromkeys(errors))
 
 
 def parse_args() -> argparse.Namespace:
@@ -430,13 +759,21 @@ def parse_args() -> argparse.Namespace:
         action="store_true",
         help="只检查，不创建缺失文件，也不输出 Codex 调用文本",
     )
+    parser.add_argument("--evidence-info", choices=(*STEP_ORDER, *ACCEPTANCE_SUBSTEP_ORDER),
+                        help="只输出当前证据的绑定信息，不修改状态；需 --evidence 和 --run-id")
+    parser.add_argument("--evidence", help="相对平台目录的已验证证据文件")
+    parser.add_argument("--run-id", help="证据中记录的实际运行标识")
+    parser.add_argument("--service-instance-id", help="证据中实际运行的服务实例 ID；不从当前服务推断")
+    parser.add_argument("--verified-on", default=date.today().isoformat(), help="实际验证日期 YYYY-MM-DD，默认今天；历史绑定必须显式填写")
+    parser.add_argument("--deployment-info", action="store_true",
+                        help="只校验已记录的 deployment-identity 并输出指纹；不采集或核实远端")
     return parser.parse_args()
 
 
 def main() -> int:
     args = parse_args()
     repo_root = args.repo_root.resolve()
-    if not MODEL_NAME_RE.fullmatch(args.model):
+    if not MODEL_NAME_RE.fullmatch(args.model) or args.model in {".", "..", "_template"}:
         raise WorkflowError("模型名只能包含字母、数字、点、下划线和连字符")
     steps = parse_steps(args.steps)
     needs_platform = any(step != "architecture" for step in steps)
@@ -455,6 +792,47 @@ def main() -> int:
     model_dir = repo_root / "models" / args.model
     if not model_dir.is_dir():
         raise WorkflowError(f"模型目录不存在: {model_dir}；请先运行 ./scripts/new-model {args.model}")
+    try:
+        model_identity(model_dir)
+    except ValueError as exc:
+        raise WorkflowError(str(exc)) from exc
+    if args.deployment_info:
+        if not args.platform or args.evidence_info:
+            raise WorkflowError("--deployment-info 需要 --platform，且不能与 --evidence-info 同用")
+        try:
+            print(json.dumps({"deployment_fingerprint": deployment_fingerprint(model_dir / args.platform)}, indent=2))
+        except ValueError as exc:
+            raise WorkflowError(str(exc)) from exc
+        return 0
+    if args.evidence_info:
+        if not args.platform or not args.evidence or not args.run_id:
+            raise WorkflowError("--evidence-info 需要 --platform、--evidence 和 --run-id")
+        platform_dir = model_dir / args.platform
+        evidence = (platform_dir / args.evidence).resolve()
+        owner = model_dir if args.evidence_info == "architecture" else platform_dir
+        if not evidence.is_relative_to(owner.resolve()) or not evidence.is_file() or not evidence.stat().st_size:
+            raise WorkflowError("证据必须是当前模型（architecture）或当前平台内的非空文件")
+        extra = {}
+        if args.evidence_info == "environment" and requested_hosts:
+            try:
+                if len(set(requested_hosts)) != len(requested_hosts) or sorted(requested_hosts) != environment_target(platform_dir):
+                    raise WorkflowError("--hosts 与环境证据的 environment-target.yml 作用域不一致")
+            except ValueError as exc:
+                raise WorkflowError(str(exc)) from exc
+        if args.evidence_info in {"execution-mode", "sanity", "accuracy", "performance"}:
+            if not args.service_instance_id or not args.service_instance_id.strip():
+                raise WorkflowError("执行证据需要 --service-instance-id 指定证据所属实际实例，不能自动使用当前实例")
+            extra["service_instance_id"] = args.service_instance_id
+        try:
+            if date.fromisoformat(args.verified_on) > date.today():
+                raise ValueError("future")
+        except ValueError as exc:
+            raise WorkflowError("--verified-on 必须为非未来的实际 YYYY-MM-DD 日期") from exc
+        print(json.dumps({"run_id": args.run_id, "last_verified": args.verified_on,
+                          "evidence": args.evidence, "evidence_sha256": file_sha256(evidence),
+                          "context_sha256": context_sha256(platform_dir, args.evidence_info), **extra},
+                         ensure_ascii=False, indent=2))
+        return 0
     template_dir = repo_root / "templates" / "adaptation"
     created: list[Path] = []
     configuration_warnings: list[str] = []
@@ -525,9 +903,13 @@ def main() -> int:
                 raise WorkflowError(f"{platform_yml} 的 workflow schema 需要升级")
             write_yaml(platform_yml, platform_config)
             created.append(platform_yml)
-        dependency_errors = check_dependencies(platform_config, steps, platform_dir)
+        schema_errors = platform_schema_errors(platform_config, args.platform,
+                                               inventory_platform_hosts(repo_root, args.platform))
+        if schema_errors:
+            raise WorkflowError("\n".join(schema_errors))
+        dependency_errors = check_dependencies(platform_config, steps, platform_dir, expected_hosts=effective_hosts)
         if "acceptance" in steps:
-            dependency_errors.extend(check_acceptance_dependencies(platform_config, substeps))
+            dependency_errors.extend(check_acceptance_dependencies(platform_config, substeps, platform_dir))
         if dependency_errors:
             raise WorkflowError("\n".join(dependency_errors))
 
@@ -537,7 +919,9 @@ def main() -> int:
             ),
             "adaptation": (
                 ("platform-adaptation-plan.md", "environment/platform-adaptation-plan.md"),
+                ("plugin-change-review.md", "environment/plugin-change-review.md"),
                 ("service-state.yml", "environment/service-state.yml"),
+                ("deployment-identity.yml", "environment/deployment-identity.yml"),
                 ("issue-index.md", "adaptation/README.md"),
             ),
             "acceptance": (
@@ -550,7 +934,7 @@ def main() -> int:
         for step in steps:
             for source_name, relative_destination in stage_templates.get(step, ()):
                 destination = platform_dir / relative_destination
-                if source_name == "service-state.yml":
+                if source_name in {"service-state.yml", "deployment-identity.yml"}:
                     was_created = prepare_identified_yaml(
                         template_dir / source_name,
                         destination,
@@ -574,6 +958,16 @@ def main() -> int:
                 check_only=args.check_only,
             ):
                 created.append(destination)
+        if "environment" in steps:
+            target_path = platform_dir / "environment/environment-target.yml"
+            if prepare_config(template_dir / "environment-target.yml", target_path,
+                              args.model, args.platform, effective_hosts, args.check_only):
+                created.append(target_path)
+            try:
+                if environment_target(platform_dir) != sorted(effective_hosts):
+                    raise WorkflowError("environment-target.yml 的 target.hosts 与本次目标不一致；不自动覆盖已有作用域")
+            except ValueError as exc:
+                raise WorkflowError(str(exc)) from exc
         if "adaptation" in steps or "acceptance" in steps:
             if prepare_config(
                 template_dir / "runtime-config.yml",
@@ -601,9 +995,16 @@ def main() -> int:
                 if args.check_only:
                     raise WorkflowError(f"适配配置尚未就绪: {config_path}\n{formatted}")
                 configuration_warnings = config_errors
+        if "acceptance" in steps and "adaptation" not in steps:
+            readiness_errors = check_execution_readiness(
+                platform_config, substeps or list(ACCEPTANCE_SUBSTEP_ORDER), platform_dir)
+            if readiness_errors and args.check_only:
+                raise WorkflowError("执行现场尚未就绪（不改变历史结果）:\n" + "\n".join(readiness_errors))
+            configuration_warnings.extend(readiness_errors)
 
     if args.check_only:
         print("检查通过：所选步骤的目录、前置状态和配置均有效。")
+        print("仅完成本地结构和前置检查；不代表远端工作目录/挂载已核实，不自动授权远端写入。")
         return 0
 
     if created:
@@ -624,9 +1025,25 @@ def main() -> int:
     if args.platform:
         print(f"平台：{args.platform}")
         print(f"目标机器：{','.join(effective_hosts)}")
+        if needs_platform:
+            workspace_config = load_yaml(config_path) if config_path.is_file() else {}
+            root_errors = workspace_errors(workspace_config)
+            if root_errors:
+                print("远端写入边界：工作目录尚未完整配置；停止远端新增/写入，先让用户明确每台主机的 host_root 和 container_root，不自动猜测或创建")
+            else:
+                print("远端新增内容归属（仅声明范围，不是 chroot 或任意子进程写入隔离）：")
+                for item in workspace_config["workspace"]["roots"]:
+                    print(f"- {item['host_alias']}: host_root={item['host_root']}; "
+                          f"container={workspace_config['target']['container_name']}; container_root={item['container_root']}")
     print(f"执行步骤：{step_text}")
     if substeps:
         print(f"验收子步骤：{','.join(substeps)}")
+    if "acceptance" in steps:
+        print("验收衔接：同次选择只表示执行计划；每一子步骤执行前，单独用该子步骤 --check-only 复核新证据和当前服务")
+    if "adaptation" in steps:
+        print("代码交付要求：遵守 docs/plugin-contribution-policy.md，维护 environment/plugin-change-review.md，审查多模型/多平台影响和最终 PR diff")
+    if "adaptation" in steps or "acceptance" in steps:
+        print("执行前核实：确认目标 Host、工作根目录、容器映射、服务身份和阶段证据；后台任务由实际 worker 持有生命周期并写入独立 run 目录")
     print("执行边界：只执行指定步骤；其他步骤只检查前置产物，不自动执行")
     if configuration_warnings:
         print(
