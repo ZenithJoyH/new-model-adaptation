@@ -1,6 +1,5 @@
 """Model-specific score helpers cannot overwrite the shared formal receipt."""
 
-import ast
 import contextlib
 import importlib.util
 import io
@@ -30,27 +29,6 @@ class ModelScoreReviewTests(unittest.TestCase):
         self.assertTrue(summary['passed'])
         self.assertEqual(summary['kind'], 'model-accuracy-review')
         self.assertFalse(summary['formal_acceptance'])
-
-    def test_hy4_check_publication_cannot_overwrite_prior_result(self):
-        script = ROOT / 'models/Hy4-preview/ppu/acceptance/check_fixed_hy4.py'
-        tree = ast.parse(script.read_text())
-        publication = [node for node in tree.body if isinstance(node, ast.With)]
-        self.assertEqual(len(publication), 2)  # ThreadPoolExecutor and output publication.
-        final = publication[-1]
-        expression = final.items[0].context_expr
-        self.assertEqual(ast.dump(expression),
-            "Call(func=Attribute(value=Name(id='output', ctx=Load()), attr='open', ctx=Load()), args=[Constant(value='x')], keywords=[])")
-        # Execute just the isolated publication statement; no model requests.
-        module = ast.Module(body=[final], type_ignores=[])
-        code = compile(ast.fix_missing_locations(module), str(script), 'exec')
-        with tempfile.TemporaryDirectory() as temporary:
-            output = Path(temporary) / 'result.json'
-            context = {'output': output, 'record': {'passed': False}, 'json': json}
-            exec(code, context)
-            before = output.read_bytes()
-            with self.assertRaises(FileExistsError):
-                exec(code, context)
-            self.assertEqual(output.read_bytes(), before)
 
     def test_duplicate_rows_and_out_of_range_scores_fail(self):
         self.assertFalse(grade.judge(self.cfg, self.result, self.samples + self.samples[:1])['passed'])

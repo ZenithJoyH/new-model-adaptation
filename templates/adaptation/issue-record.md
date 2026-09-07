@@ -76,7 +76,7 @@
 
 - 尚存限制：
 - 后续动作：
-- 对 `environment/plugin-change-review.md` 的设计审查结论及 PR 范围的影响：
+- 设计审查结论及 PR 范围的影响：
 
 ## 经验沉淀
 

@@ -51,9 +51,9 @@ fetch/pull）必须单独明确授权，或经批准在 `01-repos/` 中建立 ch
    配置或具体实现，不得直接套用通用架构模板；应明确区分已经验证的事实、假设和尚未
    解决的问题。
 2. **推理环境分析。** 对用户明确指定的每个适配平台，在实施平台变更前创建或更新
-   `models/<model-name>/<platform>/environment/environment-analysis.md`。维护型环境采集
-   工具和精简证据保留在该本地 `environment/` 目录；远端部署、执行工具及原始采集输出
-   使用已批准远端根目录下的 `02-environment/`。记录目标主机别名、加速卡型号与拓扑、操作
+   `models/<model-name>/<platform>/environment/environment-analysis.md`。该本地
+   `environment/` 只保留 Markdown 环境分析；环境采集工具、运行配置及原始采集输出统一
+   放在已批准远端根目录下的 `02-environment/`。记录目标主机别名、加速卡型号与拓扑、操作
    系统或容器环境、驱动与运行时、推理框架及平台插件版本、编译器或工具链、可用资源、
    验证命令、兼容性缺口，以及会影响适配方案的环境分析结论。不得为用户未指定的平台
    创建环境分析。
@@ -62,8 +62,8 @@ fetch/pull）必须单独明确授权，或经批准在 `01-repos/` 中建立 ch
 
    1. **制定 plugin 适配方案。** 基于模型结构与推理链路分析、平台环境分析和用户提供的
       参考文件，将每个模型组件、推理阶段、关键算子、并行要求和运行依赖映射到当前
-      plugin 路径及目标平台能力。在 `environment/platform-adaptation-plan.md` 中建立
-      差距清单，逐项写明需要修改的 plugin 位置、算子来源、对 `eager`/`graph` 的影响、
+      plugin 路径及目标平台能力。在平台环境分析或对应编号适配问题中建立差距清单，
+      逐项写明需要修改的 plugin 位置、算子来源、对 `eager`/`graph` 的影响、
       依赖、风险和计划验证方式。该文档属于适配准备上下文，不属于问题记录。
       选型前阅读 `docs/plugin-contribution-policy.md` 和目标插件 checkout 当前的设计/贡献
       规范。说明职责归属、接口契约、替代方案、共享调用方、可选依赖、守卫、默认行为及
@@ -73,7 +73,7 @@ fetch/pull）必须单独明确授权，或经批准在 `01-repos/` 中建立 ch
       已为该 checkout 取得单独明确写入授权时，才允许直接修改 plugin 源码，
       但整个适配过程中 vLLM 源码必须保持只读且不得产生任何改动。禁止停止、重启或删除
       适配容器。保存 vLLM 修改前后的 revision 与工作区状态证据；基线和环境事实放入
-      `environment/environment-analysis.md` 或 `environment/platform-adaptation-plan.md`。
+      `environment/environment-analysis.md`。
       如果工作区不干净、revision 不一致或修改边界被破坏成为适配问题，则在
       `adaptation/` 下建立编号 Markdown 问题记录。
    3. **接入算子前同步 FlagGems。** 检查或接入任何 FlagGems 算子前，先把正在运行的
@@ -83,8 +83,8 @@ fetch/pull）必须单独明确授权，或经批准在 `01-repos/` 中建立 ch
       更新前记录 remote、
       分支、upstream、revision 和工作区状态。只有工作区干净且目标分支与 upstream 明确
       时才能更新；先 fetch，再使用仅允许 fast-forward 的 pull，禁止 reset、强制更新或
-      丢弃本地改动。将同步命令和更新后的 revision 记录到
-      `environment/platform-adaptation-plan.md`。如果同步无法完成，应报告准确阻塞原因，
+      丢弃本地改动。将同步命令和更新后的 revision 记录到平台环境分析或对应编号问题中。
+      如果同步无法完成，应报告准确阻塞原因，
       在 `adaptation/` 下建立编号问题记录，且不得继续基于旧 revision 选择算子。
    4. **接入 FlagGems 已有算子。** 对 plugin 尚未调用或不支持的每个算子，检查 plugin
       的 dispatch/backend 设计和同步后的 FlagGems revision。如果 FlagGems 已有兼容
@@ -127,15 +127,15 @@ fetch/pull）必须单独明确授权，或经批准在 `01-repos/` 中建立 ch
       到目标平台。在不修改 vLLM 源码的前提下，补齐可复现的 plugin 侧配置、包装脚本、
       启动脚本和优化设置。只有必要的生产实现及可长期维护的 plugin 回归测试保留在正在
       运行的适配容器内 plugin 仓库中；一次性的过程脚本和代码放在已批准根目录的
-      `03-issues/` 或 `06-tmp/`，且位于源码仓库之外。精简结构化启动配置在本地保存到
-      `environment/runtime-config.yml`，其远端运行版本部署到远端根目录的 `02-environment/`。
+      `03-issues/` 或 `06-tmp/`，且位于源码仓库之外。可执行启动配置只保存在远端根目录的
+      `02-environment/`。
       在对应的编号问题记录中引用容器内准确路径、分支、revision 或 commit、验证命令和结果，
       不得把这些产物复制到 `adaptation/`。启动模型服务时，不得把
       `--max-model-len` 设置得过小；应先根据模型配置和实现确认模型实际支持的最大上下文
       长度。如果最大支持长度大于 50000 token，初始服务配置使用 50000；如果最大支持长度
       小于或等于 50000，则使用模型实际支持的最大长度。无法确认最大支持长度时，不得猜测，
       应先完成核实，不得为掩盖内存、graph capture 或运行时问题而静默调小该值。把判断
-      依据、计算结果和最终启动参数记录到 `environment/runtime-config.yml`；如果上下文长度
+      依据、计算结果、最终启动参数和远端配置准确路径记录到 `environment/environment-analysis.md`；如果上下文长度
       配置导致或解决了问题，还要在对应的编号问题记录中写清判断过程。
    8. **分层递进验证。** 依次验证 import 与注册、单算子、组件组合、最小模型执行，最后
       拉起完整服务。每次修改后先运行最小相关回归，并在适用时覆盖 `eager` 与 `graph`
@@ -152,7 +152,7 @@ fetch/pull）必须单独明确授权，或经批准在 `01-repos/` 中建立 ch
       对应子目录，并通过准确路径、适用时的 revision 或 commit、命令和结果
       进行引用。进入验收前，在对应问题记录中补齐服务停启记录、FlagGems 证据以及 vLLM
       始终未改动的证明。
-   11. **审查插件设计与最终 diff。** 从模板维护 `environment/plugin-change-review.md`，
+   11. **审查插件设计与最终 diff。** 在对应编号问题和最终验收总结中记录审查结论，
       按 `docs/plugin-contribution-policy.md` 核对已确认的 PR base、实际 HEAD、dirty/新增
       文件、既有改动归属、多模型/多平台影响、回归证据和 workaround 退出条件。设计阻塞
       未解决不能标记适配完成；实质变更后更新受影响的审查。设计审查不等于未测试平台

@@ -96,24 +96,30 @@ write remotely.
   existing directory. Use only platform names `nvidia`, `ppu`, `metax`, `ascend`,
   `mthreads`, and `hygon`.
 - Under `models/<model>/<platform>/`, keep only `README.md`, `platform.yml`, and:
-  `environment/` for analysis, collection helpers, plans, runtime/service metadata,
-  and plugin review;
+  `environment/` for Markdown environment/platform analysis only;
   `adaptation/` for a Markdown-only numbered issue ledger; and `acceptance/` for
-  validation configuration, wrappers, concise results, and final documents.
+  Markdown acceptance plans, result reports, summaries, and retrospectives only.
+  Do not create subdirectories or store scripts, playbooks, JSON/YAML configuration,
+  raw output, caches, or temporary files in any of these three local directories.
   Keep model-wide material in `architecture-and-inference.md` and `_shared/`;
   common test tools remain in repository `test/`.
+- Keep `_shared/` readable and cross-platform: use only a Markdown index and a
+  small number of consolidated Markdown analyses. Put raw upstream metadata,
+  copied templates, one-off inspectors, JSON/YAML snapshots, and other collection
+  artifacts in the approved remote root, not in the local model directory.
 - `adaptation/` contains no scripts, playbooks, patches, source/operator code,
   copied tests, raw logs, runtime JSON/YAML, or command output. The plugin checkout
   contains only required product code and maintainable focused tests. Put one-off
   process code in remote `03-issues/` or `06-tmp/`, outside plugin, vLLM, and FlagGems,
   and do not commit it. Promote reusable tools to repository `scripts/` only with
   user approval.
-- Before a remote command, record its repeatable form in its owning location:
-  preparation in `environment/`, diagnosis/fixes in the numbered issue, and
-  validation in `acceptance/`. Record exact hosts, paths, revisions, engine,
-  image, arguments, inputs, date, purpose, and verified result. Keep remote raw
-  artifacts remote, preserve the minimum needed evidence before temporary cleanup,
-  and retain only paths plus concise evidence locally.
+- Keep executable process artifacts in the approved remote root: environment
+  collectors and runtime configuration in `02-environment/`, one-off diagnosis in
+  `03-issues/` or `06-tmp/`, acceptance wrappers/configuration in `04-acceptance/`,
+  and raw results in `05-runs/`. Local Markdown records summarize the repeatable
+  command and retain exact hosts, remote paths, revisions, engine, image, arguments,
+  inputs, date, purpose, and verified result. Preserve the minimum needed evidence
+  before remote temporary cleanup.
 
 ### Status and completion
 
@@ -132,7 +138,8 @@ write remotely.
   contribution and test guidance, and follow
   [the plugin contribution policy](docs/plugin-contribution-policy.md).
 - Explain ownership, existing extension points, interface contracts, alternatives
-  and affected callers in `environment/platform-adaptation-plan.md`. Reuse the
+  and affected callers in the platform environment analysis or relevant numbered
+  adaptation issue. Reuse the
   framework's dispatch and registration paths. Scope model semantics to model
   adapters and hardware constraints to vendor/capability paths; do not scatter
   model-name or machine-specific exceptions through shared execution code.
@@ -141,7 +148,7 @@ write remotely.
   eager/graph behavior. Declare unavailable hardware and untested scope honestly;
   do not infer multi-platform support from one successful model run.
 - Before completing adaptation and when preparing a PR, review the actual diff
-  and maintain `environment/plugin-change-review.md` from its template. Record
+  and record the review in the relevant numbered issue and final acceptance summary. Record
   the confirmed PR base, current HEAD, dirty/untracked changes, inherited work,
   impact matrix, test evidence, workaround exit conditions and unresolved risks.
   Refresh the review after material changes; do not mark adaptation complete
@@ -196,14 +203,16 @@ write remotely.
   `execution-mode` → `sanity` → `accuracy` → `performance` → `evidence` →
   `summary`. Execute no unselected substep, and never waive an incomplete earlier
   prerequisite.
-- `adapt-model` only initializes missing local files, checks structured state,
-  and generates a Codex request. It does not run remote commands, prove success,
-  update passed states, commit, or push. Use `--check-only` when creation is not
-  allowed.
+- The current `adapt-model` implementation still contains legacy structured-file
+  gates. Do not run it in creation mode for platform phases 2 through 5 and do not
+  reintroduce its legacy YAML/process files into a compact platform directory.
+  Invoke those phases through a natural-language Codex request and use
+  `audit-workspace` for local layout checks until the gate is migrated. Step 1
+  architecture initialization remains safe.
 - Update `platform.yml` only after the selected work is actually verified and
   its evidence is current. Bind phase and acceptance receipts as defined in
-  `docs/workflow-guide.md`; verify the exact Host set in
-  `environment/environment-target.yml`. Formal accuracy requires a passing
+  `docs/workflow-guide.md`; record and verify the exact Host set in the environment
+  analysis. Formal accuracy requires a passing
   `acceptance-result.json`; formal performance requires the receipt exported by
   `test/perf_test/perf_acceptance.py`, not a Markdown/CSV success label.
 - Use `./scripts/audit-workspace` for local structure and historical-state review.

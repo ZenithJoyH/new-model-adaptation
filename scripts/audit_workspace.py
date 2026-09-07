@@ -8,7 +8,7 @@ from pathlib import Path
 from urllib.parse import unquote
 
 import adapt_model as workflow
-from workflow_state import model_identity, environment_target
+from workflow_state import model_identity
 
 
 def audit(root):
@@ -24,6 +24,13 @@ def audit(root):
             model_identity(model)
         except ValueError as exc:
             add("error", model / "model.yml", str(exc))
+        shared_dir = model / "_shared"
+        if shared_dir.exists():
+            for item in shared_dir.rglob("*"):
+                if item.is_dir():
+                    add("warning", item, "_shared 不允许过程材料子目录；需按新标准迁移")
+                elif item.suffix.lower() != ".md":
+                    add("warning", item, "_shared 仅允许 Markdown 跨平台分析；需按新标准迁移")
         for platform in workflow.PLATFORMS:
             directory = model / platform
             if not directory.exists():
@@ -31,6 +38,15 @@ def audit(root):
             for item in directory.iterdir():
                 if item.name not in {"README.md", "platform.yml", "environment", "adaptation", "acceptance"}:
                     add("error", item, "平台根目录存在未归属的材料")
+            for section, label in (("environment", "environment"), ("acceptance", "acceptance")):
+                section_dir = directory / section
+                if not section_dir.exists():
+                    continue
+                for item in section_dir.rglob("*"):
+                    if item.is_dir():
+                        add("warning", item, f"{label} 不允许过程材料子目录；需按新标准迁移")
+                    elif item.suffix.lower() != ".md":
+                        add("warning", item, f"{label} 仅允许 Markdown 分析或验收文档；需按新标准迁移")
             numbers = set()
             for item in (directory / "adaptation").rglob("*"):
                 if item.is_dir():
@@ -54,23 +70,6 @@ def audit(root):
                 if schema_errors:
                     continue
                 phases = cfg.get("workflow", {})
-                if phases.get("environment", {}).get("status") != "not_started":
-                    try:
-                        declared_hosts = environment_target(directory)
-                        if allowed is not None and set(declared_hosts) - allowed:
-                            raise ValueError("environment-target.yml 的 target.hosts 不属于当前平台 inventory")
-                        runtime_path = directory / "environment/runtime-config.yml"
-                        if (phases.get("adaptation", {}).get("status") != "not_started"
-                                and runtime_path.is_file()):
-                            runtime_config = workflow.load_yaml(runtime_path)
-                            target = runtime_config.get("target")
-                            hosts = target.get("hosts") if isinstance(target, dict) else None
-                            if (not isinstance(hosts, list) or not hosts or
-                                    not all(isinstance(host, str) for host in hosts) or
-                                    len(set(hosts)) != len(hosts) or sorted(hosts) != declared_hosts):
-                                raise ValueError("environment target.hosts 与 runtime target.hosts 不一致；环境证据作用域待复核")
-                    except ValueError as exc:
-                        add("warning", directory / "environment/environment-target.yml", str(exc))
                 for stage in workflow.STEP_ORDER:
                     status = workflow.workflow_status(cfg, stage)
                     if status == "not_started":
@@ -78,6 +77,11 @@ def audit(root):
                     item = phases[stage]
                     if status in workflow.COMPLETE_STATUSES:
                         for error in workflow.verification_errors(item.get("verification"), directory, stage, cfg):
+                            if (stage == "environment" and "environment-target.yml" in error
+                                    and not (directory / "environment/environment-target.yml").exists()):
+                                # Compact-layout environment scope is recorded in the
+                                # Markdown analysis; do not demand the retired local YAML.
+                                continue
                             add("warning", path, error)
                         evidence = item.get("evidence", "")
                         if not evidence or not (directory / evidence).is_file():
@@ -96,19 +100,6 @@ def audit(root):
                             add("warning", path, error)
                         for error in workflow.check_acceptance_dependencies(cfg, [name], directory):
                             add("warning", path, error)
-                runtime = directory / "environment/runtime-config.yml"
-                if phases.get("adaptation", {}).get("status") != "not_started":
-                    if not runtime.is_file():
-                        add("warning", path, "已开始适配但缺少 environment/runtime-config.yml")
-                    else:
-                        for error in workflow.validate_adaptation_config(runtime, model.name, platform, root):
-                            add("warning", runtime, error)
-                        try:
-                            workflow.deployment_fingerprint(directory)
-                        except ValueError as exc:
-                            add("warning", runtime, str(exc))
-                        for error in workflow.service_state_errors(directory):
-                            add("warning", directory / "environment/service-state.yml", error)
             except (workflow.WorkflowError, TypeError, AttributeError) as exc:
                 add("error", path, str(exc))
     docs = [root / "README.md", root / "AGENTS.md", root / "AGENTS.zh-CN.md"]

@@ -78,8 +78,8 @@ second storage location or permission to write outside this workspace.
 2. **Analyze the inference environment.** For each adaptation platform explicitly
    requested by the user, create or update
    `models/<model-name>/<platform>/environment/environment-analysis.md` before
-   making platform changes. Keep maintained collection helpers and concise
-   evidence in that local `environment/` directory; deploy/run helpers and retain
+   making platform changes. Keep only Markdown analysis in that local
+   `environment/` directory; keep collection helpers, runtime configuration, and
    raw collection outputs under the approved remote root's `02-environment/`.
    Record the target host aliases,
    accelerator model and topology, operating system or container environment,
@@ -97,8 +97,8 @@ second storage location or permission to write outside this workspace.
       environment analysis, and user-provided references to map every model
       component, inference stage, key operator, parallelism requirement, and
       runtime dependency to the current plugin path and target platform
-      capability. Create the gap list in
-      `environment/platform-adaptation-plan.md`; identify the required plugin
+      capability. Include the gap list in the platform environment analysis or
+      the relevant numbered adaptation issue; identify the required plugin
       changes, operator source, `eager` and `graph` impact, dependencies, risks,
       and planned verification for each item. This plan is preparation context,
       not an issue record.
@@ -115,8 +115,7 @@ second storage location or permission to write outside this workspace.
       adaptation. Do not stop,
       restart, or remove the adaptation container. Preserve before-and-after
       vLLM revision and status evidence. Store baseline and environment facts in
-      `environment/environment-analysis.md` or
-      `environment/platform-adaptation-plan.md`. If a dirty tree, revision
+      `environment/environment-analysis.md`. If a dirty tree, revision
       mismatch, or modification-boundary violation becomes an adaptation issue,
       create a numbered Markdown issue record under `adaptation/`.
    3. **Synchronize FlagGems before operator integration.** Before checking or
@@ -130,8 +129,8 @@ second storage location or permission to write outside this workspace.
       working-tree status before updating. Proceed only when the worktree is clean
       and the intended branch and upstream are unambiguous; fetch and use a
       fast-forward-only pull, never reset, force-update, or discard local changes.
-      Record the resulting revision and synchronization command in
-      `environment/platform-adaptation-plan.md`. If synchronization cannot
+      Record the resulting revision and synchronization command in the platform
+      environment analysis or relevant numbered issue. If synchronization cannot
       complete, report the exact blocker, create a numbered issue record under
       `adaptation/`, and do not continue operator selection against a stale
       revision.
@@ -201,9 +200,8 @@ second storage location or permission to write outside this workspace.
       only necessary production implementation and maintainable plugin regression
       tests in the plugin repository inside the running adaptation container.
       Keep one-off process code in the approved root's `03-issues/` or `06-tmp/`,
-      outside all source repositories. Keep the curated structured launch
-      configuration in the local `environment/runtime-config.yml`, deploy its
-      runtime form under the remote root's `02-environment/`, and reference exact
+      outside all source repositories. Keep the executable launch configuration
+      under the remote root's `02-environment/`, and reference exact
       container paths, branches, revisions or commits, and verification commands from the relevant
       numbered issue record; do not copy these artifacts into `adaptation/`. Do
       not configure an unnecessarily
@@ -214,8 +212,8 @@ second storage location or permission to write outside this workspace.
       full supported maximum. If the supported maximum cannot be verified, stop
       and resolve it rather than guessing. Do not silently reduce the value to
       conceal memory, graph-capture, or runtime problems. Record the evidence,
-      computed value, and final launch argument in
-      `environment/runtime-config.yml`; when a context-length setting causes or
+      computed value, final launch argument, and exact remote configuration path
+      in `environment/environment-analysis.md`; when a context-length setting causes or
       resolves a problem, also capture that reasoning in its numbered issue
       record.
    8. **Validate incrementally.** Validate imports and registration first, then
@@ -243,8 +241,8 @@ second storage location or permission to write outside this workspace.
       revision or commit when applicable, command, and result. Include service
       lifecycle actions, FlagGems evidence, and proof that
       vLLM remained unchanged in the applicable issue record before acceptance.
-   11. **Review plugin design and the final diff.** Maintain
-      `environment/plugin-change-review.md` from its template, following
+   11. **Review plugin design and the final diff.** Record the review in the
+      relevant numbered issue and final acceptance summary, following
       `docs/plugin-contribution-policy.md`. Review the confirmed PR base, actual
       HEAD, dirty and untracked changes, inherited work, multi-model/platform
       impact, regression evidence and workaround exit criteria. Resolve design

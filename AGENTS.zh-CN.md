@@ -71,18 +71,22 @@
 - 使用 `./scripts/new-model <model-name>` 创建模型且不得覆盖已有目录。平台名称限定为
   `nvidia`、`ppu`、`metax`、`ascend`、`mthreads` 和 `hygon`。
 - `models/<model>/<platform>/` 根目录只保留 `README.md`、`platform.yml`，以及三个目录：
-  `environment/` 放环境分析、采集工具、计划、运行/服务元数据和 Plugin 审查；
-  `adaptation/` 仅作为带编号的 Markdown 问题台账；`acceptance/` 放验收配置、包装、
-  精简结果和最终文档。
+  `environment/` 只放 Markdown 格式的环境/平台分析；
+  `adaptation/` 仅作为带编号的 Markdown 问题台账；`acceptance/` 只放 Markdown 格式的
+  验收计划、结果报告、总结和复盘。三个本地目录均不得建立子目录，也不得放脚本、
+  Playbook、JSON/YAML 配置、原始输出、缓存或临时文件。
   模型级内容放 `architecture-and-inference.md` 与 `_shared/`；公共测试工具保留在 `test/`。
+- `_shared/` 只保留 Markdown 索引和少量合并后的跨平台分析，确保便于阅读。上游原始
+  元数据、复制模板、一次性检查脚本、JSON/YAML 快照和其他采集产物统一放在已批准远端
+  根目录，不得保存在本地模型目录。
 - `adaptation/` 不得放脚本、Playbook、补丁、源码或算子实现、复制测试、原始日志、运行
   JSON/YAML 或命令输出。Plugin 仓库只放产品必需代码和可维护的局部测试；一次性过程代码
   放远端 `03-issues/` 或 `06-tmp/`，置于 Plugin、vLLM 和 FlagGems 仓库之外且不得提交。可跨模型
   工具只有经用户批准后才能提升到仓库级 `scripts/`。
-- 执行远端命令前，在归属位置记录可重复形式：准备命令写入 `environment/`，诊断或修复
-  命令写入编号问题，验收命令写入 `acceptance/`。记录准确 Host、路径、revision、引擎、
-  镜像、参数、输入、日期、用途和验证结果。远端原始产物留在远端，本地只保留路径和精简
-  证据；清理临时文件前先保留解决问题所需的最小证据。
+- 可执行的过程产物放在已批准远端根目录：环境采集与运行配置放 `02-environment/`，
+  一次性诊断放 `03-issues/` 或 `06-tmp/`，验收包装与配置放 `04-acceptance/`，原始结果
+  放 `05-runs/`。本地 Markdown 只总结可重复命令并记录准确 Host、远端路径、revision、
+  引擎、镜像、参数、输入、日期、用途和验证结果；清理远端临时文件前保留最小必要证据。
 
 ### 状态与收尾
 
@@ -96,12 +100,12 @@
 
 - 将插件修改按多模型、多平台框架的可维护贡献来设计。修改前阅读目标 checkout 的设计、
   贡献和测试规范，并遵守 [Plugin 修改与 PR 标准](docs/plugin-contribution-policy.md)。
-- 在 `environment/platform-adaptation-plan.md` 说明职责归属、现有扩展点、接口契约、
-  替代方案和受影响调用方。复用已有 dispatch/注册路径，模型语义放在模型适配层，硬件
+- 在平台环境分析或对应的编号适配问题中说明职责归属、现有扩展点、接口契约、替代方案
+  和受影响调用方。复用已有 dispatch/注册路径，模型语义放在模型适配层，硬件
   约束放在 vendor/能力路径；不得在公共执行代码散布模型名称或特定机器的例外。
 - 保持作用域外的既有行为。验证适用的已有模型调用方、守卫未命中路径、可选依赖隔离和
   eager/graph 行为。缺少硬件或未执行测试时明确限制，不能从一个模型跑通推断多平台支持。
-- 适配收尾和准备 PR 时审查真实 diff，从模板维护 `environment/plugin-change-review.md`。
+- 适配收尾和准备 PR 时审查真实 diff，并把审查结论记录在相关编号问题和最终验收总结中。
   记录已确认的 PR base、当前 HEAD、dirty/新增文件、既有改动、影响矩阵、测试证据、
   workaround 退出条件及剩余风险。实质变更后更新审查；设计阻塞未解决不能标记适配完成。
   设计审查与完整验收分别记录。
@@ -140,11 +144,13 @@
 - 验收子步骤可以单独选择，但顺序固定为：`execution-mode` → `sanity` → `accuracy` →
   `performance` → `evidence` → `summary`。不得执行未选择的子步骤，也不得跳过未完成的
   前置验收条件。
-- `adapt-model` 只初始化缺失的本地文件、检查结构化状态并生成 Codex 请求；它不会执行
-  远端命令、证明成功、更新通过状态、提交或推送。需要禁止创建文件时，加 `--check-only`。
+- 当前 `adapt-model` 实现仍包含旧版结构化文件门禁。平台步骤 2～5 不得以创建模式运行该
+  工具，也不得把它所需的旧 YAML/过程文件重新放回精简平台目录；这些阶段直接使用自然
+  语言请求 Codex，并用 `audit-workspace` 检查本地布局，等待门禁迁移。步骤 1 的结构分析
+  初始化仍可使用。
 - 只有所选工作已经真实验证且证据仍然有效，才能更新 `platform.yml`。按
-  `docs/workflow-guide.md` 绑定阶段及验收回执，并通过
-  `environment/environment-target.yml` 核实准确 Host 集合。正式精度必须有通过的
+  `docs/workflow-guide.md` 绑定阶段及验收回执，并在环境分析中记录和核实准确 Host 集合。
+  正式精度必须有通过的
   `acceptance-result.json`；正式性能必须使用 `test/perf_test/perf_acceptance.py` 导出的
   回执，不能用 Markdown/CSV 成功标签代替。
 - 使用 `./scripts/audit-workspace` 检查本地结构和历史状态；warning 需要人工复核，不能作为

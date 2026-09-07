@@ -3,9 +3,7 @@
 import copy
 import json
 import pickle
-import shutil
 import sqlite3
-import subprocess
 import sys
 import tempfile
 import unittest
@@ -264,63 +262,6 @@ class ProgressSchemaTests(unittest.TestCase):
         self.assertIn('PENDING', scorer.format_score(scorer.read_scores(self.db, {}), 198))
         with self.assertRaises(ValueError):
             scorer.build_answer_map({'task': 'gpqa_diamond_generative_cot', 'progress_score_cache_schema': 'unknown'})
-
-
-class RunnerBundleTests(unittest.TestCase):
-    def test_model_deployment_bundles_work_in_clean_directories(self):
-        import yaml
-        for name in ['prepare-ppu07-fixed-c32-20260906.yml', 'prepare-ppu07-fixed-c64.yml']:
-            with self.subTest(playbook=name), tempfile.TemporaryDirectory() as temp:
-                directory = Path(temp)
-                base = ROOT / 'models/Hy4-preview/ppu/acceptance'
-                play = yaml.safe_load((base / name).read_text())[0]
-                self.assertEqual(len(play['tasks']), 1)
-                include = play['tasks'][0]['ansible.builtin.import_tasks']
-                self.assertEqual(include, 'hy4_accuracy_tasks.yml')
-                tasks = yaml.safe_load((base / include).read_text())
-                block = next(task['block'] for task in tasks if 'block' in task)
-                bundle = next(task['ansible.builtin.set_fact']['hy4_bundle'] for task in block
-                              if 'hy4_bundle' in task.get('ansible.builtin.set_fact', {}))
-                self.assertIn({'repo_path': 'test/Accuracy_test/acceptance_contract.py',
-                               'dest': 'acceptance_contract.py'}, bundle)
-                destinations = []
-                for item in bundle:
-                    source = item['repo_path'].replace('{{ hy4_launcher_source }}', play['vars']['hy4_launcher_source'])
-                    destination = item['dest'].replace('{{ hy4_launcher_destination }}', play['vars']['hy4_launcher_destination'])
-                    destinations.append(destination)
-                    shutil.copy2(ROOT / source, directory / destination)
-                self.assertEqual(len(destinations), len(set(destinations)), 'bundle destinations must be unique')
-                result = subprocess.run([sys.executable, '-B', str(directory / 'llmrun.py'), '--help'],
-                                        cwd=directory, capture_output=True, text=True)
-                self.assertEqual(result.returncode, 0, result.stderr)
-                # Exclusive run creation is now performed by the common host
-                # scope helper, before any module or force:false deployment.
-                create = next(task for task in tasks if '--mode create' in task.get('ansible.builtin.raw', ''))
-                self.assertEqual(create['when'], "hy4_operation == 'prepare' and not ansible_check_mode")
-                self.assertIn('remote_workspace.py', create['ansible.builtin.raw'])
-                copies = [task for task in block if 'ansible.builtin.copy' in task]
-                self.assertTrue(copies)
-                self.assertTrue(all(task['when'] == "hy4_operation == 'prepare'" for task in copies))
-                self.assertTrue(all(task['ansible.builtin.copy']['force'] is False for task in copies))
-                self.assertTrue(any(task.get('ansible.builtin.stat', {}).get('checksum_algorithm') == 'sha256'
-                                    and task.get('loop') == '{{ hy4_bundle }}' for task in block))
-                cfg = dict(formal_config(), model_name='example', eval_model='example',
-                           base_url='http://localhost/v1/chat/completions', output_root=str(directory / 'outputs'))
-                config = directory / 'config.json'
-                config.write_text(json.dumps(cfg))
-                # No network, datasets or lm-eval is invoked: this exercises the
-                # deployed CLI/import path up to the preflight boundary.
-                code = """import sys
-from unittest.mock import patch
-import llmrun
-sys.argv = ['llmrun.py', 'config.json', '--preflight-only']
-with patch.object(llmrun.shutil, 'which', return_value='/fake/lm_eval'), patch.object(llmrun, 'verify_dataset'), patch.object(llmrun, 'probe_service', return_value=(True, 'synthetic service')):
-    llmrun.main()
-"""
-                result = subprocess.run([sys.executable, '-B', '-c', code], cwd=directory,
-                                        capture_output=True, text=True)
-                self.assertEqual(result.returncode, 0, result.stderr)
-                self.assertFalse((directory / 'outputs').exists())
 
 
 if __name__ == '__main__':

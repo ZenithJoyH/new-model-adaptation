@@ -9,7 +9,7 @@
 
 ## 1. 先确定职责与边界
 
-在 `environment/platform-adaptation-plan.md` 为每项实质变更写明：问题的完整签名、
+在平台环境分析或对应编号适配问题中为每项实质变更写明：问题的完整签名、
 现有调用链、候选扩展点、所选层级及原因、影响面和验证计划。优先沿用现有可维护的路径；
 选择改动面时同时考虑职责、语义和复用，不以代码行数最少作为唯一目标。
 
@@ -89,8 +89,8 @@ skip/xfail 或放宽容差来证明成功。mock 适用于依赖隔离/选择逻
 
 ## 5. 交付最终 diff 的设计审查
 
-在阶段 3 收尾、实质变更后以及准备 PR 前，维护 `environment/plugin-change-review.md`，
-从 `templates/adaptation/plugin-change-review.md` 初始化。最终检查对准真实 checkout：
+在阶段 3 收尾、实质变更后以及准备 PR 前，在对应编号适配问题和最终验收总结中记录设计
+审查。最终检查对准真实 checkout：
 
 1. 记录目标 repository、已确认的 PR base branch/revision、当前 HEAD，以及本任务开始前
    的 dirty 状态。目标分支未确认时记录缺项，不自行假定 main。

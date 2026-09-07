@@ -91,7 +91,7 @@ class EnvironmentScopeTests(unittest.TestCase):
         self.assertEqual(workflow.check_dependencies(config, ['adaptation'], self.platform, expected_hosts=['PPU-01']), [])
         self.assertTrue(workflow.check_dependencies(config, ['adaptation'], self.platform, expected_hosts=['PPU-02']))
 
-    def test_audit_exposes_host_scope_mismatch_without_live_service(self):
+    def test_audit_flags_legacy_structured_environment_artifacts(self):
         config = self._complete_environment()
         config['status'] = 'model_loading'
         config['workflow']['adaptation']['status'] = 'in_progress'
@@ -101,7 +101,7 @@ class EnvironmentScopeTests(unittest.TestCase):
         runtime['target']['hosts'] = ['PPU-02']
         workflow.write_yaml(runtime_path, runtime)
         findings = fixtures.audit_workspace.audit(self.root)
-        self.assertTrue(any(f['level'] == 'warning' and '环境证据作用域待复核' in f['message'] for f in findings))
+        self.assertTrue(any(f['level'] == 'warning' and 'environment 仅允许 Markdown' in f['message'] for f in findings))
 
 
 if __name__ == '__main__':

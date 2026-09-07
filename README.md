@@ -35,20 +35,24 @@ models/<model-name>/
 ```
 
 每个平台目录分为三类材料：
-- `environment/` 保存环境分析、平台适配计划、结构化运行
-配置和服务状态；
+- `environment/` 只保存 Markdown 环境与平台分析；
 - `adaptation/` 只保存按问题编号的 Markdown 台账及其索引；
-- `acceptance/` 保存验收配置、简要证据、总结与复盘。Plugin 仓库只保存必要的产品实现和
-可长期维护的回归测试；
+- `acceptance/` 只保存 Markdown 验收计划、结果报告、总结与复盘。三个目录均不保存脚本、
+Playbook、JSON/YAML、原始日志、缓存或临时子目录。Plugin 仓库只保存必要的产品实现和
+可长期维护的回归测试。
 
-一次性诊断、部署、日志分析、探针和试验代码放在适配容器中独立的临时工作目录，不得放入 Plugin 仓库。问题台账只引用准确路径、revision、命令和结论。跨平台内容放在 `_shared`。完整约定见 [models/README.md](models/README.md)。
+一次性诊断、部署、日志分析、探针和试验代码放在用户批准的远端工作根目录，不得放入
+Plugin 仓库。问题台账只引用准确路径、revision、命令和结论。跨平台内容放在 `_shared`。
+完整约定见 [models/README.md](models/README.md)。
 
-公共的最终性能、精度和通信测试工具位于 [test/](test/README.md)。每次模型适配完成前，应选择与目标平台适用的测试工具执行验证，并把模型专用配置和简要结果记录在对应的平台目录中。
+公共的最终性能、精度和通信测试工具位于 [test/](test/README.md)。每次模型适配完成前，
+应选择与目标平台适用的测试工具执行验证；模型专用可执行配置和原始结果留在远端工作根
+目录，本地平台 `acceptance/` 只记录验收结论和准确证据路径。
 
 修改模型适配 plugin 代码前，可参考
 [vllm-plugin-FL 项目分析与新模型适配代码修改指南](docs/vllm-plugin-FL-analysis.md)，按模型注册、算子 dispatch、平台 backend、量化、attention/MoE 和 graph 执行链路选择最小改动面。
 
-插件代码按 [修改与 PR 交付标准](docs/plugin-contribution-policy.md) 设计，重点核对框架职责、已有模型/平台行为、实际回归范围和最终 diff。阶段 3 会准备 `environment/plugin-change-review.md`，适配收尾时填写真实审查结论；模板存在不代表代码已通过设计审查。
+插件代码按 [修改与 PR 交付标准](docs/plugin-contribution-policy.md) 设计，重点核对框架职责、已有模型/平台行为、实际回归范围和最终 diff。设计审查结论写入对应编号适配问题和最终验收总结；文档存在不代表代码已通过设计审查。
 
 开始环境变更、适配实现或验收前，应先检索
 [新模型适配故障知识库](docs/troubleshooting/README.md)。已有经验只能作为需要在当前模型、平台和软件 revision 上重新验证的候选方案；新经验先记录在当前模型平台`adaptation/` 下对应的编号问题记录中，并登记到 `adaptation/README.md`，验证充分后再提升到仓库级知识库，并在复盘中审计。
@@ -62,9 +66,8 @@ models/<model-name>/
 ## 在 Codex 中按步骤调用适配流程
 
 日常操作入口和证据绑定方法见 [工作流操作指南](docs/workflow-guide.md)。
-先运行 `./scripts/audit-workspace` 检查全仓库结构和历史状态；正式进入下一阶段时，
-运行对应的 `adapt-model --check-only`。前者的 warning 表示待复核，不能替代后者的门禁。
-本轮目录治理、备份与已知待复核项见 [治理记录](docs/workspace-maintenance.md)。
+先运行 `./scripts/audit-workspace` 检查全仓库结构和历史状态；其中的 warning 表示待复核，
+不能作为远端或阶段成功证据。
 旧的一次性执行入口已按[停用清单与替代路径](docs/legacy-entrypoints.md)保留原文并拒绝重放；
 不要把历史启动记录当作当前执行入口。
 
@@ -91,30 +94,20 @@ models/<model-name>/
 完成条件：<完成后停止，或继续到下一个指定步骤>
 ```
 
-未指定远端工作目录时，先确认目录再创建或写入远端文件。所有新增工作产物集中在该目录，不自动移动旧文件、修改挂载或在目录外创建临时脚本。规则及配置格式见[远端工作目录约束](docs/workflow-guide.md#远端工作目录约束)。
+未指定远端工作目录时，先确认目录再创建或写入远端文件。所有新增工作产物集中在该目录，不自动移动旧文件、修改挂载或在目录外创建临时脚本。规则及配置格式见[远端执行目录](docs/workflow-guide.md#3-远端执行目录)。
 
-也可以先使用阶段工具初始化所选步骤的缺失文件、检查结构化前置条件，并生成上述Codex 调用文本。该工具本身不执行远程命令，也不会修改阶段状态：
+步骤 1 可以使用阶段工具初始化模型结构分析文档。当前工具的平台阶段仍包含旧版结构化
+文件门禁，与精简目录标准不一致，因此步骤 2～5 暂时直接使用上面的自然语言方式调用，
+不得为通过旧门禁把 YAML 或过程文件重新放回平台目录。
 
 ```bash
-# 步骤 1 不要求平台
 ./scripts/adapt-model Qwen3.8-Flash-Next --steps architecture
-
-# 多个步骤始终按 1 到 5 的顺序解析
-./scripts/adapt-model Qwen3.8-Flash-Next --platform ppu \
-  --hosts PPU-01 --steps architecture,environment,adaptation
-
-# 步骤 3 已通过后，只准备指定验收子步骤
-./scripts/adapt-model Qwen3.8-Flash-Next --platform ppu \
-  --hosts PPU-01 --steps acceptance --acceptance-substeps execution-mode,sanity
-
-# 只检查，不创建任何文件
-./scripts/adapt-model Qwen3.8-Flash-Next --platform ppu \
-  --hosts PPU-01 --steps adaptation --check-only
 ```
 
-首次为某个平台调用阶段工具时，它会在需要的阶段内从 `templates/adaptation/` 创建缺失文件，但不会覆盖已有记录。旧模型的 `platform.yml` 如果尚无五阶段状态结构，非`--check-only` 模式只补充缺失字段，不改写已有字段。
-
-进入步骤 3 或步骤 4 前，需要填写平台 `environment/runtime-config.yml`。工具会检查目标 Host是否属于对应 inventory 组、是否误存敏感连接字段、vLLM 只读和容器保持运行边界、软件 revision、`eager`/`graph` 配置、模型长度计算规则，以及所选验收子步骤需要的graph 服务、FlagEval 镜像和测试配置。配置不完整时只报告缺项，不会绕过门禁。
+步骤 2～5 的请求必须明确目标 Host，并由执行者核对其是否属于对应 inventory 组。实际运行
+配置、采集脚本、验收包装和原始结果保存在用户批准的远端工作根目录，本地模型目录只保留
+Markdown 分析、问题记录和验收结论。vLLM 只读、适配容器保持运行、`eager`/`graph`、模型
+长度及正式验收要求仍按工作流执行。
 
 只执行模型分析：
 
