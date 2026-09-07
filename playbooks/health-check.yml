@@ -41,23 +41,6 @@
       changed_when: false
       failed_when: false
 
-    - name: Detect ModelScope
-      ansible.builtin.raw: >-
-        if command -v modelscope >/dev/null 2>&1; then
-          printf 'path='; command -v modelscope;
-          if command -v python3 >/dev/null 2>&1; then
-            python3 -c 'import modelscope; print("version=" + modelscope.__version__)'
-              2>/dev/null || printf 'version=unknown\n';
-          else
-            printf 'version=unknown\n';
-          fi;
-        else
-          printf 'not-installed\n';
-        fi
-      register: modelscope_result
-      changed_when: false
-      failed_when: false
-
     - name: Run the platform-specific accelerator query
       ansible.builtin.raw: "{{ accelerator_query_command }}"
       register: accelerator_result
@@ -71,9 +54,6 @@
           - "uptime={{ uptime_result.stdout | trim }}"
           - "disk={{ disk_result.stdout_lines | default([]) | map('trim') | join(' | ') }}"
           - "python={{ python_result.stdout_lines | default([]) | map('trim') | join(' | ') }}"
-          - >-
-            modelscope={{ modelscope_result.stdout_lines
-            | default([]) | map('trim') | join(' | ') }}
           - >-
             accelerator={{ accelerator_platform }};
             command={{ accelerator_query_command }};
