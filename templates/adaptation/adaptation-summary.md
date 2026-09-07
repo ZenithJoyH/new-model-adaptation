@@ -19,6 +19,11 @@
 - FlagGems 算子及 revision：
 - Plugin 内新增 Triton 算子、约束和 graph 支持：
 - vLLM 未修改证据：
+- 职责归属、复用的框架扩展点、共享模型/平台影响与实际回归范围：
+- 当前 HEAD / dirty diff 对应的 `environment/plugin-change-review.md` 及结论：
+- PR 候选范围、既有改动归属、workaround 退出条件和未验证平台：
+
+设计审查通过与完整验收通过分别记录；不得将一个模型的验收结果推广为全框架兼容声明。
 
 ## 可重复配置与过程
 

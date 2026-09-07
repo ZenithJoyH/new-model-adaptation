@@ -8,6 +8,13 @@ target:
   container_name: ""
   container_image: ""
 
+# User-assigned roots, one per exact target host; never infer or auto-create them.
+# host_root and container_root must be canonical absolute POSIX directories.
+# Verify real paths, ownership and the existing container mount mapping on site.
+# This declaration is not a chroot and does not authorize writes outside it.
+workspace:
+  roots: []  # [{host_alias: PPU-01, host_root: /assigned/task, container_root: /mounted/task}]
+
 boundaries:
   vllm_source_read_only: true
   adaptation_container_must_remain_running: true

@@ -1,0 +1,8 @@
+schema_version: 1
+model: ""
+platform: ""
+# Declared scope only, never proof of environment verification.
+# Initialized only for the selected environment phase. Do not change an existing
+# scope without revalidating the affected environment evidence.
+target:
+  hosts: []

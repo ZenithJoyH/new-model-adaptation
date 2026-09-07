@@ -1,0 +1,42 @@
+schema_version: 1
+model: ""
+platform: ""
+# Actual model snapshot revision and immutable container image ID, not a branch/tag.
+model_revision: ""
+container_image_digest: ""
+# SHA-256 of the reviewed runtime-config.yml bytes.
+runtime_config_sha256: ""
+# Collect inside the running container; do not assume HEAD means a clean tree.
+# tracked_diff_sha256: hash `git diff --binary --no-ext-diff HEAD --` bytes.
+# untracked_files_sha256: canonical UTF-8 JSON [[relative_posix_path, file_sha256], ...]
+# sorted by path, from `git ls-files --others --exclude-standard -z`.
+# Serialize with ensure_ascii=False, separators=(',', ':'); no trailing newline.
+# Clean values are SHA-256(empty bytes) and SHA-256(b"[]") respectively.
+# Include submodule worktrees/install-generated or ignored runtime code separately
+# in runtime-config.yml if present; this Git manifest does not attest those bytes.
+stack:
+  vllm:
+    source_kind: git
+    revision: ""
+    tracked_diff_sha256: ""
+    untracked_files_sha256: ""
+  plugin:
+    source_kind: git
+    revision: ""
+    tracked_diff_sha256: ""
+    untracked_files_sha256: ""
+  flaggems:
+    source_kind: git
+    revision: ""
+    tracked_diff_sha256: ""
+    untracked_files_sha256: ""
+# A component installed without Git metadata uses the alternative mapping:
+# vllm:
+#   source_kind: installed_distribution
+#   package: vllm
+#   revision: <actual installed package version; same as runtime-config revision>
+#   import_path: <actual package path; same as runtime-config path>
+#   installed_files_sha256: <canonical path/content manifest of installed code>
+# Hash all installed runtime files (including native extensions), excluding only
+# __pycache__/*.pyc. Use the same sorted path/content JSON format as above.
+# Do not hash only the original wheel: locally patched installed bytes matter.

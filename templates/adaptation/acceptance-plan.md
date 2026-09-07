@@ -20,8 +20,13 @@
 - [ ] 使用 `test/Accuracy_test/llmrun.py`
 - [ ] 使用适用的 FlagEval 镜像
 - [ ] `--preflight-only` 通过
+- [ ] `formal_acceptance=true`、graph、全量样本、并发至少 32、禁止超时
+- [ ] 每个 task 的精确指标键和阈值已在评测前确定
+- [ ] `acceptance-result.json` 为 passed，配置哈希与本轮配置一致
 - [ ] 样本数、输出文件、指标和通过标准已核实
 - 配置及结果：
+- 配置并发 / 观测有效并发、吞吐、耗时、错误/超时：
+- 按仓库 `docs/workflow-guide.md` 中的证据绑定格式更新 phase verification / acceptance records。
 
 ## 4.4 正式性能与通信测试
 

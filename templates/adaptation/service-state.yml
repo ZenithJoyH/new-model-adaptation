@@ -1,4 +1,4 @@
-schema_version: 1
+schema_version: 2
 model: ""
 platform: ""
 host: ""
@@ -6,13 +6,27 @@ container_name: ""
 
 service:
   status: unknown
-  mode: ""
-  pid: null
+  mode: unknown
+  # Stable for one actual process lifetime; change on restart (PID alone can be reused).
+  instance_id: ""
+  # Canonical fingerprint of the identity actually loaded when this instance started.
+  deployment_fingerprint: ""
+  pid: null  # For background accuracy: the API listener PID, not EngineCore.
+  # Required by workspace-bound background accuracy workers. Observe inside the
+  # exact running inference container; never derive these from an old PID/log.
+  # The host observer checks them again in response to the lock-owning worker.
+  process_identity:
+    container_id: ""  # Full immutable 64-hex Docker ID, not container name/image tag.
+    boot_id: ""  # /proc/sys/kernel/random/boot_id
+    start_ticks: null  # Field 22 of /proc/<pid>/stat (parse after the closing ')').
+    cmdline_sha256: ""  # SHA-256 of raw /proc/<pid>/cmdline bytes, including NULs.
   port: null
   log_path: ""
   command_record: ""
   started_at: null
   readiness_checked_at: null
   readiness_result: unknown
+  # Keep vendor-specific graph detail separate from normalized mode/readiness enums.
+  graph_detail: ""
 
 lifecycle_history: []
