@@ -12,8 +12,12 @@
 - 分析方式：基于上述 revision 的静态源码、配置、测试及 CI 结构分析；未在目标加速卡上
   执行运行时验证。
 
-后续实际适配前必须重新同步上游代码并记录新的 plugin、vLLM 和 FlagGems revision。
+后续实际适配前必须核对目标 checkout 并记录 plugin、vLLM 和 FlagGems revision。
+vLLM 保持只读；FlagGems 同步遵循工作流，plugin 分支/版本调整遵循当前任务边界。
 本报告中的文件位置和结论不得代替目标适配镜像中的实际检查结果。
+
+实际修改和最终 diff 审查同时遵守 [Plugin 修改与 PR 交付标准](plugin-contribution-policy.md)，
+其中明确多模型/多平台影响、职责归属、回归矩阵和 PR 准备要求。
 
 ## 2. 核心结论
 
@@ -204,8 +208,9 @@ epoch 清理缓存，并在进程 fork 后重置状态。
 8. 增加 unit、functional、eager 和 graph capture/replay 测试。
 
 如果 FlagGems 缺失该算子，应把 Triton 实现放在 plugin 拥有的路径下并通过相同的
-`OpManager` 接入，不得从模型代码临时直接调用。还应在适配容器 `/bug` 中保留 FlagGems
-缺失或异常的最小复现证据。
+`OpManager` 接入，不得从模型代码临时直接调用。FlagGems 算子异常或精度问题的最小复现
+统一保存在工作根 `08-bugs/`，并通过已核实的容器对应路径原地执行；已有用例不再复制到
+`/bug`。算子缺失时保留检索证据。
 
 ## 6. 模型适配的三种主要路径
 
@@ -349,7 +354,8 @@ smoke 目的，不得直接复制为本项目正式服务配置。
 
 ### 阶段 A：建立事实基线
 
-1. 同步并记录 plugin、vLLM、FlagGems 的 branch、revision 和 clean worktree；
+1. 记录 plugin、vLLM、FlagGems 的 branch、revision 和原始工作区状态；vLLM 保持只读，
+   FlagGems 按工作流同步，plugin 遵循目标分支与当前任务边界，不丢弃已有修改；
 2. 核对 plugin/vLLM 版本矩阵，不混用不同 release 的内部 API；
 3. 从模型 config 和实现生成结构、推理链路与关键算子清单；
 4. 建立 native/reference 或已验证平台输出基线；
@@ -371,7 +377,7 @@ smoke 目的，不得直接复制为本项目正式服务配置。
 | 权重名或量化元数据不一致 | model shim 的 loader/mapper | 权重映射与 ignored-layer 测试 |
 | vLLM 高层层类需替换 | `ops/` 的 OOT class 或正式 registry | OOT whitelist/blacklist 与集成测试 |
 | FlagGems 已有算子但 plugin 未接入 | flaggems adapter + backend + register_ops | reference、policy、数值、graph 测试 |
-| FlagGems 算子报错或精度异常 | 容器 `/bug/<issue>/` 最小复现 | plugin 临时 policy、问题记录 |
+| FlagGems 算子报错或精度异常 | 工作根 `08-bugs/<issue>/` 最小复现及容器对应路径 | plugin 临时 policy、问题记录 |
 | FlagGems 缺少算子 | plugin-owned Triton + dispatch | eager/graph、dtype/shape/layout 测试 |
 | attention 类型或 metadata 不兼容 | attention backend/impl | prefill/decode/KV-cache/graph 测试 |
 | MoE routing 或 experts 不兼容 | `ops/fused_moe/`、quantization、dispatch | router/expert/combine/EP 测试 |
@@ -453,7 +459,7 @@ kernel、import-time symbol wrapper、正式 dispatch/OOT 扩展，或升级不�
 - [ ] reference 实现可信，容差按 dtype 和累积误差设定；
 - [ ] strict 模式证明目标实现可独立运行；
 - [ ] 实际命中的 `impl_id` 已记录；
-- [ ] FlagGems 异常或精度问题已在适配容器 `/bug` 中形成最小复现。
+- [ ] FlagGems 异常或精度问题已在工作根 `08-bugs/` 中形成最小复现，并通过已核实的容器对应路径原地验证。
 
 ### Graph 与执行链路
 
