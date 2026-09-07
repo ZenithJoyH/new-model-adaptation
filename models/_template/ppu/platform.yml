@@ -15,21 +15,26 @@ workflow:
     evidence: ../architecture-and-inference.md
     last_verified: null
     blocker: ""
+    verification: {}
   environment:
     status: not_started
     evidence: environment/environment-analysis.md
     last_verified: null
     blocker: ""
+    verification: {}
   adaptation:
     status: not_started
-    evidence: adaptation/progress.md
+    evidence: adaptation/README.md
     last_verified: null
     blocker: ""
+    verification: {}
   acceptance:
     status: not_started
     evidence: acceptance/adaptation-summary.md
     last_verified: null
     blocker: ""
+    verification: {}
+    records: {}
     substeps:
       execution-mode: not_started
       sanity: not_started
@@ -42,3 +47,4 @@ workflow:
     evidence: acceptance/adaptation-retrospective.md
     last_verified: null
     blocker: ""
+    verification: {}
