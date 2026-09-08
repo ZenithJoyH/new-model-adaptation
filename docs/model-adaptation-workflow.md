@@ -32,7 +32,9 @@ checkouts in `01-repos/`, environment collection and runtime configuration in
 `02-environment/`, issue-specific one-off scripts in `03-issues/`, acceptance
 tools/configurations in `04-acceptance/`, per-run logs/results in `05-runs/`,
 temporary files in `06-tmp/`, caches in `07-cache/`, and operator reproducers in
-`08-bugs/`. Inside a container, use its verified corresponding
+`08-bugs/`. The final accepted model launcher is the one deliberate root-level
+artifact: `<host_root>/start-model.sh`, mapped and verified as
+`<container_root>/start-model.sh`. Inside a container, use its verified corresponding
 root. A reproducer already available at that container path must be run in place,
 not copied to `/bug`. Configure implicit destinations such as framework/compiler caches, Python
 bytecode, downloads, temporary files, and subprocess logs/results as well. Set an
@@ -200,8 +202,17 @@ second storage location or permission to write outside this workspace.
       only necessary production implementation and maintainable plugin regression
       tests in the plugin repository inside the running adaptation container.
       Keep one-off process code in the approved root's `03-issues/` or `06-tmp/`,
-      outside all source repositories. Keep the executable launch configuration
-      under the remote root's `02-environment/`, and reference exact
+      outside all source repositories. Keep intermediate runtime configuration
+      under the remote root's `02-environment/`. Do not call an intermediate
+      launcher final. After acceptance identifies the final graph configuration,
+      place its executable entry point at the remote root's `start-model.sh`.
+      Build that final script from the smallest accepted launch command. Remove
+      diagnostic/profiling/tracing/dump controls, temporary paths, obsolete
+      workarounds, duplicated defaults, experimental tuning, and unrelated
+      model/platform settings unless controlled acceptance proves they are still
+      required. Document the correctness, safety, resource-placement, or
+      reproducibility reason for every retained environment variable and
+      argument; explicitly pin a default only when the reason is recorded. Reference exact
       container paths, branches, revisions or commits, and verification commands from the relevant
       numbered issue record; do not copy these artifacts into `adaptation/`. Do
       not configure an unnecessarily
@@ -313,9 +324,16 @@ second storage location or permission to write outside this workspace.
       the scope, environment, reference files, implementation changes,
       reproducible procedure and configuration, correctness and performance
       verification, encountered problems and solutions, final status, unresolved
-      limitations, and next steps. Do not mark the adaptation complete until
-      every acceptance item has passed and the summary reflects the verified
-      outcome.
+      limitations, and next steps. Before marking completion, verify that each
+      approved target `host_root` contains executable `start-model.sh`, that its
+      verified container path launches the final accepted graph configuration,
+      and that it routes logs/results to `05-runs/` and caches to `07-cache/`
+      without affecting an unrelated service or the adaptation container. Record
+      both paths, SHA-256, syntax check, launch/readiness result, complete
+      arguments, the result of the minimal-parameter review and justification for
+      every retained explicit setting, revisions, and verification date. Do not mark the adaptation
+      complete until every acceptance item and this launcher verification have
+      passed and the summary reflects the verified outcome.
 5. **Retrospect on the adaptation.** After acceptance, create or update
    `models/<model-name>/<platform>/acceptance/adaptation-retrospective.md` for
    each adapted platform. Review the complete work from architecture and

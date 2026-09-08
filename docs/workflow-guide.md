@@ -59,6 +59,7 @@ models/<model>/<platform>/
 
 ```text
 <approved-root>/
+├── start-model.sh     # 最终通过验收的 graph 模型启动入口
 ├── 01-repos/         # 经授权的源码 checkout
 ├── 02-environment/   # 环境采集、运行配置和启动参数
 ├── 03-issues/        # 一次性诊断脚本和过程代码
@@ -72,6 +73,10 @@ models/<model>/<platform>/
 本地 Markdown 记录准确的远端路径、命令、Host、容器、revision、镜像、参数、日期和结果，
 不复制远端过程产物。Plugin 仓库只接收产品必需代码和可维护回归测试；一次性脚本不得放入
 Plugin、vLLM 或 FlagGems 仓库。vLLM 源码全程不得修改，适配容器不得停止、重启或删除。
+适配完成前必须验证根目录 `start-model.sh` 能从已核实的容器对应路径启动最终 graph 配置；
+脚本只保留已验收配置必需的参数和设置，删除调试/诊断、临时路径、过期 workaround、重复
+默认值、实验项和无关配置，并为每个保留的显式项记录依据。本地平台 README 和最终总结
+只记录其准确路径、SHA-256、参数审查、revision、日期及就绪结果。
 
 ## 4. 阶段文档
 

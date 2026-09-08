@@ -89,6 +89,23 @@ write remotely.
   directory be exposed there through an approved, verified mapping or an explicit
   outside-root exception. Verify the corresponding mapping for every participating
   container; pause if a tool cannot remain inside this boundary.
+- Before an adaptation can be marked complete, place one final executable model
+  launch script at `<host_root>/start-model.sh` for every target host root, with
+  the verified container path `<container_root>/start-model.sh`. It must launch
+  the final accepted `graph` configuration, keep logs/results under `05-runs/`
+  and caches under `07-cache/`, contain no secrets, and refuse to overwrite an
+  unrelated running service. Keep the launcher minimal: remove diagnostic,
+  profiling, tracing, dump, temporary-path, obsolete workaround, duplicated
+  default, experimental tuning, and unrelated model/platform settings unless
+  the accepted configuration demonstrably requires them. Every retained explicit
+  environment variable and argument must have a documented correctness, safety,
+  resource-placement, or reproducibility reason; pinning a default is acceptable
+  only when that reason is recorded. Verify its syntax, exact arguments, revisions,
+  device allocation, service readiness, and container mapping. Record the host
+  and container paths, SHA-256, verification date, and result in the platform
+  README and final acceptance summary; do not copy the script into the local
+  model directory. The script must never stop, restart, or remove the adaptation
+  container.
 - Set an explicit `cwd`/`workdir` for every remote command and stop on a failed
   `cd`. Resolve symlinks and bind mounts. Existing external weights, datasets,
   dependencies, and checkouts are read-only unless separately authorized. Do not
@@ -135,7 +152,8 @@ write remotely.
   one material variable at a time and retain the comparison.
 - Before completion, update the platform `README.md` with outcomes, problems,
   causes, solutions, limits, and next steps, and synchronize it with
-  `platform.yml`. Require minimal inference for `functional`, and recorded
+  `platform.yml`. Verify the root-level remote `start-model.sh` described above;
+  file existence alone is not completion evidence. Require minimal inference for `functional`, and recorded
   correctness regression plus performance results for `optimized`.
 - Never commit weights, secrets, complete logs, or bulky raw benchmarks.
 
