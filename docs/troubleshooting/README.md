@@ -31,6 +31,7 @@
 ## 已收录条目
 
 - [TP worker `sample_tokens` 超时、通信序号分叉与 EngineCore RPC 退出](distributed-sample-tokens-timeout.md)
+- [Shape-aware Plugin dispatch 进入 fullgraph 后触发 ContextVar/RLock](shape-aware-dispatch-fullgraph-contextvar-rlock.md)
 
 ## 条目要求
 
