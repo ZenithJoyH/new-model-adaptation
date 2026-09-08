@@ -7,6 +7,14 @@
   when SSH aliases are added or removed.
 - Use Ansible for repeatable or multi-host changes. Direct SSH is acceptable for
   focused, read-only diagnostics.
+- When Codex invokes Ansible, set the working directory to the repository root
+  and use the exact relative entry points `./scripts/ansible`,
+  `./scripts/playbook`, `./scripts/connectivity-check`,
+  `./scripts/accelerator-check`, `./scripts/health-check`, or
+  `./scripts/inventory`. Project rules run the four hardened read-only wrappers
+  outside the sandbox automatically and prompt for the two generic wrappers,
+  because Ansible's local RPC requires a Unix socket. Do not bypass these rules
+  with `.venv/bin/*`, `bash`/`sh` wrappers, absolute paths, or compound commands.
 - Do not hardcode IP addresses, SSH users, bastion details, passwords, tokens,
   or private-key paths. SSH connection details belong in the operator's
   `~/.ssh/config`.

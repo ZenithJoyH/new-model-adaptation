@@ -55,6 +55,33 @@ class EnvironmentScopeTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             environment_target(self.platform)
 
+    def test_compact_environment_scope_comes_from_platform_state(self):
+        target_path = self.platform / 'environment/environment-target.yml'
+        target_path.unlink()
+        config = self.platform_config
+        config.update(
+            record_layout='compact',
+            target={
+                'hosts': ['PPU-01'],
+                'container_name': 'adaptation',
+                'container_image': 'example:latest',
+            },
+            workspace={
+                'roots': [{
+                    'host_alias': 'PPU-01',
+                    'host_root': '/operator/Example',
+                    'container_root': '/work/Example',
+                }]
+            },
+        )
+        workflow.write_yaml(self.platform / 'platform.yml', config)
+        self.assertEqual(environment_target(self.platform), ['PPU-01'])
+        before = workflow.context_sha256(self.platform, 'environment', config)
+        config['target']['hosts'] = ['PPU-02']
+        workflow.write_yaml(self.platform / 'platform.yml', config)
+        after = workflow.context_sha256(self.platform, 'environment', config)
+        self.assertNotEqual(before, after)
+
     def _complete_environment(self):
         config = self.platform_config
         for stage in ('architecture', 'environment'):

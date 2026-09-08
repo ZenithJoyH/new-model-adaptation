@@ -42,19 +42,38 @@ def model_identity(model_dir):
 
 
 def environment_target(platform_dir):
-    """Declared host scope, separate from later mutable inference settings."""
+    """Declared host scope, separate from later mutable inference settings.
+
+    Compact platform records keep this small declaration in ``platform.yml``.
+    The legacy environment-target file remains readable for historical records,
+    but is no longer required for a compact directory.
+    """
     path = platform_dir / "environment/environment-target.yml"
-    target = read_mapping(path)
-    if type(target.get("schema_version")) is not int or target["schema_version"] != 1:
-        raise ValueError(f"{path}: schema_version 必须为 1")
-    if target.get("model") != platform_dir.parent.name or target.get("platform") != platform_dir.name:
-        raise ValueError(f"{path}: model/platform 与当前目录不一致")
-    scope = target.get("target")
+    if path.is_file():
+        target = read_mapping(path)
+        if type(target.get("schema_version")) is not int or target["schema_version"] != 1:
+            raise ValueError(f"{path}: schema_version 必须为 1")
+        if target.get("model") != platform_dir.parent.name or target.get("platform") != platform_dir.name:
+            raise ValueError(f"{path}: model/platform 与当前目录不一致")
+        scope = target.get("target")
+        source = path
+    else:
+        platform_path = platform_dir / "platform.yml"
+        target = read_mapping(platform_path)
+        if target.get("record_layout") != "compact":
+            raise ValueError(
+                f"{path}: 缺少旧版作用域文件，且 {platform_path} 未声明 "
+                "record_layout: compact"
+            )
+        if target.get("platform") != platform_dir.name:
+            raise ValueError(f"{platform_path}: platform 与当前目录不一致")
+        scope = target.get("target")
+        source = platform_path
     hosts = scope.get("hosts") if isinstance(scope, dict) else None
     if (not isinstance(hosts, list) or not hosts or
             not all(isinstance(host, str) and re.fullmatch(r"[A-Za-z0-9_.-]+", host) for host in hosts) or
             len(set(hosts)) != len(hosts)):
-        raise ValueError(f"{path}: target.hosts 必须是具体、无重复的 SSH Host 别名列表")
+        raise ValueError(f"{source}: target.hosts 必须是具体、无重复的 SSH Host 别名列表")
     return sorted(hosts)
 
 

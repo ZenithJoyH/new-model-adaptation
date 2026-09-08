@@ -11,4 +11,8 @@ fi
 
 cd "${repo_root}"
 export ANSIBLE_HOME="${repo_root}/.ansible"
-exec "${binary}" --graph "$@"
+if (( $# > 0 )); then
+  printf 'The read-only inventory wrapper accepts no arguments.\n' >&2
+  exit 2
+fi
+exec "${binary}" --graph

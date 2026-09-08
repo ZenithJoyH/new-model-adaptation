@@ -4,6 +4,12 @@
 
 - 本仓库通过 `inventory/hosts.yml` 管理操作者 SSH 配置中的所有具体主机别名。SSH别名新增或删除时，必须同步更新 `managed` 组。
 - 对可重复操作或多主机变更使用 Ansible。仅针对明确目标开展只读诊断时，可以直接使用 SSH。
+- Codex 调用 Ansible 时，必须把工作目录设为仓库根目录，并使用准确的相对入口：
+  `./scripts/ansible`、`./scripts/playbook`、`./scripts/connectivity-check`、
+  `./scripts/accelerator-check`、`./scripts/health-check` 或 `./scripts/inventory`。
+  项目规则会让四个已经收紧参数的只读包装脚本自动在沙箱外执行；两个通用入口因参数可能
+  产生任意远端变更，仍需逐次审批。不得改用 `.venv/bin/*`、`bash`/`sh` 包装、绝对路径或
+  复合命令绕过规则。
 - 不得硬编码 IP 地址、SSH 用户、堡垒机信息、密码、令牌或私钥路径。SSH 连接信息应保存在操作者的 `~/.ssh/config` 中。
 
 ## 安全要求

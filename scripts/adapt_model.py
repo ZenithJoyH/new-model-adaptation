@@ -172,6 +172,10 @@ def file_sha256(path: Path) -> str:
 def context_sha256(platform_dir: Path, stage: str, platform_config: dict | None = None) -> str:
     """Bind evidence to recorded inputs; this never attests remote state."""
     model_dir = platform_dir.parent
+    cfg = platform_config
+    if cfg is None and (platform_dir / "platform.yml").is_file():
+        cfg = load_yaml(platform_dir / "platform.yml")
+    compact = isinstance(cfg, dict) and cfg.get("record_layout") == "compact"
     try:
         model_identity(model_dir)
         if stage == "environment":
@@ -180,20 +184,29 @@ def context_sha256(platform_dir: Path, stage: str, platform_config: dict | None 
         raise WorkflowError(str(exc)) from exc
     inputs = {"model": model_dir.name, "platform": platform_dir.name, "stage": stage}
     files = [model_dir / "model.yml"]
-    if stage == "environment":
+    if stage == "environment" and not compact:
         files.append(platform_dir / "environment/environment-target.yml")
+    elif stage == "environment":
+        inputs["scope"] = {
+            "target": cfg.get("target"),
+            "workspace": cfg.get("workspace"),
+        }
     if stage != "architecture":
         files += [model_dir / "architecture-and-inference.md",
                   platform_dir / "environment/environment-analysis.md"]
     if stage not in {"architecture", "environment"}:
-        try:
-            inputs["deployment_identity"] = deployment_fingerprint(platform_dir)
-        except ValueError as exc:
-            raise WorkflowError(str(exc)) from exc
-        inputs["binding_schema"] = 2
-        cfg = platform_config
-        if cfg is None:
-            cfg = load_yaml(platform_dir / "platform.yml")
+        if compact:
+            inputs["scope"] = {
+                "target": cfg.get("target"),
+                "workspace": cfg.get("workspace"),
+            }
+            inputs["binding_schema"] = 3
+        else:
+            try:
+                inputs["deployment_identity"] = deployment_fingerprint(platform_dir)
+            except ValueError as exc:
+                raise WorkflowError(str(exc)) from exc
+            inputs["binding_schema"] = 2
         phases = cfg.get("workflow", {})
         # Bind receipts, not the entire mutable platform.yml. No self-reference,
         # status timestamps or unrelated progress notes enter this acyclic chain.
@@ -215,10 +228,11 @@ def context_sha256(platform_dir: Path, stage: str, platform_config: dict | None 
                                      ("run_id", "evidence", "evidence_sha256", "context_sha256", "service_instance_id")}
         inputs["prerequisites"] = receipts
         runtime = platform_dir / "environment/runtime-config.yml"
-        files.append(runtime)
+        if not compact:
+            files.append(runtime)
         if stage == "adaptation":
             files.append(platform_dir / "environment/plugin-change-review.md")
-        if runtime.is_file() and stage in {"accuracy", "performance", "evidence", "summary", "acceptance", "retrospective"}:
+        if not compact and runtime.is_file() and stage in {"accuracy", "performance", "evidence", "summary", "acceptance", "retrospective"}:
             config = load_yaml(runtime)
             accuracy_path = config.get("acceptance", {}).get("accuracy_config")
             if isinstance(accuracy_path, str) and accuracy_path:
@@ -252,7 +266,8 @@ def verification_errors(record: Any, platform_dir: Path, stage: str,
         errors.append(f"{stage} 证据必须属于当前{'模型' if stage == 'architecture' else '平台'}: {evidence}")
     elif evidence.stat().st_size == 0 or file_sha256(evidence) != record["evidence_sha256"]:
         errors.append(f"{stage} 证据为空或内容已变化，需要重新验证")
-    elif stage == "accuracy":
+    compact = isinstance(platform_config, dict) and platform_config.get("record_layout") == "compact"
+    if not compact and stage == "accuracy":
         try:
             report = json.loads(evidence.read_text(encoding="utf-8"))
             if (report.get("kind") != "formal_accuracy" or report.get("status") != "passed"
@@ -274,7 +289,7 @@ def verification_errors(record: Any, platform_dir: Path, stage: str,
                 errors.append("accuracy 报告的运行标识、样本数或验收标准不一致")
         except (OSError, ValueError, KeyError, AttributeError) as exc:
             errors.append(f"无法验证正式精度报告: {exc}")
-    elif stage == "performance":
+    elif not compact and stage == "performance":
         # Full artifacts remain with the benchmark run. Only the compact receipt
         # exported after perf_common.validate_report may be bound in the workspace.
         sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "test/perf_test"))
@@ -621,6 +636,25 @@ def platform_schema_errors(config: dict, platform: str, allowed_hosts: set[str] 
             errors.append("optimized 或已完成 acceptance 必须完成全部验收子步骤")
     if status == "optimized" and not acceptance_complete:
         errors.append("optimized 必须有已完成的 acceptance 阶段")
+    layout = config.get("record_layout", "legacy")
+    if layout not in {"legacy", "compact"}:
+        errors.append("record_layout 仅支持 legacy 或 compact")
+    if layout == "compact":
+        target = config.get("target")
+        if not isinstance(target, dict):
+            errors.append("compact platform.yml 必须记录 target")
+        else:
+            target_hosts = target.get("hosts")
+            if (not isinstance(target_hosts, list) or not target_hosts or
+                    not all(isinstance(host, str) and host.strip() for host in target_hosts) or
+                    len(target_hosts) != len(set(target_hosts))):
+                errors.append("compact target.hosts 必须是非空、无重复的 SSH Host 别名列表")
+            elif allowed_hosts is not None and set(target_hosts) - allowed_hosts:
+                errors.append("compact target.hosts 包含不属于当前平台 inventory 的别名")
+            for field in ("container_name", "container_image"):
+                if not isinstance(target.get(field), str) or not target[field].strip():
+                    errors.append(f"compact target.{field} 不能为空")
+        errors.extend(workspace_errors(config))
     return errors
 
 
@@ -721,6 +755,12 @@ def check_execution_readiness(platform_config: dict, selected_substeps: list[str
     """New execution gate only. Evidence/summary/retrospective need no running service."""
     live = set(selected_substeps) & {"execution-mode", "sanity", "accuracy", "performance"}
     if not live:
+        return []
+    if platform_config.get("record_layout") == "compact":
+        # Compact records deliberately keep mutable process observations and
+        # executable configuration under the approved remote root. The local
+        # gate validates receipts and scope; callers must re-observe the actual
+        # process immediately before every live substep.
         return []
     errors = service_state_errors(platform_dir, require_ready=True,
                                   require_graph="execution-mode" not in live)
@@ -866,6 +906,11 @@ def main() -> int:
             existing_hosts = existing_target.get("hosts") if isinstance(existing_target, dict) else None
             if isinstance(existing_hosts, list) and all(isinstance(item, str) for item in existing_hosts):
                 configured_hosts = existing_hosts
+        elif platform_config.get("record_layout") == "compact":
+            compact_target = platform_config.get("target")
+            compact_hosts = compact_target.get("hosts") if isinstance(compact_target, dict) else None
+            if isinstance(compact_hosts, list) and all(isinstance(item, str) for item in compact_hosts):
+                configured_hosts = compact_hosts
         if len(requested_hosts) != len(set(requested_hosts)):
             raise WorkflowError("--hosts 不得包含重复别名")
         if requested_hosts and configured_hosts and set(requested_hosts) != set(configured_hosts):
@@ -913,6 +958,7 @@ def main() -> int:
         if dependency_errors:
             raise WorkflowError("\n".join(dependency_errors))
 
+        compact_layout = platform_config.get("record_layout") == "compact"
         stage_templates = {
             "environment": (
                 ("environment-analysis.md", "environment/environment-analysis.md"),
@@ -920,8 +966,6 @@ def main() -> int:
             "adaptation": (
                 ("platform-adaptation-plan.md", "environment/platform-adaptation-plan.md"),
                 ("plugin-change-review.md", "environment/plugin-change-review.md"),
-                ("service-state.yml", "environment/service-state.yml"),
-                ("deployment-identity.yml", "environment/deployment-identity.yml"),
                 ("issue-index.md", "adaptation/README.md"),
             ),
             "acceptance": (
@@ -931,6 +975,13 @@ def main() -> int:
                 ("adaptation-retrospective.md", "acceptance/adaptation-retrospective.md"),
             ),
         }
+        if not compact_layout:
+            stage_templates["adaptation"] = (
+                *stage_templates["adaptation"][:2],
+                ("service-state.yml", "environment/service-state.yml"),
+                ("deployment-identity.yml", "environment/deployment-identity.yml"),
+                stage_templates["adaptation"][-1],
+            )
         for step in steps:
             for source_name, relative_destination in stage_templates.get(step, ()):
                 destination = platform_dir / relative_destination
@@ -958,7 +1009,7 @@ def main() -> int:
                 check_only=args.check_only,
             ):
                 created.append(destination)
-        if "environment" in steps:
+        if "environment" in steps and not compact_layout:
             target_path = platform_dir / "environment/environment-target.yml"
             if prepare_config(template_dir / "environment-target.yml", target_path,
                               args.model, args.platform, effective_hosts, args.check_only):
@@ -968,7 +1019,7 @@ def main() -> int:
                     raise WorkflowError("environment-target.yml 的 target.hosts 与本次目标不一致；不自动覆盖已有作用域")
             except ValueError as exc:
                 raise WorkflowError(str(exc)) from exc
-        if "adaptation" in steps or "acceptance" in steps:
+        if ("adaptation" in steps or "acceptance" in steps) and not compact_layout:
             if prepare_config(
                 template_dir / "runtime-config.yml",
                 config_path,
@@ -978,7 +1029,7 @@ def main() -> int:
                 args.check_only,
             ):
                 created.append(config_path)
-        if "adaptation" in steps or "acceptance" in steps:
+        if ("adaptation" in steps or "acceptance" in steps) and not compact_layout:
             config_errors = validate_adaptation_config(
                 config_path,
                 args.model,

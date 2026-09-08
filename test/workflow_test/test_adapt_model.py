@@ -173,7 +173,10 @@ all:
             (platform_dir / "environment.md").write_text("ok", encoding="utf-8")
             errors = adapt_model.check_dependencies({"workflow": workflow}, ["adaptation"], platform_dir)
             self.assertEqual(sum("verification" in error for error in errors), 2)
-            self.assertTrue(any("environment-target.yml" in error for error in errors))
+            self.assertTrue(any(
+                "environment-target.yml" in error or "platform.yml" in error
+                for error in errors
+            ))
 
     def test_selected_acceptance_substeps_obey_order(self) -> None:
         statuses = {name: "not_started" for name in adapt_model.ACCEPTANCE_SUBSTEP_ORDER}

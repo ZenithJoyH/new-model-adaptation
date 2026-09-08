@@ -13,7 +13,7 @@ models/<model-name>/
 ├── README.md                 # 总体目标、状态矩阵、关键结论
 ├── model.yml                 # 模型来源、规模和共享参数
 ├── architecture-and-inference.md # 中文模型结构与推理链路分析（步骤 1 创建）
-├── _shared/README.md         # 跨平台下载、Tokenizer、补丁和共性问题
+├── _shared/README.md         # 跨平台 Tokenizer、补丁和共性问题
 ├── nvidia/
 ├── ppu/
 ├── metax/
@@ -29,32 +29,31 @@ models/<model-name>/
 
 为用户指定的平台执行阶段准备后，按需新增：
 
-- `environment/`：环境分析及采集文件、平台适配计划、结构化运行配置、服务状态和
-  `plugin-change-review.md` 设计审查；`README.md` 导航当前材料与历史分析。
+- `environment/`：只保存 Markdown 环境与平台分析；`README.md` 导航少量专题分析。
 - `adaptation/`：仅保存适配问题索引 `README.md` 和按问题编号的 Markdown 记录；每条
   记录聚焦问题现象、诊断、尝试、根因、解决方法、验证结论与限制。
-- `acceptance/`：验收计划、精度与性能证据、最终总结和适配复盘；`README.md` 区分正式轮次、
-  历史失败与诊断子集，文件存在不代表已执行或通过。
+- `acceptance/`：只保存 Markdown 验收计划、精度与性能结论、最终总结和适配复盘；
+  `README.md` 区分正式轮次、历史失败与诊断子集，文件存在不代表已执行或通过。
 
-`adaptation/` 不存放脚本、配置、源码、补丁、测试文件、原始日志、JSON/YAML 或临时
-输出。Plugin 仓库只保存必要的产品实现和可长期维护的回归测试；一次性过程脚本与代码
-放在适配容器中、各源码仓库之外的 `06-tmp/` 或 `03-issues/`，且不得提交。FlagGems 复现保留在
+`_shared/` 只保存 Markdown 索引和少量合并后的跨平台分析。上游原始配置、模板副本、
+一次性检查脚本、JSON/YAML 快照和其他采集产物留在已批准远端工作根目录。
+
+三个本地目录均不存放脚本、Playbook、运行配置、源码、补丁、测试文件、原始日志、
+JSON/YAML、缓存、临时输出或子目录。Plugin 仓库只保存必要的产品实现和可长期维护的回归测试；一次性过程脚本与代码
+放在已批准远端根目录、各源码仓库之外的 `06-tmp/` 或 `03-issues/`，且不得提交。FlagGems 复现保留在
 已批准工作根目录的 `08-bugs/`，并通过已核实的容器对应路径原地执行；如果已在工作目录中，
 不得再复制到 `/bug/`。只有必要工具明确要求时，才使用指向同一目录的已批准映射或明确
 例外。问题记录通过准确路径、revision/commit、复现命令和结果引用这些材料。新问题使用
 `templates/adaptation/issue-record.md`，按出现顺序命名为 `NNN-short-title.md`。
 
-使用阶段入口初始化指定步骤并生成 Codex 调用文本：
+步骤 1 可以使用阶段入口初始化模型结构分析文档：
 
 ```bash
 ./scripts/adapt-model <model-name> --steps architecture
-./scripts/adapt-model <model-name> --platform ppu --hosts PPU-01 \
-  --steps architecture,environment,adaptation
-./scripts/adapt-model <model-name> --platform ppu --hosts PPU-01 --steps acceptance \
-  --acceptance-substeps execution-mode,sanity
 ```
 
-使用 `--check-only` 时不会创建文件，只检查所选步骤的目录、前置状态和配置。
+当前工具的平台阶段仍包含旧版结构化文件门禁。步骤 2～5 直接使用自然语言调用 Codex，
+不得为通过旧门禁把 YAML 或过程文件重新放回精简平台目录。
 
 不要把权重、完整日志、性能原始数据或密钥提交到 Git。权重位置只记录为
 远端绝对路径。

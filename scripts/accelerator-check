@@ -2,4 +2,61 @@
 set -euo pipefail
 
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-exec "${repo_root}/scripts/playbook" playbooks/accelerator-check.yml "$@"
+
+ansible_args=()
+limit_seen=false
+show_processes=false
+full_output=false
+
+while (( $# > 0 )); do
+  case "$1" in
+    --limit|-l)
+      if (( $# < 2 )); then
+        printf '%s requires a host or group pattern.\n' "$1" >&2
+        exit 2
+      fi
+      limit_value="$2"
+      shift 2
+      ;;
+    --limit=*)
+      limit_value="${1#--limit=}"
+      shift
+      ;;
+    --show-processes)
+      show_processes=true
+      shift
+      continue
+      ;;
+    --full-output)
+      full_output=true
+      shift
+      continue
+      ;;
+    *)
+      printf 'Unsupported argument for read-only accelerator check: %s\n' "$1" >&2
+      exit 2
+      ;;
+  esac
+
+  if [[ -z "${limit_value}" || "${limit_value}" == -* \
+    || "${limit_value}" == @* || "${limit_value}" == */* \
+    || "${limit_value}" =~ [[:space:]] ]]; then
+    printf 'Invalid --limit value: %s\n' "${limit_value}" >&2
+    exit 2
+  fi
+  if [[ "${limit_seen}" == true ]]; then
+    printf 'Specify --limit at most once.\n' >&2
+    exit 2
+  fi
+  limit_seen=true
+  ansible_args+=(--limit "${limit_value}")
+done
+
+if [[ "${show_processes}" == true ]]; then
+  ansible_args+=(-e show_processes=true)
+fi
+if [[ "${full_output}" == true ]]; then
+  ansible_args+=(-e full_output=true)
+fi
+
+exec "${repo_root}/scripts/playbook" playbooks/accelerator-check.yml "${ansible_args[@]}"

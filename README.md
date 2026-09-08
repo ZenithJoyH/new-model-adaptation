@@ -170,6 +170,21 @@ SSH 用户、端口、堡垒机和密钥继续由本机 `~/.ssh/config` 管理�
 
 ## 初始化控制端
 
+### Codex 中的 Ansible 权限
+
+本项目的 Ansible 2.21 控制端需要创建本地 Unix socket；Codex 默认文件沙箱会阻止该
+socket。仓库已在 `.codex/rules/ansible.rules` 中配置分级放行：
+
+- `./scripts/connectivity-check`、`./scripts/accelerator-check`、
+  `./scripts/health-check` 和 `./scripts/inventory` 是参数已经收紧的只读入口，自动在沙箱外执行。
+- `./scripts/ansible` 和 `./scripts/playbook` 可以在沙箱外执行，但由于参数能够产生任意
+  远端变更，每条命令仍需审批。
+
+首次加入或信任本项目后需重启 Codex，使项目级规则生效。调用时应以仓库根目录作为工作
+目录，并保持上述相对路径写法；直接调用 `.venv/bin/ansible*`、通过 `bash` 包装、使用
+绝对路径或复合命令不会匹配该规则。沙箱外执行只解决本地 RPC，目标主机确认、单机试运行、
+`serial: 1`、容器保护和破坏性操作确认等安全要求仍然有效。
+
 首次使用时安装本地 Ansible 环境：
 
 ```bash
@@ -243,10 +258,10 @@ python --version
 ./scripts/accelerator-check --limit metax
 
 # 查看某台机器的完整原始输出
-./scripts/accelerator-check --limit H100-145 -e full_output=true
+./scripts/accelerator-check --limit H100-145 --full-output
 
 # 海光平台查询加速卡进程
-./scripts/accelerator-check --limit hygon -e show_processes=true
+./scripts/accelerator-check --limit hygon --show-processes
 ```
 
 `htop` 是交互式工具，需要通过 SSH 登录海光机器后使用，不由批量 Playbook
