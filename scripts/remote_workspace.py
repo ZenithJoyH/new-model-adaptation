@@ -30,8 +30,8 @@ def absolute_path(value):
 
 
 def workspace_paths(plan):
-    require(type(plan.get("schema_version")) is int and plan["schema_version"] == 4,
-            "workspace-aware workers require run plan schema_version=4")
+    require(type(plan.get("schema_version")) is int and plan["schema_version"] == 5,
+            "workspace-aware workers require run plan schema_version=5")
     workspace = plan.get("workspace")
     require(isinstance(workspace, dict) and set(workspace) == {
         "host_root", "container_root", "evaluator_container", "evaluator_root"},
@@ -44,8 +44,8 @@ def workspace_paths(plan):
     run_id = plan.get("run_id")
     require(isinstance(run_id, str) and re.fullmatch(r"[A-Za-z0-9_.-]+", run_id)
             and run_id not in ("auto", ".", ".."), "an explicit new run_id is required")
-    return {"host_run_dir": str(Path(workspace["host_root"]) / "05-runs" / run_id),
-            "container_run_dir": str(Path(workspace["evaluator_root"]) / "05-runs" / run_id),
+    return {"host_run_dir": str(Path(workspace["host_root"]) / "04-runs" / run_id),
+            "container_run_dir": str(Path(workspace["evaluator_root"]) / "04-runs" / run_id),
             "evaluator_container": workspace["evaluator_container"]}
 
 
@@ -62,7 +62,7 @@ def validate_run(plan, root, *, side="container", existing=True):
     paths = workspace_paths(plan)
     expected = Path(paths["host_run_dir" if side == "host" else "container_run_dir"])
     root = absolute_path(str(root))
-    require(root == expected, f"run directory must be the declared workspace/05-runs/run_id: {expected}")
+    require(root == expected, f"run directory must be the declared workspace/04-runs/run_id: {expected}")
     base = real_path(plan["workspace"]["host_root" if side == "host" else "evaluator_root"])
     require(base.is_dir(), f"assigned workspace must already exist: {base}")
     real_path(root)

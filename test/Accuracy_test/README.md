@@ -161,15 +161,15 @@ Hy4 fixed c32/c64 的 prepare/start 使用同目录 `hy4_accuracy_tasks.yml`，�
 `run_plan_src`，不再按日期文件名复制旧配置。完整声明、字段来源和 prepare/start
 命令模板见[新后台入口](../../docs/workflow-guide.md#hy4-新后台精度入口)。
 
-计划必须为 schema 4，包含模型、平台、主机、服务端口、新 `run_id`，以及严格的
+计划必须为 schema 5，包含模型、平台、主机、服务端口、新 `run_id`，以及严格的
 `workspace: {host_root, container_root, evaluator_container, evaluator_root}`。runtime target
 必须恰好为该主机；前两个路径绑定 runtime workspace，另行确认评测容器到同一宿主根目录
 的映射。公共 helper 仍由模型 wrapper 显式提供 `expected_scope`。
 实际评测镜像还须匹配 manifest 的 `evaluator_image`；当前两个 wrapper 使用本机 8010
 端口，只支持两个容器均为 host network，不猜测 bridge/代理映射，也不自动改网络。
 
-运行目录固定为宿主 `host_root/05-runs/run_id`、评测容器
-`evaluator_root/05-runs/run_id`。
+运行目录固定为宿主 `host_root/04-runs/run_id`、评测容器
+`evaluator_root/04-runs/run_id`。
 配置只能来自当前 runtime `acceptance.accuracy_config` 的原始字节，必须已有同一显式
 `run_id`，`output_root`、`cache_root` 和 `hf_datasets_cache` 均在本轮容器运行目录内，
 后者必须是绝对路径。不会改旧配置、迁移旧结果或自动复用旧缓存。

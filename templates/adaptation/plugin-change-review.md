@@ -5,7 +5,7 @@
 
 ## 范围与版本
 
-- 模型、平台、Host、容器和插件 checkout 路径：
+- 模型、平台、Host、容器和 Plugin editable-install 源码路径及核实证据：
 - 审查日期及审查执行者（含 agent 自审时的说明）：
 - 目标 repository / PR base branch / base revision（未确认则明确标注）：
 - 当前 HEAD、branch、暂存/未暂存/新增文件状态：

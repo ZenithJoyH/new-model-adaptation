@@ -34,7 +34,7 @@ class WorkspaceExecutionTests(unittest.TestCase):
         self.host.mkdir()
         self.evaluator.mkdir()
         self.plan = {
-            "schema_version": 4,
+            "schema_version": 5,
             "run_id": "fixture-run-01",
             "workspace": {
                 "host_root": str(self.host),
@@ -43,8 +43,8 @@ class WorkspaceExecutionTests(unittest.TestCase):
                 "evaluator_root": str(self.evaluator),
             },
         }
-        self.run = self.evaluator / "05-runs" / self.plan["run_id"]
-        self.host_run = self.host / "05-runs" / self.plan["run_id"]
+        self.run = self.evaluator / "04-runs" / self.plan["run_id"]
+        self.host_run = self.host / "04-runs" / self.plan["run_id"]
         self.config = {
             "output_root": "outputs",
             "cache_root": "cache/evaluation",
@@ -89,7 +89,7 @@ class WorkspaceExecutionTests(unittest.TestCase):
             return subprocess.CompletedProcess(argv, 0, "", "")
         return run
 
-    def test_schema2_uses_evaluator_mapping_for_container_run(self):
+    def test_schema5_uses_evaluator_mapping_for_container_run(self):
         self.assertEqual(workspace.workspace_paths(self.plan), {
             "host_run_dir": str(self.host_run),
             "container_run_dir": str(self.run),
@@ -104,7 +104,7 @@ class WorkspaceExecutionTests(unittest.TestCase):
             lambda value: value["workspace"].update(extra="ambiguous"),
         ]
         mutations += [lambda value, version=version: value.update(schema_version=version)
-                      for version in (None, 1, True, "2", 2.0)]
+                      for version in (None, 1, 4, True, "2", 2.0)]
         mutations += [lambda value, run_id=run_id: value.update(run_id=run_id)
                       for run_id in (None, "", "auto", ".", "..", "../old", "a/b", "x\n")]
         mutations += [lambda value, name=name: value["workspace"].update(evaluator_container=name)
@@ -134,20 +134,20 @@ class WorkspaceExecutionTests(unittest.TestCase):
                 run.mkdir(parents=True)
                 self.assertEqual(workspace.validate_run(self.plan, run, side=side), run)
                 for wrong in (run.parent, run.parent / "old-run", self.root / "outside", Path(str(run) + "-other")):
-                    with self.assertRaisesRegex(ValueError, "declared workspace/05-runs/run_id"):
+                    with self.assertRaisesRegex(ValueError, "declared workspace/04-runs/run_id"):
                         workspace.validate_run(self.plan, wrong, side=side)
 
     def test_run_validation_rejects_missing_base_and_parent_or_root_symlinks(self):
         missing = copy.deepcopy(self.plan)
         missing["workspace"]["evaluator_root"] = str(self.root / "missing")
         with self.assertRaisesRegex(ValueError, "already exist"):
-            workspace.validate_run(missing, self.root / "missing/05-runs/fixture-run-01", existing=False)
+            workspace.validate_run(missing, self.root / "missing/04-runs/fixture-run-01", existing=False)
         destination = self.root / "outside"
         destination.mkdir()
-        (self.evaluator / "05-runs").symlink_to(destination, target_is_directory=True)
+        (self.evaluator / "04-runs").symlink_to(destination, target_is_directory=True)
         with self.assertRaisesRegex(ValueError, "symlink/alias"):
             workspace.validate_run(self.plan, self.run, existing=False)
-        (self.evaluator / "05-runs").unlink()
+        (self.evaluator / "04-runs").unlink()
         self.run.parent.mkdir()
         self.run.symlink_to(destination, target_is_directory=True)
         with self.assertRaisesRegex(ValueError, "symlink/alias"):

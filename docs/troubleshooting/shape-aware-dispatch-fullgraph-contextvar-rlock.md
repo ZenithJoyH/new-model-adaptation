@@ -38,8 +38,9 @@ buffer replay，本条目不直接适用，应继续按分层隔离顺序定位�
   `/mnt/nfs/users/jinghao/glm5.3-flash/03-issues/023-full-decode-graph/repro_cached_op_compile.py`
 - 原始结果：
   `/mnt/nfs/users/jinghao/glm5.3-flash/05-runs/023-full-decode-graph/cached-op-baseline/`
-- `08-bugs/`：不适用；本例是 Plugin dispatch 控制流复现，不是 FlagGems 算子复现，按工作区
-  规则保留在 `03-issues/`，未复制到 `/bug`。
+- `07-bugs/`：不适用；本例是 Plugin dispatch 控制流复现，不是 FlagGems 算子复现。上方
+  `03-issues/` 是迁移前的历史证据路径；按当前工作区规则，新复现应保留在 `02-issues/`，
+  且不复制到 `/bug`。
 - 对照方法：使用同一 fake manager 和同一 `torch.compile(backend="eager", fullgraph=True)`
   workload，先 eager warmup；唯一变量是候选是否携带 `supports`。
 - 期望结果：HY4 fast path 与 shape-aware path 都不在已 warmup 的编译热路径调用 manager。

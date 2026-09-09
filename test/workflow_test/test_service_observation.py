@@ -28,7 +28,7 @@ class ServiceObservationTests(unittest.TestCase):
         self.root = Path(temporary.name).resolve()
         self.host = self.root / "host"
         self.host.mkdir()
-        self.run = self.host / "05-runs/fixture-run"
+        self.run = self.host / "04-runs/fixture-run"
         self.run.mkdir(parents=True)
         self.identity = {
             "container_id": "c" * 64,

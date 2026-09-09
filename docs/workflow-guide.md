@@ -60,15 +60,22 @@ models/<model>/<platform>/
 ```text
 <approved-root>/
 ├── start-model.sh     # 最终通过验收的 graph 模型启动入口
-├── 01-repos/         # 经授权的源码 checkout
-├── 02-environment/   # 环境采集、运行配置和启动参数
-├── 03-issues/        # 一次性诊断脚本和过程代码
-├── 04-acceptance/    # 验收配置与包装
-├── 05-runs/          # 每轮日志和原始结果
-├── 06-tmp/           # 临时文件
-├── 07-cache/         # 显式缓存
-└── 08-bugs/          # FlagGems 最小复现
+├── 01-environment/   # 环境采集、运行配置和启动参数
+├── 02-issues/        # 一次性诊断脚本和过程代码
+├── 03-acceptance/    # 验收配置与包装
+├── 04-runs/          # 每轮日志和原始结果
+├── 05-tmp/           # 临时文件
+├── 06-cache/         # 显式缓存
+└── 07-bugs/          # FlagGems 最小复现
 ```
+
+远端工作根目录不存放源码，不创建源码仓库子目录或其他仓库副本。适配代码直接修改目标容器
+中已经核实的 editable-install Plugin 源码；应记录包元数据、import 路径、Git 根目录、
+revision 和工作区状态。vLLM 始终只读，FlagGems 使用容器内已核实且获准同步的现有 checkout。
+
+当前编号对应精度后台运行计划 `schema_version=5`；旧版 schema 4 计划不会自动迁移或继续
+执行。既有旧编号目录及本地引用保留为历史事实，只有实际完成远端迁移并重新核验后才能
+更新记录。
 
 本地 Markdown 记录准确的远端路径、命令、Host、容器、revision、镜像、参数、日期和结果，
 不复制远端过程产物。Plugin 仓库只接收产品必需代码和可维护回归测试；一次性脚本不得放入
@@ -87,7 +94,7 @@ Plugin、vLLM 或 FlagGems 仓库。vLLM 源码全程不得修改，适配容器
 - 步骤 3：`adaptation/README.md` 作为索引，每个实质问题使用一个编号 Markdown。没有
   实质问题时不创建虚假问题记录。
 - 步骤 4：在 `acceptance/` 记录计划、每轮验收结论和最终总结。原始结果及机器可执行配置
-  留在远端 `04-acceptance/`、`05-runs/`。
+  留在远端 `03-acceptance/`、`04-runs/`。
 - 步骤 5：在 `acceptance/adaptation-retrospective.md` 总结问题、有效经验、流程缺口和改进项。
 
 ## 5. 状态与证据

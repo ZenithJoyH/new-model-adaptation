@@ -77,7 +77,7 @@ def request_observation(root, manifest, *, timeout=60):
 def observe(root, manifest, *, timeout=45):
     root = Path(root)
     require(root.is_absolute() and root.resolve() == root and root.is_dir(), "observer needs a canonical prepared run")
-    require(root == Path(manifest["workspace"]["host_root"]) / "05-runs" / manifest["run_plan"]["run_id"],
+    require(root == Path(manifest["workspace"]["host_root"]) / "04-runs" / manifest["run_plan"]["run_id"],
             "observer run does not match the manifest's assigned host workspace")
     validate_identity(manifest["service_process_identity"])
     deadline = time.monotonic() + timeout

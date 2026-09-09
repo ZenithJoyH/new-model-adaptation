@@ -126,8 +126,8 @@ def _check_plan(root, scope, plan, runtime):
     # Deployed callers place the canonical workspace helper beside this module.
     import adapt_model as workflow
 
-    _require(isinstance(plan, dict) and type(plan.get("schema_version")) is int and plan["schema_version"] == 4,
-             "accuracy admission requires run plan schema 4")
+    _require(isinstance(plan, dict) and type(plan.get("schema_version")) is int and plan["schema_version"] == 5,
+             "accuracy admission requires run plan schema 5")
     for field, value in scope.items():
         _require(type(plan.get(field)) is type(value) and plan[field] == value, f"run plan {field} differs from scope")
     _require(runtime.get("model") == scope["model"] and runtime.get("platform") == scope["platform"], "runtime identity differs")

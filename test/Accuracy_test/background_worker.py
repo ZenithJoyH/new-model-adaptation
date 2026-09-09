@@ -43,7 +43,7 @@ def read_plan(path, root, expected_scope):
     raw = path.read_bytes()
     plan = json.loads(raw)
     require(isinstance(plan, dict), "run plan must be a JSON object")
-    require(type(plan.get("schema_version")) is int and plan["schema_version"] == 4,
+    require(type(plan.get("schema_version")) is int and plan["schema_version"] == 5,
             "unsupported run plan schema")
     validate_run(plan, root)
     require(path.parent == root, "run plan must be deployed directly in its assigned run")

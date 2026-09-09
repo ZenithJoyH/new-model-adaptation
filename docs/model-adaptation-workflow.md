@@ -4,8 +4,9 @@
 
 Treat the adaptation workspace as two separate locations. The **remote work
 directory** is each user-approved `host_root` and its verified container mapping;
-it contains actual checkouts, diagnostics, runs, caches, evaluation artifacts,
-and reproducers. The **local work directory** is this management repository; it
+it contains runtime configuration, diagnostics, runs, caches, evaluation
+artifacts, and reproducers, not source checkouts. The **local work directory** is
+this management repository; it
 contains curated model/platform records, reusable tools, templates, and concise
 references to remote evidence. Do not mirror raw remote artifacts locally, and do
 not infer remote authorization from local file existence.
@@ -27,12 +28,16 @@ deployment, source update, or command that writes remotely. These declarations
 and local helper checks do not create directories or mounts and do not provide
 OS-level write isolation.
 
-Place all new remote work under that approved root using ordered names: source
-checkouts in `01-repos/`, environment collection and runtime configuration in
-`02-environment/`, issue-specific one-off scripts in `03-issues/`, acceptance
-tools/configurations in `04-acceptance/`, per-run logs/results in `05-runs/`,
-temporary files in `06-tmp/`, caches in `07-cache/`, and operator reproducers in
-`08-bugs/`. The final accepted model launcher is the one deliberate root-level
+Place all new remote process artifacts under that approved root using ordered
+names: environment collection and runtime configuration in `01-environment/`,
+issue-specific one-off scripts in `02-issues/`, acceptance
+tools/configurations in `03-acceptance/`, per-run logs/results in `04-runs/`,
+temporary files in `05-tmp/`, caches in `06-cache/`, and operator reproducers in
+`07-bugs/`. Do not create a source-repository subdirectory or mirror in this
+work root. Product changes are made directly in the adaptation container's
+existing editable-installed Plugin source after verifying its package metadata,
+import path, Git root, revision, and working-tree ownership. The final accepted
+model launcher is the one deliberate root-level
 artifact: `<host_root>/start-model.sh`, mapped and verified as
 `<container_root>/start-model.sh`. Inside a container, use its verified corresponding
 root. A reproducer already available at that container path must be run in place,
@@ -44,10 +49,19 @@ symlinks/bind mounts, including destinations not yet created. Pause if a tool wo
 write outside the approved root without separate authorization.
 
 Existing external weights, datasets, and system dependencies may be referenced
-read-only. An external source checkout needs separate explicit authorization
-before any write, including fetch/pull, or an approved checkout inside `01-repos/`.
-Do not automatically move repositories/data, change mounts, or stop/restart the
-adaptation container.
+read-only. Other source trees remain read-only except for the verified editable
+Plugin source and explicitly authorized synchronization of the existing
+FlagGems checkout. If either source identity or permission cannot be verified,
+pause; do not clone a replacement under the work root. Do not automatically move
+or duplicate repositories/data, change mounts, or stop/restart the adaptation
+container.
+
+The current numbering applies to every new write and to run-plan schema 5.
+Directories and evidence references using the previous numbering remain
+historical facts; do not rename, merge, delete, or rewrite them until the exact
+remote paths and users are verified and the user explicitly authorizes a
+migration. Schema 4 run plans are not silently reinterpreted under the new
+layout.
 
 The local `models/` layout below remains the curated record and maintained-helper
 layout. Keep remote raw artifacts in the approved remote root and reference their
@@ -82,7 +96,7 @@ second storage location or permission to write outside this workspace.
    `models/<model-name>/<platform>/environment/environment-analysis.md` before
    making platform changes. Keep only Markdown analysis in that local
    `environment/` directory; keep collection helpers, runtime configuration, and
-   raw collection outputs under the approved remote root's `02-environment/`.
+   raw collection outputs under the approved remote root's `01-environment/`.
    Record the target host aliases,
    accelerator model and topology, operating system or container environment,
    driver and runtime, inference framework and platform plugin versions,
@@ -111,9 +125,10 @@ second storage location or permission to write outside this workspace.
    2. **Capture the baseline and enforce modification boundaries.** Inside the
       running adaptation container, record the repository path, revision, branch,
       and working-tree status for the plugin, vLLM, and FlagGems before editing.
-      The agent may modify the plugin source directly only within the approved
-      workspace or with separate explicit write authorization for that checkout;
-      the vLLM source tree must remain read-only and unchanged throughout the
+      Verify that the installed Plugin resolves to the identified editable source
+      tree, then make required product changes directly in that tree; do not make
+      or use a second checkout under the remote work root. The vLLM source tree
+      must remain read-only and unchanged throughout the
       adaptation. Do not stop,
       restart, or remove the adaptation container. Preserve before-and-after
       vLLM revision and status evidence. Store baseline and environment facts in
@@ -124,9 +139,9 @@ second storage location or permission to write outside this workspace.
       integrating any FlagGems operator, update the FlagGems repository inside
       the running adaptation container to the latest commit of its intended
       tracked branch. First verify that writing this checkout is authorized under
-      the remote workspace prerequisite; an existing external checkout is not an
-      implicit exception. Without authorization, pause synchronization and request
-      it or approval for a checkout inside `01-repos/`; do not move the existing tree.
+      the remote workspace prerequisite. Without authorization or a verified
+      existing checkout, pause synchronization and report the blocker; do not move
+      the existing tree or create a replacement checkout under the work root.
       Record the remote, branch, upstream, revision, and
       working-tree status before updating. Proceed only when the worktree is clean
       and the intended branch and upstream are unambiguous; fetch and use a
@@ -162,12 +177,12 @@ second storage location or permission to write outside this workspace.
    6. **Package reproducible FlagGems operator bugs.** Whenever a FlagGems
       operator raises an error or shows a numerical-accuracy problem during any
       adaptation stage, keep a dedicated issue directory under the approved
-      remote root's `08-bugs/` and execute it through that directory's verified path
+      remote root's `07-bugs/` and execute it through that directory's verified path
       below `container_root`. If the case already exists and is accessible there,
       do not copy, recreate, or synchronize it into container `/bug`. Use `/bug`
       only when a required tool or upstream reproduction workflow specifically
       requires that exact path. In that case, use a user-approved and verified
-      mapping of the same `08-bugs/` directory to `/bug`, or an explicit outside-root
+      mapping of the same `07-bugs/` directory to `/bug`, or an explicit outside-root
       exception; never maintain a second copy. If neither is available, pause the
       `/bug`-dependent operation and report the required approval; do not establish
       mounts or relocate files automatically. Do not create this directory at the
@@ -187,7 +202,7 @@ second storage location or permission to write outside this workspace.
       execution mode affects the problem, include a trustworthy reference
       implementation or expected output for accuracy defects, and verify that
       the packaged test reproduces at the verified container path corresponding
-      to `08-bugs/`; when `/bug` is genuinely required, verify the approved mapping
+      to `07-bugs/`; when `/bug` is genuinely required, verify the approved mapping
       or the exact location covered by the user's exception.
       Record the approved host-side storage path, container-side issue path,
       any `/bug` mapping or exception actually used, and reproduction command in the applicable
@@ -201,9 +216,9 @@ second storage location or permission to write outside this workspace.
       scripts, and optimization settings without changing vLLM source. Keep the
       only necessary production implementation and maintainable plugin regression
       tests in the plugin repository inside the running adaptation container.
-      Keep one-off process code in the approved root's `03-issues/` or `06-tmp/`,
+      Keep one-off process code in the approved root's `02-issues/` or `05-tmp/`,
       outside all source repositories. Keep intermediate runtime configuration
-      under the remote root's `02-environment/`. Do not call an intermediate
+      under the remote root's `01-environment/`. Do not call an intermediate
       launcher final. After acceptance identifies the final graph configuration,
       place its executable entry point at the remote root's `start-model.sh`.
       Build that final script from the smallest accepted launch command. Remove
@@ -245,7 +260,7 @@ second storage location or permission to write outside this workspace.
       concise excerpts may be embedded in the issue Markdown. Necessary plugin
       implementation and maintainable regression tests remain in the plugin
       repository within its authorized write scope; remote one-off process scripts
-      and code remain in the approved root's `03-issues/` or `06-tmp/`, outside all
+      and code remain in the approved root's `02-issues/` or `05-tmp/`, outside all
       source repositories. Remote configurations, raw logs, and other artifacts
       remain in the corresponding root subdirectories defined above. Reference
       each retained item by exact path,
@@ -312,8 +327,8 @@ second storage location or permission to write outside this workspace.
       environment, result locations, metrics, pass criteria, and outcomes under
       the platform's `acceptance/` directory. Explicitly identify `graph` as the
       execution mode used for all acceptance work after step 1. Keep new remote
-      datasets/caches and raw outputs under the approved remote root's `07-cache/`
-      and `05-runs/`; existing external datasets may be referenced read-only. Local
+      datasets/caches and raw outputs under the approved remote root's `06-cache/`
+      and `04-runs/`; existing external datasets may be referenced read-only. Local
       records retain paths and concise evidence, not a full copy of remote outputs.
       If a common test asset
       needs model-specific
@@ -327,7 +342,7 @@ second storage location or permission to write outside this workspace.
       limitations, and next steps. Before marking completion, verify that each
       approved target `host_root` contains executable `start-model.sh`, that its
       verified container path launches the final accepted graph configuration,
-      and that it routes logs/results to `05-runs/` and caches to `07-cache/`
+      and that it routes logs/results to `04-runs/` and caches to `06-cache/`
       without affecting an unrelated service or the adaptation container. Record
       both paths, SHA-256, syntax check, launch/readiness result, complete
       arguments, the result of the minimal-parameter review and justification for
@@ -341,7 +356,7 @@ second storage location or permission to write outside this workspace.
    acceptance. Summarize the significant problems encountered, their symptoms,
    root causes, impact, discovery stage, attempted approaches, final solutions,
    verification evidence, and any unresolved consequences. Include relevant
-   FlagGems operator reproductions under the approved root's `08-bugs/`, including
+   FlagGems operator reproductions under the approved root's `07-bugs/`, including
    the verified container path and any `/bug` compatibility mapping or explicit
    exception actually used under step 3.6, and
    explain whether earlier analysis or narrower tests could have exposed each

@@ -19,10 +19,10 @@ class BackgroundWorkerTests(unittest.TestCase):
         temporary = tempfile.TemporaryDirectory(prefix="background-worker-")
         self.addCleanup(temporary.cleanup)
         self.base = Path(temporary.name).resolve()
-        self.run = self.base / "05-runs" / "test-run"
+        self.run = self.base / "04-runs" / "test-run"
         self.run.mkdir(parents=True)
         self.plan = {
-            "schema_version": 4,
+            "schema_version": 5,
             "model": "Example",
             "platform": "ppu",
             "host_alias": "PPU-01",
@@ -53,7 +53,7 @@ class BackgroundWorkerTests(unittest.TestCase):
         plan, digest = worker.read_plan(self.path, self.run, self.scope)
         self.assertEqual(plan, self.plan)
         self.assertEqual(digest, worker.sha256(self.path))
-        for field, value in (("schema_version", 3), ("run_id", "auto"), ("service_port", 8038)):
+        for field, value in (("schema_version", 4), ("run_id", "auto"), ("service_port", 8038)):
             changed = dict(self.plan, **{field: value})
             self.path.write_text(json.dumps(changed), encoding="utf-8")
             with self.assertRaises(ValueError):

@@ -58,7 +58,7 @@
 - graph capture/replay 状态不一致或服务进入死锁。
 
 此时应回到最早异常 rank，检查其算子、Plugin dispatch、数据依赖控制流和 collective
-顺序。若定位为 FlagGems 算子报错或精度问题，按规则在工作根 `08-bugs/` 中整理最小复现，
+顺序。若定位为 FlagGems 算子报错或精度问题，按规则在工作根 `07-bugs/` 中整理最小复现，
 并通过已核实的容器对应路径原地执行；已有用例不再复制到 `/bug`。
 
 ## 通过标准
