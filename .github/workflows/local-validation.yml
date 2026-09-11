@@ -1,0 +1,28 @@
+name: Local validation
+
+on:
+  pull_request:
+  push:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  offline-contracts:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+      - name: Prepare the controller dependencies
+        env:
+          PYTHON_BIN: python
+        run: ./scripts/bootstrap-control-node
+      - name: Validate local contracts and operation syntax
+        # Only syntax/inventory parsing and synthetic localhost tests. No SSH,
+        # hardware access, credentials, service changes, or remote acceptance.
+        run: ./scripts/syntax-check

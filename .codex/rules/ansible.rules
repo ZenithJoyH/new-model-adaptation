@@ -1,0 +1,47 @@
+# Ansible 2.21 starts a local RPC manager backed by a Unix domain socket.
+# Codex's default workspace sandbox blocks that socket. The four automatically
+# allowed wrappers validate and reject all arguments except their documented,
+# fixed read-only options. Generic Ansible entry points always prompt.
+prefix_rule(
+    pattern = [[
+        "./scripts/connectivity-check",
+        "./scripts/accelerator-check",
+        "./scripts/health-check",
+        "./scripts/inventory",
+    ]],
+    decision = "allow",
+    justification = "Hardened read-only repository Ansible wrappers require local Unix-socket RPC outside the Codex sandbox.",
+    match = [
+        "./scripts/connectivity-check --limit PPU-01",
+        "./scripts/accelerator-check --limit ppu --show-processes",
+        "./scripts/health-check --limit H100-145",
+        "./scripts/inventory",
+    ],
+    not_match = [
+        "./scripts/ansible PPU-01 -m ansible.builtin.ping",
+        "./scripts/playbook playbooks/connectivity-check.yml --limit PPU-01",
+        "./scripts/bootstrap-control-node",
+        "./scripts/syntax-check",
+        ".venv/bin/ansible PPU-01 -m ansible.builtin.ping",
+        "bash ./scripts/health-check --limit PPU-01",
+    ],
+)
+
+prefix_rule(
+    pattern = [[
+        "./scripts/ansible",
+        "./scripts/playbook",
+    ]],
+    decision = "prompt",
+    justification = "Generic repository Ansible entry points need local RPC outside the sandbox, but their remote effects require per-command review.",
+    match = [
+        "./scripts/ansible PPU-01 -m ansible.builtin.ping",
+        "./scripts/playbook playbooks/connectivity-check.yml --limit PPU-01",
+    ],
+    not_match = [
+        "./scripts/connectivity-check --limit PPU-01",
+        "./scripts/bootstrap-control-node",
+        ".venv/bin/ansible-playbook playbooks/connectivity-check.yml",
+        "bash ./scripts/playbook playbooks/connectivity-check.yml",
+    ],
+)
