@@ -19,8 +19,8 @@ def validate_formal_config(cfg, *, require_formal=False):
         errors.append("formal acceptance requires limit=0 (full dataset)")
     if type(cfg.get("expected_samples")) is not int or cfg["expected_samples"] < 1:
         errors.append("formal acceptance requires positive expected_samples")
-    if cfg.get("allow_timeouts") is not False:
-        errors.append("formal acceptance requires allow_timeouts=false")
+    if cfg.get("allow_timeouts") is not True:
+        errors.append("formal acceptance requires allow_timeouts=true so timeout samples count as incorrect")
     tasks = cfg.get("tasks")
     criteria = cfg.get("acceptance_criteria")
     if not isinstance(tasks, list) or not tasks or not all(isinstance(t, str) and t for t in tasks):

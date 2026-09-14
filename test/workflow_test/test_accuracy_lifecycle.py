@@ -28,7 +28,7 @@ import llmrun_parallel as parallel
 
 def config(root):
     return {"formal_acceptance": True, "service_mode": "graph", "num_concurrent": 32,
-            "limit": 0, "expected_samples": 1, "allow_timeouts": False,
+            "limit": 0, "expected_samples": 1, "allow_timeouts": True,
             "tasks": ["example"], "acceptance_criteria": {
                 "example": {"metric": "exact_match,none", "minimum": 0.8}},
             "eval_model": "fixture", "model_name": "old-model", "run_id": "run-1",

@@ -19,7 +19,7 @@ from acceptance_contract import validate_formal_config, metric_errors
 
 def formal_config():
     return {'formal_acceptance': True, 'service_mode': 'graph', 'num_concurrent': 32,
-            'limit': 0, 'expected_samples': 2, 'allow_timeouts': False,
+            'limit': 0, 'expected_samples': 2, 'allow_timeouts': True,
             'tasks': ['example'], 'acceptance_criteria': {'example': {'metric': 'acc', 'minimum': 0.9}}}
 
 
@@ -32,7 +32,7 @@ class AcceptanceTests(unittest.TestCase):
     def test_formal_configuration_rejects_diagnostic_settings(self):
         self.assertEqual(validate_formal_config(formal_config(), require_formal=True), [])
         for field, bad in [('num_concurrent', 8), ('num_concurrent', True), ('limit', 1),
-                           ('expected_samples', 0), ('allow_timeouts', True),
+                           ('expected_samples', 0), ('allow_timeouts', False),
                            ('service_mode', 'eager'), ('formal_acceptance', False),
                            ('formal_acceptance', 'true'),
                            ('acceptance_criteria', {}), ('tasks', 'example')]:
@@ -50,18 +50,21 @@ class AcceptanceTests(unittest.TestCase):
         cfg = {'formal_acceptance': False, 'num_concurrent': 1}
         self.assertEqual(validate_formal_config(cfg), [])
 
-    def test_formal_samples_reject_timeout_duplicate_missing_and_empty(self):
+    def test_formal_samples_reject_invalid_records_but_retain_timeouts(self):
         good = [{'doc_id': i, 'resps': [['answer']]} for i in range(2)]
+        timed_out = [good[0], {'doc_id': 1, 'resps': [['<TIMEOUT>']]}]
         cases = [good[:1], [good[0], good[0]],
                  [good[0], {'resps': [['answer']]}],
                  [good[0], {'doc_id': 1, 'resps': [[None]]}],
-                 [good[0], {'doc_id': 1, 'resps': [['<TIMEOUT>']]}],
                  [good[0], {'doc_id': 1, 'resps': [['answer']], 'error': 'HTTP 500'}]]
         with tempfile.TemporaryDirectory() as d:
             path = Path(d) / 'samples_example_1.jsonl'
-            for records in cases + [good]:
+            for records in cases:
                 path.write_text('\n'.join(json.dumps(r) for r in records))
-                self.assertEqual(llmrun.validate_samples(formal_config(), 'example', Path(d)), records == good)
+                self.assertFalse(llmrun.validate_samples(formal_config(), 'example', Path(d)))
+            for records in (timed_out, good):
+                path.write_text('\n'.join(json.dumps(r) for r in records))
+                self.assertTrue(llmrun.validate_samples(formal_config(), 'example', Path(d)))
 
     def test_successful_runner_exit_is_not_passing_accuracy(self):
         with tempfile.TemporaryDirectory() as d:
@@ -193,7 +196,8 @@ class EvidenceTests(unittest.TestCase):
         report = {'kind': 'formal_accuracy', 'status': 'passed', 'service_mode': 'graph', 'failed_tasks': [],
                   'configured_concurrency': 32, 'source_config_sha256': workflow.file_sha256(config),
                   'run_id': 'actual-run-1', 'expected_samples': 2,
-                  'criteria': formal_config()['acceptance_criteria'], 'allow_timeouts': False}
+                  'criteria': formal_config()['acceptance_criteria'], 'allow_timeouts': True,
+                  'timeout_policy': 'count_as_incorrect'}
         self.evidence.write_text(json.dumps(report))
         record = self.record('accuracy')
         self.assertEqual(workflow.verification_errors(record, self.platform, 'accuracy'), [])

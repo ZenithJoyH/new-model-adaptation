@@ -165,6 +165,19 @@ write remotely.
 
 - Establish correctness and performance baselines before optimization; change
   one material variable at a time and retain the comparison.
+- Mark the formal accuracy substep passed or complete when a valid full-run
+  accuracy receipt shows that every metric frozen in the run configuration meets
+  its configured minimum threshold. A score below `1.0`, and therefore some
+  individually incorrect answers, does not fail the formal accuracy test by
+  itself. Per-question all-correct checking belongs only to the small-batch
+  sanity check. A final timeout response is retained as a failed/incorrect sample
+  and contributes zero correctness credit; it must never be dropped from the
+  denominator or hidden by retries. A limited number of such timeout samples may
+  coexist with a passing formal run only when sample coverage remains complete
+  and every frozen metric still meets its threshold. Missing or invalid samples,
+  non-timeout request/execution errors, stale evidence, or a metric below its
+  threshold remain failures or incomplete evidence as defined by the project
+  accuracy contract.
 - Before completion, update the platform `README.md` with outcomes, problems,
   causes, solutions, limits, and next steps, and synchronize it with
   `platform.yml`. Verify the root-level remote `start-model.sh` described above;
@@ -232,6 +245,31 @@ write remotely.
 
 ## Workflow invocation and phase isolation
 
+- Use the shared `inference-accuracy-evaluation` and
+  `inference-performance-evaluation` Skills for accuracy and performance work.
+  Their Skill bundles own the test levels/modes, concrete execution method,
+  concurrency and warmup rules, metric calculations, evidence validation,
+  three-state decisions, and report fields. Do not duplicate or redefine those
+  methods in this AGENTS file.
+- Read `docs/skills-project-contract.md` to map the shared methods to this
+  repository's canonical runners, containers, paths and native receipts. The
+  contract is an adapter only: project rules and the user's selected execution
+  boundary may narrow execution, but neither the contract nor this file may
+  silently replace or weaken the Skill method.
+- Prefix caching remains enabled for architecture, environment, adaptation,
+  execution-mode, sanity, accuracy, and all other non-performance work. This
+  project adds one mandatory performance-only precondition: prefix caching must
+  be explicitly disabled on the exact service instance under test before any
+  performance or profiling run starts. Use a performance-specific service launch
+  profile; do not add the disable argument to the common graph profile. Add the exact service launch argument
+  `--no-enable-prefix-caching`, verify that it is present in the effective launch
+  configuration and startup evidence, and bind that evidence into the formal
+  performance receipt. A zero random-prefix length in the client workload
+  is not proof that server-side prefix caching is disabled. If this exact
+  argument and its effective disabled state cannot be verified, do not run or
+  pass the performance substep. Restore the normal prefix-cache-enabled service
+  profile before any subsequent non-performance test.
+
 - The user may select any phases by number or name: `architecture` (1),
   `environment` (2), `adaptation` (3), `acceptance` (4), and `retrospective` (5).
   Execute only those phases, always in 1-to-5 order. Unselected phases may be
@@ -252,11 +290,11 @@ write remotely.
   `audit-workspace` for local layout checks until the gate is migrated. Step 1
   architecture initialization remains safe.
 - Update `platform.yml` only after the selected work is actually verified and
-  its evidence is current. Bind phase and acceptance receipts as defined in
-  `docs/workflow-guide.md`; record and verify the exact Host set in the environment
-  analysis. Formal accuracy requires a passing
-  `acceptance-result.json`; formal performance requires the receipt exported by
-  `test/perf_test/perf_acceptance.py`, not a Markdown/CSV success label.
+  its evidence is current. Bind phase and acceptance receipts through
+  `docs/skills-project-contract.md` and `docs/workflow-guide.md`; record and
+  verify the exact Host set in the environment analysis. Native receipt names,
+  validation commands and invalidation rules belong in the project contract,
+  not in this AGENTS file.
 - Use `./scripts/audit-workspace` for local structure and historical-state review.
   Its warnings require review and never prove remote success.
 

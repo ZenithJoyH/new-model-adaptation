@@ -65,7 +65,7 @@ class AccuracyAdmissionTests(unittest.TestCase):
                      "workspace": {"host_root": "/operator/task", "container_root": "/model/task",
                                    "evaluator_container": "evaluation-container", "evaluator_root": "/eval/task"}}
         self.accuracy = {"formal_acceptance": True, "service_mode": "graph", "num_concurrent": 32,
-                         "limit": 0, "expected_samples": 198, "allow_timeouts": False,
+                         "limit": 0, "expected_samples": 198, "allow_timeouts": True,
                          "tasks": ["example"], "acceptance_criteria": {"example": {"metric": "acc", "minimum": 0.9}},
                          "model_name": "Example", "base_url": "http://127.0.0.1:8010/v1/chat/completions",
                          "run_id": self.plan["run_id"], "output_root": "outputs", "cache_root": "cache/eval",

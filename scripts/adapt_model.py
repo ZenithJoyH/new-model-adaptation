@@ -285,7 +285,8 @@ def verification_errors(record: Any, platform_dir: Path, stage: str,
             if (report.get("run_id") != record["run_id"]
                     or report.get("expected_samples") != config.get("expected_samples")
                     or report.get("criteria") != config.get("acceptance_criteria")
-                    or report.get("allow_timeouts") is not False):
+                    or report.get("allow_timeouts") is not True
+                    or report.get("timeout_policy") != "count_as_incorrect"):
                 errors.append("accuracy 报告的运行标识、样本数或验收标准不一致")
         except (OSError, ValueError, KeyError, AttributeError) as exc:
             errors.append(f"无法验证正式精度报告: {exc}")
@@ -475,13 +476,30 @@ def validate_adaptation_config(
             errors.append("execution_modes.graph.extra_args 不得包含 --enforce-eager")
 
     acceptance = require_mapping(config, "acceptance", path)
-    if acceptance.get("sanity_concurrency") != 8:
-        errors.append("acceptance.sanity_concurrency 必须为 8")
+    if acceptance.get("sanity_concurrency") != 10:
+        errors.append("acceptance.sanity_concurrency 必须为 10")
     if acceptance.get("accuracy_runner") != "test/Accuracy_test/llmrun.py":
         errors.append("acceptance.accuracy_runner 必须为 test/Accuracy_test/llmrun.py")
     if acceptance.get("performance_directory") != "test/perf_test":
         errors.append("acceptance.performance_directory 必须为 test/perf_test")
     selected_acceptance = set(acceptance_substeps or ())
+    if "performance" in selected_acceptance:
+        graph_args = execution.get("graph", {}).get("extra_args")
+        prefix_cache = service.get("prefix_caching")
+        if not isinstance(prefix_cache, dict) or prefix_cache.get("default_enabled") is not True:
+            errors.append("非性能测试必须保持 service.prefix_caching.default_enabled=true")
+        else:
+            performance_cache = prefix_cache.get("performance")
+            if not isinstance(performance_cache, dict) or performance_cache.get("enabled") is not False:
+                errors.append("正式性能测试前必须核实并记录 service.prefix_caching.performance.enabled=false")
+            else:
+                launch_args = performance_cache.get("launch_args")
+                if not isinstance(launch_args, list) or launch_args != ["--no-enable-prefix-caching"]:
+                    errors.append("性能测试专用服务的前缀缓存启动参数必须包含且仅包含 --no-enable-prefix-caching")
+                if not isinstance(performance_cache.get("verification"), str) or not performance_cache["verification"].strip():
+                    errors.append("正式性能测试前必须记录前缀缓存已关闭的现场证据")
+        if isinstance(graph_args, list) and "--no-enable-prefix-caching" in graph_args:
+            errors.append("--no-enable-prefix-caching 不得写入通用 graph 参数，只能用于性能测试服务")
     if selected_acceptance & {"sanity", "accuracy", "performance", "evidence", "summary"}:
         if not isinstance(acceptance.get("graph_base_url"), str) or not acceptance[
             "graph_base_url"

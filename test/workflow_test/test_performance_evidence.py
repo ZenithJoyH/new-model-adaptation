@@ -36,6 +36,11 @@ class PerformanceEvidenceTests(unittest.TestCase):
         runtime["service"].update(model_path="/models/Example", served_model_name="Example/Model",
                                    port=8010, tensor_parallel_size=1)
         runtime["service"]["max_model_len"].update(model_supported=50000, initial=50000, evidence="model-config")
+        runtime["service"]["prefix_caching"]["performance"].update(
+            enabled=False,
+            launch_args=["--no-enable-prefix-caching"],
+            verification="/runs/service-prefix-cache-disabled.txt",
+        )
         runtime["acceptance"].update(graph_base_url="http://127.0.0.1:8010",
                                      accuracy_config=str(self.accuracy_config.relative_to(self.root)))
         workflow.write_yaml(self.runtime_path, runtime)
@@ -49,7 +54,8 @@ class PerformanceEvidenceTests(unittest.TestCase):
                     "failed_tasks": [], "configured_concurrency": 32,
                     "source_config_sha256": workflow.file_sha256(self.accuracy_config),
                     "run_id": "run-accuracy", "expected_samples": 2,
-                    "criteria": fixtures.formal_config()["acceptance_criteria"], "allow_timeouts": False})
+                    "criteria": fixtures.formal_config()["acceptance_criteria"], "allow_timeouts": True,
+                    "timeout_policy": "count_as_incorrect"})
             path.write_text(contents)
             self.bind(stage, path, "run-" + stage)
         output = self.root / "remote-artifacts"
@@ -205,6 +211,9 @@ class PerformanceEvidenceTests(unittest.TestCase):
             lambda c: c["request"].update(port=9999),
             lambda c: c["request"].update(endpoint="/other/v1/completions"),
             lambda c: c["request"].update(max_model_len=65536),
+            lambda c: c["server_configuration"].update(prefix_caching_enabled=True),
+            lambda c: c["server_configuration"].update(prefix_cache_disable_arg="--wrong-flag"),
+            lambda c: c["server_configuration"].update(prefix_cache_verification="/other/evidence.txt"),
             lambda c: c["request"].update(cases=[[50000, 1024, 64, 128]]),
             lambda c: c["validation"].update(status="failed"),
             lambda c: c["validation"].update(artifacts_verified=0),
@@ -233,6 +242,26 @@ class PerformanceEvidenceTests(unittest.TestCase):
         fixtures.EvidenceTests.bind_identity(self)
         with self.assertRaises(ValueError):
             self.export()
+
+    def test_export_rejects_enabled_or_unverified_prefix_cache(self):
+        for change in (
+            lambda runtime: runtime["service"]["prefix_caching"]["performance"].update(enabled=True),
+            lambda runtime: runtime["service"]["prefix_caching"]["performance"].update(launch_args=[]),
+            lambda runtime: runtime["service"]["prefix_caching"]["performance"].update(verification=""),
+        ):
+            runtime = workflow.load_yaml(self.runtime_path)
+            change(runtime)
+            workflow.write_yaml(self.runtime_path, runtime)
+            fixtures.EvidenceTests.bind_identity(self)
+            with self.subTest(runtime=runtime["service"]["prefix_caching"]), self.assertRaises(ValueError):
+                self.export()
+            runtime["service"]["prefix_caching"]["performance"].update(
+                enabled=False,
+                launch_args=["--no-enable-prefix-caching"],
+                verification="/runs/service-prefix-cache-disabled.txt",
+            )
+            workflow.write_yaml(self.runtime_path, runtime)
+            fixtures.EvidenceTests.bind_identity(self)
 
     def test_export_cli_does_not_overwrite_existing_evidence(self):
         self.compact_path.write_text("user-owned evidence")

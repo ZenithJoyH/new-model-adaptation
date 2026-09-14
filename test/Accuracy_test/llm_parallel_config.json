@@ -26,7 +26,7 @@
   "dataset_name": "gpqa_diamond",
   "dataset_split": "train",
   "expected_samples": 198,
-  "allow_timeouts": false,
+  "allow_timeouts": true,
   "wait_for_service": true,
   "service_poll_interval": 1800,
   "service_wait_timeout": 0,

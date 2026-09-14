@@ -57,6 +57,11 @@ Plugin 仓库。问题台账只引用准确路径、revision、命令和结论�
 应选择与目标平台适用的测试工具执行验证；模型专用可执行配置和原始结果留在远端工作根
 目录，本地平台 `acceptance/` 只记录验收结论和准确证据路径。
 
+精度和性能评测分别提供同名于“端到端推理优化”项目的仓库级 Skill：
+`$inference-accuracy-evaluation` 与 `$inference-performance-evaluation`。两个项目统一调用名、
+分层模式、`passed`/`failed`/`incomplete` 结论及报告字段，但各自使用项目内的 runner、目录
+和正式证据格式。具体模式和映射见 [评测 Skills](skills/README.md)。
+
 修改模型适配 plugin 代码前，可参考
 [vllm-plugin-FL 项目分析与新模型适配代码修改指南](docs/vllm-plugin-FL-analysis.md)，按模型注册、算子 dispatch、平台 backend、量化、attention/MoE 和 graph 执行链路选择最小改动面。
 
@@ -147,7 +152,7 @@ Markdown 分析、问题记录和验收结论。vLLM 只读、适配容器保持
 完成条件：适配完成后停止，暂不进入验收
 ```
 
-步骤 4 还可以只调用某个验收子步骤，包括执行模式验收、8 并发小批量精度与
+步骤 4 还可以只调用某个验收子步骤，包括执行模式验收、10 并发小批量精度与
 性能验证、全量精度测试、正式性能测试、验收证据整理和最终适配总结。例如：
 
 ```text
@@ -155,8 +160,26 @@ Markdown 分析、问题记录和验收结论。vLLM 只读、适配容器保持
 平台：ppu
 目标机器：PPU-01
 执行步骤：4
-验收子步骤：8 并发小批量精度与性能验证
+验收子步骤：10 并发小批量精度与性能验证
 执行边界：只执行指定验收子步骤，不启动全量精度和正式性能测试
+```
+
+也可以用同一套 Skill 语言明确评测深度，例如：
+
+```text
+模型：Qwen3.8-Flash-Next
+平台：ppu
+目标机器：PPU-01
+使用 $inference-accuracy-evaluation，模式：formal-gate
+执行边界：只执行正式精度；已有执行模式和 sanity 仅做前置核验
+```
+
+```text
+模型：Qwen3.8-Flash-Next
+平台：ppu
+目标机器：PPU-01
+使用 $inference-performance-evaluation，模式：formal
+执行边界：先以 gate-check 只读核验正式精度，再执行正式性能；不启动 profiling
 ```
 
 每个步骤可以单独调用，但后续步骤仍有前置依赖。Codex 应先检查已有产物是否完整、有效并与当前模型、平台和环境一致；若前置条件缺失、失败或已经过期，应停止并报告，不得擅自补跑未指定的步骤。多个步骤即使按不同顺序写出，也必须按照1 到 5 的流程顺序执行。阶段文件的保存位置、完成标准和安全边界以[AGENTS.md](AGENTS.md) 为准。

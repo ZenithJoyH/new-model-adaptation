@@ -43,6 +43,24 @@ def _request_errors(request, runtime):
     service, acceptance = runtime.get("service"), runtime.get("acceptance")
     if not isinstance(service, dict) or not isinstance(acceptance, dict):
         return ["runtime service/acceptance must be mappings"]
+    prefix_cache = service.get("prefix_caching")
+    if not isinstance(prefix_cache, dict) or prefix_cache.get("default_enabled") is not True:
+        errors.append("non-performance service profiles must keep prefix caching enabled")
+        prefix_verification = None
+    else:
+        performance_cache = prefix_cache.get("performance")
+        if not isinstance(performance_cache, dict) or performance_cache.get("enabled") is not False:
+            errors.append("formal performance requires server-side prefix caching disabled")
+            prefix_verification = None
+        else:
+            prefix_verification = performance_cache.get("verification")
+            if performance_cache.get("launch_args") != [benchmark.SERVER_PREFIX_CACHE_DISABLE_ARG]:
+                errors.append("performance service launch args must contain only --no-enable-prefix-caching")
+            if not isinstance(prefix_verification, str) or not prefix_verification.strip():
+                errors.append("runtime prefix-cache disable verification is missing")
+    graph_args = runtime.get("execution_modes", {}).get("graph", {}).get("extra_args")
+    if isinstance(graph_args, list) and benchmark.SERVER_PREFIX_CACHE_DISABLE_ARG in graph_args:
+        errors.append("prefix-cache disable arg must not be part of the common graph profile")
     if not isinstance(request.get("model"), str) or request["model"] != service.get("served_model_name"):
         errors.append("performance request model does not match served_model_name")
     if not isinstance(request.get("tokenizer"), str) or not request["tokenizer"].strip():
@@ -144,6 +162,14 @@ def validate_evidence(evidence, *, runtime, runtime_sha256, model, platform,
             errors.append("performance model/platform/service/deployment/runtime scope does not match this verification")
         if runtime.get("model") != model or runtime.get("platform") != platform:
             errors.append("runtime model/platform identity mismatch")
+        prefix_cache = runtime.get("service", {}).get("prefix_caching", {}).get("performance", {})
+        expected_server_configuration = {
+            "prefix_caching_enabled": False,
+            "prefix_cache_disable_arg": benchmark.SERVER_PREFIX_CACHE_DISABLE_ARG,
+            "prefix_cache_verification": prefix_cache.get("verification"),
+        }
+        if evidence.get("server_configuration") != expected_server_configuration:
+            errors.append("performance receipt prefix-cache configuration does not match runtime")
         if not is_digest(runtime_sha256) or not is_digest(deployment_fingerprint):
             errors.append("performance runtime/deployment fingerprints must be SHA-256")
         source = evidence.get("source_report")
@@ -215,6 +241,11 @@ def export_evidence(report_path, runtime_path, *, model, platform, deployment_fi
         "run_id": report["run_id"], "validated_at": datetime.now(timezone.utc).isoformat(),
         "scope": {"model": model, "platform": platform, "service_instance_id": service_instance_id,
                   "deployment_fingerprint": deployment_fingerprint, "runtime_config_sha256": digest(runtime_raw)},
+        "server_configuration": {
+            "prefix_caching_enabled": False,
+            "prefix_cache_disable_arg": benchmark.SERVER_PREFIX_CACHE_DISABLE_ARG,
+            "prefix_cache_verification": runtime["service"]["prefix_caching"]["performance"]["verification"],
+        },
         "source_report": {"path": str(report_path.resolve()), "sha256": digest(raw),
                           "producer_sha256": report["producer"]["sha256"], "created_at": report["created_at"]},
         "validation": {"method": "perf_common.validate_report", "status": "passed", "errors": [],

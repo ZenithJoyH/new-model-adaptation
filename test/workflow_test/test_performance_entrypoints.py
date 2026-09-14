@@ -205,16 +205,17 @@ class EntrypointTests(unittest.TestCase):
 
     def test_all_perf_legacy_parameters_and_dry_run_are_safe(self):
         entry = importlib.import_module("all_perf")
+        identity_flags = ARGS[:6]
         with tempfile.TemporaryDirectory() as directory, patch.object(perf.subprocess, "run") as run:
-            flags = ARGS[:6] + ["--input-len", "4096", "--output-len", "1024", "--concurrency", "2",
+            flags = identity_flags + ["--input-len", "4096", "--output-len", "1024", "--concurrency", "2",
                                "--dry-run", "--output-dir", directory]
             self.assertEqual(entry.main(flags), 0)
             run.assert_not_called()
             self.assertEqual(list(Path(directory).rglob("benchmark-result.json")), [])
         with contextlib.redirect_stderr(io.StringIO()), self.assertRaises(SystemExit):
-            entry.main(ARGS[:6] + ["--output-len", "1024", "--dry-run"])
+            entry.main(identity_flags + ["--output-len", "1024", "--dry-run"])
         with contextlib.redirect_stderr(io.StringIO()), self.assertRaises(SystemExit):
-            entry.main(ARGS[:6] + ["--num-prompts", "128", "--dry-run"])
+            entry.main(identity_flags + ["--num-prompts", "128", "--dry-run"])
 
     def test_invalid_identity_budget_protocol_and_duplicates_never_start(self):
         for engine, flags in (("sglang", ARGS + ["--endpoint", "/v1/chat/completions"]),

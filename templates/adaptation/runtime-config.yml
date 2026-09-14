@@ -40,6 +40,13 @@ service:
     model_supported: null
     initial: null
     evidence: ""
+  prefix_caching:
+    default_enabled: true
+    performance:
+      enabled: null
+      launch_args:
+        - --no-enable-prefix-caching
+      verification: ""
 
 execution_modes:
   eager:
@@ -51,7 +58,7 @@ execution_modes:
 
 acceptance:
   graph_base_url: ""
-  sanity_concurrency: 8
+  sanity_concurrency: 10
   accuracy_image: ""
   accuracy_runner: test/Accuracy_test/llmrun.py
   accuracy_config: ""

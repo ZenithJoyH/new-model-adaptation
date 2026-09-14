@@ -57,6 +57,8 @@ ALL_ENTRY_CASES = [(size, 1024, concurrency, 256) for size, concurrency in (
     (1024, 16), (4096, 16), (16384, 16), (32768, 64),
     (65536, 16), (65536, 32), (65536, 48), (65536, 52), (65536, 64))]
 
+SERVER_PREFIX_CACHE_DISABLE_ARG = "--no-enable-prefix-caching"
+
 
 def positive_int(value):
     number = int(value)

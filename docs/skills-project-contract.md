@@ -1,0 +1,110 @@
+# 新模型适配项目：公共 Skills 项目契约
+
+本文件只负责把 `skills-hub` 的公共方法映射到本仓库工具，不重新定义精度或性能测试方法。
+具体步骤、并发、预热、指标、比较和三态判定以对应 Skill 包为准；本项目规则与用户指令可以
+收紧执行范围，但不得降低其完整性要求。
+
+## 项目标识与规则优先级
+
+- 项目：新模型适配。
+- 根目录标记：`AGENTS.md`、`inventory/hosts.yml`、`models/`、`test/`。
+- 公共 Skill 来源：`skills-hub`；具体受支持 revision 在项目 README 或当前任务记录中冻结。
+- 解析顺序：用户当前指令 → 本仓库 `AGENTS.md` → 本契约 → 公共 Skill 方法。
+
+## 运行身份
+
+模型、权重、tokenizer、Host、平台、设备拓扑、容器、服务实例、endpoint、engine、Plugin、
+FlagGems、启动参数和执行模式必须来自当前远端取证以及当前模型平台记录。平台步骤的远端
+工作根、容器根及映射按 `workspace.roots` 和现场核验确定，不能从历史路径猜测。
+
+## 远程机器操作映射
+
+- 清单和平台变量：`inventory/hosts.yml` 及 `inventory/group_vars/`。
+- 只读入口：`./scripts/inventory`、`./scripts/connectivity-check`、
+  `./scripts/health-check`、`./scripts/accelerator-check`。
+- 通用 Ansible 入口：`./scripts/ansible`、`./scripts/playbook`，遵守仓库审批规则。
+- 聚焦只读诊断可在 AGENTS 允许时使用直接 SSH；多机或重复变更使用 Ansible。
+- 变更先单机试点、验证后 `serial: 1` 扩展；适配容器是受保护资源，不得停止、重启或删除。
+- 逐 Host 保留 `unchanged`、`changed`、`failed`、`unreachable` 结论。
+
+## 工作流顺序
+
+五阶段及验收子步骤顺序由 `AGENTS.md` 和 `docs/model-adaptation-workflow.md` 维护。公共 Skill
+只执行用户明确选择的操作；未选择步骤仅检查前置条件，不自动补跑。
+
+## 精度评测映射
+
+- 公共方法：`inference-accuracy-evaluation` Skill 包中的
+  `references/accuracy-method.md`。
+- `service-sanity`：在已经通过执行模式验收的 graph 服务上使用 10 个固定 GPQA 类问题，
+  并发 10；逐题正确性、输出健康和明显性能异常按公共方法检查。固定题目 manifest、请求脚本
+  和原始结果放在远端 `<host_root>/03-acceptance/` 与 `<host_root>/04-runs/<run_id>/`。
+  当前仓库没有独立维护的通用 sanity runner；未提供已核实 manifest 和入口时返回
+  `incomplete`，不得临时在本地模型目录造脚本。
+- `formal-full` evaluator：目标机器上基于
+  `harbor.baai.ac.cn/flageval/flageval-llmeval:v1` 或已核实的适用 arm64 镜像的评测容器。
+- `formal-full` runner：`test/Accuracy_test/llmrun.py`。在容器内保持该文件与
+  `acceptance_contract.py`、`score_progress.py` 同目录，先执行
+  `python3 llmrun.py <frozen-config> --preflight-only`，再使用同一配置执行
+  `python3 llmrun.py <frozen-config>`。
+- 正式配置映射：graph、`limit=0`、并发至少 32、正整数 `expected_samples`、
+  `allow_timeouts=true`，每个任务的 metric/minimum 在运行前冻结；GPQA Diamond 为 198 个
+  唯一问题。完整规则由公共方法拥有，本条仅声明本项目 runner 字段映射。
+- 正式精度的完成判定按冻结阈值执行：有效完整结果中每个任务的指定 metric 达到对应
+  minimum，即可将精度子步骤标记为 `passed` 或 `complete`。metric 不要求为 `1.0`，允许
+  个别题目答错；`service-sanity` 的逐题正确要求不得替代正式精度的阈值判定。最终超时请求
+  必须作为错误样本保留并计入分母，不得丢弃或用重试掩盖；样本完整且各 metric 达标时允许
+  少量超时。样本或回执无效、非超时请求/执行错误、结果不完整或任一 metric 未达阈值时
+  仍不得通过。
+- 正式结果：runner 生成的 `acceptance-result.json`。通过
+  `./scripts/adapt-model <model> --steps acceptance --acceptance-substeps accuracy --check-only`
+  执行本项目绑定检查；不得用 Markdown、阶段分数、日志或退出码替代。
+- `hard-case`：当前尚无仓库级固定清单和正式入口；用户未提供并冻结版本化 manifest 时返回
+  `incomplete`。
+- `gate-check`：使用
+  `./scripts/adapt-model <model> --steps acceptance --acceptance-substeps performance --check-only`
+  只读核对当前正式精度前置及服务绑定；只要求检查时不得自动重跑精度。
+- 远端配置和包装放 `03-acceptance/`，完整结果放 `04-runs/<run_id>/`，缓存放 `06-cache/`；
+  本地平台 `acceptance/` 只保存 Markdown 摘要和准确路径、哈希、身份与结论。
+
+## 性能评测映射
+
+- 公共方法：`inference-performance-evaluation` Skill 包中的
+  `references/performance-method.md`。
+- vLLM runner：`test/perf_test/vllm_perf.py`；SGLang runner：
+  `test/perf_test/sglang_perf.py`；`all_perf.py` 仅在其文档支持范围内作为兼容入口。
+- `single-scenario`：把冻结的单个场景映射为一个
+  `--case INPUT,OUTPUT,CONCURRENCY,NUM_PROMPTS`；先执行相同命令加 `--dry-run`，核对后只移除
+  `--dry-run`。必须提供匹配 baseline，结论仅覆盖该场景。
+- `full-suite`：把版本化完整场景 manifest 中每项映射为重复的 `--case`；不得静默遗漏。
+  `--model`、`--tokenizer`、`--max-model-len`、Host、端口和 endpoint 来自当前服务取证，且
+  每个 `INPUT+OUTPUT` 不超过当前上下文预算。
+- 测量与验证：按公共方法执行显式预热、多轮无 profiler 测量、请求/token/指标校验；项目
+  原生报告为 `benchmark-result.json`，使用 `perf_common.validate_report` 完整校验。
+- 正式回执：在完整远端报告旁执行
+  `python3 test/perf_test/perf_acceptance.py --report <benchmark-result.json> --runtime-config <runtime.yml> --output <receipt.json> --model <model> --platform <platform> --deployment-fingerprint <sha256> --service-instance-id <id>`。
+  后续工作流通过 `./scripts/adapt-model ... --acceptance-substeps performance --check-only` 核验。
+- 正式性能只使用已通过验收的 graph 服务，并要求当前精度 `gate-check` 已通过。profiler-on
+  轮次和 trace 只属于诊断，不进入正式性能结果。
+- 非性能测试保持前缀缓存开启。所有性能与 Profiling 轮次都必须切换到性能专用服务配置，
+  并在被测服务启动命令中加入 `--no-enable-prefix-caching`，不得将它写入通用 graph 参数。
+  执行前核实本轮服务实例的生效启动配置和启动证据，在 runtime 的
+  `service.prefix_caching.performance` 中记录 `enabled: false`、仅含准确参数的
+  `launch_args` 和非空 `verification`。正式回执会校验 runtime、
+  准确关闭参数、现场证据与服务实例绑定。benchmark 客户端不负责修改模型服务，
+  `--random-prefix-len 0` 不能替代该证据。
+- 性能计划/包装放 `03-acceptance/`，原始 JSON/CSV/stdout/stderr 放
+  `04-runs/<run_id>/`，缓存放 `06-cache/`；本地只保存 Markdown 摘要与准确证据引用。
+
+## 精度定位、Profiling 与算子分析
+
+- 精度失败记录：当前模型平台的 `adaptation/` 编号问题；复现代码放远端 `02-issues/`、
+  `05-tmp/` 或最小算子问题的 `07-bugs/`。
+- Trace 和 profiling 入口、rank 覆盖及产物路径按当前任务远端工作根和项目工具文档映射。
+- 产品修改只进入已核实的 editable-installed Plugin 源码；vLLM 只读。
+
+## 产物与生命周期
+
+完整日志、样本、JSON、CSV、Trace 和缓存留在批准的远端工作根。本地仓库只保存精简、可读
+且可复核的 Markdown 记录。服务停止/重启、容器保护、源码边界和需确认操作继续遵守
+`AGENTS.md`；公共 Skill 不扩大授权。

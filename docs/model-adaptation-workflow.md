@@ -285,9 +285,9 @@ second storage location or permission to write outside this workspace.
       performance evaluation or profiling, and communication validation when
       applicable—using the accepted `graph`-mode service configuration. Do not
       require duplicate accuracy or performance acceptance in `eager` mode.
-   2. **Eight-concurrency accuracy and performance sanity check.** Before the
+   2. **Ten-concurrency accuracy and performance sanity check.** Before the
       formal accuracy evaluation, send a small, fixed set of simple requests with
-      request concurrency set to 8 against the accepted `graph`-mode service
+      request concurrency set to 10 against the accepted `graph`-mode service
       configuration. Check every response against its expected result and record
       errors, timeouts, latency, throughput, accelerator utilization, and memory
       usage sufficient to spot an obvious performance regression. If any response
@@ -304,7 +304,7 @@ second storage location or permission to write outside this workspace.
       another runner unless the user explicitly requests it. Prepare a
       model-specific `llm_config.json`, run `llmrun.py` with `--preflight-only`,
       and then run the formal evaluation. Formal full accuracy evaluation must
-      use request concurrency of at least 32; the concurrency of 8 applies only
+      use request concurrency of at least 32; the concurrency of 10 applies only
       to the preceding small-batch sanity check. Start at 32 or a higher verified
       safe concurrency and increase it as resources and service stability allow
       to minimize evaluation time. Do not sacrifice valid results, complete
@@ -314,12 +314,36 @@ second storage location or permission to write outside this workspace.
       concurrency, tuning rationale, throughput, elapsed time, errors, and
       timeouts under `acceptance/`. Verify the expected sample count,
       process completion, final result and sample files, accuracy metrics,
-      timeouts, and explicit pass criterion.
+      timeouts, and explicit pass criterion. Mark this formal accuracy substep
+      passed or complete when the valid full-run result meets every metric
+      threshold frozen before the run. The metric does not need to equal `1.0`:
+      individually incorrect answers are allowed within the configured threshold
+      and do not fail the formal test by themselves. Do not carry the preceding
+      sanity check's per-question all-correct rule into formal accuracy. A final
+      timeout response is an incorrect/failed sample: retain it in the complete
+      sample set and metric denominator, and never drop it or hide it with retries.
+      A limited number of timeout samples may coexist with a pass only when all
+      frozen metrics still meet their thresholds. Missing or invalid samples,
+      non-timeout request/execution errors, or any metric below its threshold
+      still prevent a passing formal result.
    4. **Final performance evaluation.** Only after the formal accuracy evaluation
       in step 3 has completed and met its pass criterion, use `test/perf_test/`
       against the same accepted `graph`-mode configuration for final inference
       performance testing or profiling. Do not start the formal performance
-      evaluation while full accuracy is incomplete or failing.
+      evaluation while full accuracy is incomplete or failing. Keep prefix
+      caching enabled for sanity, accuracy, and every other non-performance run.
+      Before any performance or profiling request, switch to a performance-only
+      service launch profile and explicitly disable server-side prefix caching
+      on the exact service instance under test by adding the exact
+      service launch argument `--no-enable-prefix-caching`. Verify this argument
+      in the effective launch configuration and startup evidence, and bind the
+      exact argument and evidence reference into the formal performance receipt.
+      The benchmark client does not configure the model service. Client-side
+      `--random-prefix-len 0` only shapes the workload and is not evidence that
+      the server cache is disabled. If the exact service argument or its effective
+      disabled state is unverified, do not run or accept the performance result.
+      Do not put this argument in the common graph profile, and restore the normal
+      prefix-cache-enabled profile before any later non-performance test.
       Use `test/nccl_test/` for communication validation when relevant, also
       under the `graph`-mode acceptance configuration.
    5. **Acceptance evidence.** Record the exact test scripts, configuration,

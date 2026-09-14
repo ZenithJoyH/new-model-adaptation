@@ -22,6 +22,12 @@ python3 test/perf_test/vllm_perf.py \
   --case 1024,1024,64,128 --case 4096,1024,64,128
 ```
 
+- 非性能测试必须保持前缀缓存开启。所有性能测试和 Profiling 均要求切换到性能专用服务
+  配置，并在被测服务启动命令中加入 `--no-enable-prefix-caching`；不得将它写入通用 graph
+  参数。先从该服务实例的生效启动配置和启动日志中核实该准确参数及关闭状态，在 runtime
+  的 `service.prefix_caching.performance.verification` 中记录本轮服务实例的非敏感
+  证据引用。正式回执会绑定该准确参数、证据和服务实例；benchmark 客户端不会自行修改或
+  重启模型服务。客户端固定 `--random-prefix-len 0` 不代表服务端缓存已关闭。
 - `--model`、`--tokenizer`、`--max-model-len` 必填。上下文预算必须来自当前服务核实结果，
   不是脚本探测值。每个 case 的输入长度 + 输出长度必须在预算内；重复或超预算 case
   在任何请求发出前拒绝，不自动删减套件。
@@ -44,7 +50,7 @@ python3 test/perf_test/vllm_perf.py \
 缺失可选 peak throughput、failed requests 不伪造为 0；若出现非法值则拒绝。
 SGLang 的额外 E2EL 指标按其输出保留；未出现则不臆造，不将此适配器用于 AISBench。
 
-随机长度范围固定为 0.0，vLLM 显式固定 prefix 长度 0 并 ignore EOS，SGLang native
+随机长度范围固定为 0.0，vLLM 显式固定请求 prefix 长度 0 并 ignore EOS，SGLang native
 使用其 ignore EOS 默认行为。还要求生成 token 总数等于请求数 × 固定输出长度：
 输出极少却退出 0 不再视为完整工况。vLLM 在缺少 API usage 时可能重新分词；计数不符
 表示工况/计数契约尚未验证，不直接证明服务错误。聚合计数仍不证明每条请求长度、

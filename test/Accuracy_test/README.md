@@ -34,10 +34,15 @@ python3 llmrun.py <模型专用配置路径>
 | limit | 0，全量 |
 | num_concurrent | 至少 32 |
 | expected_samples | 正整数 |
-| allow_timeouts | false |
+| allow_timeouts | true（最终超时样本按错误答案计入分母） |
 | acceptance_criteria | 每个 task 都有 metric、minimum |
 
-八并发只用于前置 sanity，不用于正式全量精度验收。
+十并发只用于前置 sanity，不用于正式全量精度验收。
+正式精度按 `acceptance_criteria` 中每个 task 的 `metric`/`minimum` 判定：有效完整结果的
+指标达到阈值即可标记该精度测试通过或完成，指标不要求等于 1.0，也不要求每道题全部
+答对。前置 sanity 的逐题正确要求不得替代这里的阈值判定。错误答案会体现在精度指标中；
+最终超时请求作为错误答案保留并计入分母；样本完整且指标达到阈值时允许少量超时。缺失或
+无效样本、非超时请求/执行错误、结果不完整或指标低于阈值仍不能通过。
 完整流程及证据绑定见 [工作流指南](../../docs/workflow-guide.md)。
 
 ## 结果和退出码
@@ -55,7 +60,8 @@ acceptance-result.json
   attempt-1/samples_*.jsonl
 ```
 
-正式模式会检查精确指标阈值、完整样本数、有效 doc_id、有效回复及错误/超时。
+正式模式会检查精确指标阈值、完整样本数、有效 doc_id、有效回复及错误；最终超时回复必须
+保留为错误样本。
 支持单文档单行，以及规定 FlagEval GPQA 的 strict-match/flexible-extract 双 filter 行格式。
 后者要求 `(doc_id, filter)` 唯一、每题 filter 覆盖一致，且跨 filter 的原始输入、响应和
 已有哈希一致；不接受把真正重复、冲突记录或混合 schema 静默去重。
@@ -104,7 +110,8 @@ attempt-N 隔离，当前尝试缺失结果时不会用旧文件充数。
 
 `wait_for_service=true` 时可等待服务，service_poll_interval 控制轮询间隔，
 service_wait_timeout=0 表示无总等待上限。API timeout 与服务等待超时不同。
-formal 模式始终禁止最终超时样本通过。
+formal 模式允许最终超时样本存在，但会将其判为错误答案；只有包含这些失败样本后的指标仍
+达到冻结阈值，整个精度评测才可通过。
 
 ## 子进程生命周期
 

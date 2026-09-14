@@ -20,7 +20,7 @@ import score_progress as scorer
 
 def formal_config():
     return {'formal_acceptance': True, 'service_mode': 'graph', 'num_concurrent': 32,
-            'limit': 0, 'expected_samples': 2, 'allow_timeouts': False,
+            'limit': 0, 'expected_samples': 2, 'allow_timeouts': True,
             'tasks': ['example'],
             'acceptance_criteria': {'example': {'metric': 'exact_match,strict-match', 'minimum': 0.9}}}
 
@@ -52,6 +52,19 @@ class SamplesAndCacheTests(unittest.TestCase):
     def test_valid_dual_filter_and_legacy_document_schemas(self):
         self.assertTrue(self.validate(dual_filter_rows()))
         self.assertTrue(self.validate([{'doc_id': i, 'resps': [['answer']]} for i in range(2)]))
+
+    def test_formal_timeout_samples_are_retained_as_incorrect(self):
+        rows = dual_filter_rows()
+        for row in rows:
+            if row['doc_id'] == 0:
+                row['resps'] = [['<TIMEOUT>']]
+                row['filtered_resps'] = ['<TIMEOUT>']
+                row['exact_match'] = 0.0
+        cfg = formal_config()
+        cfg['acceptance_criteria']['example']['minimum'] = 0.5
+        self.assertTrue(self.validate(rows, cfg))
+        self.assertEqual(llmrun.metric_errors(cfg, 'example', {'exact_match,strict-match': 0.5}), [])
+        self.assertTrue(llmrun.metric_errors(cfg, 'example', {'exact_match,strict-match': 0.49}))
 
     def test_same_filter_duplicates_are_not_deduplicated(self):
         rows = dual_filter_rows()
@@ -126,7 +139,7 @@ class ParallelIsolationTests(unittest.TestCase):
                     'api_list': 'model:http://localhost/v1/chat/completions',
                     'services': [('model', 'http://localhost/v1/chat/completions')],
                     'data_parallel_size': 2, 'shards': [0], 'merge_only': False,
-                    'limit': 0, 'expected_samples': 2, 'allow_timeouts': False,
+                    'limit': 0, 'expected_samples': 2, 'allow_timeouts': True,
                     'num_concurrent': 32, 'timeout': 10, 'api_max_retries': 0,
                     'eval_max_retries': 1, 'retry_delay': 0, 'progress_interval': 0,
                     'progress_score_interval': 0}
