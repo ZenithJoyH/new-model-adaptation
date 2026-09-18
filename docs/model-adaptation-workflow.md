@@ -225,7 +225,11 @@ second storage location or permission to write outside this workspace.
       diagnostic/profiling/tracing/dump controls, temporary paths, obsolete
       workarounds, duplicated defaults, experimental tuning, and unrelated
       model/platform settings unless controlled acceptance proves they are still
-      required. Document the correctness, safety, resource-placement, or
+      required. Reconstruct it as a production launcher instead of copying the
+      last diagnostic, accuracy, or performance command; specifically exclude
+      the performance-only `--no-enable-prefix-caching` argument. Prefer engine
+      defaults whenever explicit pinning is unnecessary, and retain no argument
+      solely because it appeared in an earlier run. Document the correctness, safety, resource-placement, or
       reproducibility reason for every retained environment variable and
       argument; explicitly pin a default only when the reason is recorded. Reference exact
       container paths, branches, revisions or commits, and verification commands from the relevant
@@ -369,7 +373,8 @@ second storage location or permission to write outside this workspace.
       and that it routes logs/results to `04-runs/` and caches to `06-cache/`
       without affecting an unrelated service or the adaptation container. Record
       both paths, SHA-256, syntax check, launch/readiness result, complete
-      arguments, the result of the minimal-parameter review and justification for
+      arguments, confirmation that performance-only and diagnostic flags are
+      absent, the result of the minimal-parameter review and justification for
       every retained explicit setting, revisions, and verification date. Do not mark the adaptation
       complete until every acceptance item and this launcher verification have
       passed and the summary reflects the verified outcome.

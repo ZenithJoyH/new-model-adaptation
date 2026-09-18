@@ -260,8 +260,31 @@ class ProgressSchemaTests(unittest.TestCase):
     def test_unknown_cache_keys_are_unavailable_not_zero_accuracy(self):
         stats = self.scores(['unknown'], {})
         message = scorer.format_score(stats, 198)
+        self.assertEqual(stats['key_misses'], 1)
+        self.assertEqual(stats['value_decode_failures'], 0)
+        self.assertIn('key_misses=1', message)
         self.assertIn('UNAVAILABLE', message)
         self.assertNotIn('0.00%', message)
+
+    def test_cache_value_failures_are_classified_without_guessing(self):
+        cases = [
+            (b'not-a-pickle', 'value_invalid_pickle'),
+            (pickle.dumps(None), 'value_no_string'),
+            (pickle.dumps({'response': 'The answer is A.'}), 'value_multiple_strings'),
+        ]
+        for index, (value, reason) in enumerate(cases):
+            with self.subTest(reason=reason), sqlite3.connect(self.db) as conn:
+                conn.execute('DROP TABLE IF EXISTS unnamed')
+                conn.execute('CREATE TABLE unnamed (key TEXT PRIMARY KEY, value BLOB)')
+                key = f'known-{index}'
+                conn.execute('INSERT INTO unnamed VALUES (?, ?)', (key, value))
+                conn.commit()
+                info = {'doc_id': index, 'target': 'A', 'choices': ['one', 'two']}
+                stats = scorer.read_scores(self.db, {key: info})
+                self.assertEqual(stats['key_misses'], 0)
+                self.assertEqual(stats['value_decode_failures'], 1)
+                self.assertEqual(stats[reason], 1)
+                self.assertIn(f'{reason.removeprefix("value_")}=1', scorer.format_score(stats, 1))
 
     def test_two_encodings_for_one_doc_are_not_double_counted(self):
         keys = scorer.cache_keys('prompt', {'top_k': -1})

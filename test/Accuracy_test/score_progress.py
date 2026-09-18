@@ -11,7 +11,7 @@ import sqlite3
 import time
 import unicodedata
 from pathlib import Path
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Tuple
 
 
 STRICT_PATTERN = re.compile(
@@ -140,16 +140,36 @@ def cache_keys(chat: str, gen_kwargs: Dict) -> List[str]:
         ["generate_until", [chat], value]).encode("utf-8")).hexdigest() for value in variants))
 
 
-def safe_pickle_string(blob: bytes) -> Optional[str]:
-    """Extract a cached string without executing pickle opcodes."""
+def inspect_pickle_string(blob: bytes) -> Tuple[Optional[str], str]:
+    """Inspect a cached scalar string without executing pickle opcodes.
+
+    Keep the decoder deliberately narrow.  The progress scorer must never guess
+    which string is the model response when a cache value contains metadata or
+    an unknown container schema.
+    """
     strings_found = []
     try:
         for opcode, argument, _position in pickletools.genops(blob):
-            if opcode.name in {"SHORT_BINUNICODE", "BINUNICODE", "UNICODE", "STRING"}:
+            if opcode.name in {
+                "SHORT_BINUNICODE",
+                "BINUNICODE",
+                "BINUNICODE8",
+                "UNICODE",
+                "STRING",
+            }:
                 strings_found.append(str(argument))
     except Exception:
-        return None
-    return strings_found[0] if len(strings_found) == 1 else None
+        return None, "invalid_pickle"
+    if not strings_found:
+        return None, "no_string"
+    if len(strings_found) != 1:
+        return None, "multiple_strings"
+    return strings_found[0], "ok"
+
+
+def safe_pickle_string(blob: bytes) -> Optional[str]:
+    """Return a verified scalar cached string, preserving the public helper."""
+    return inspect_pickle_string(blob)[0]
 
 
 def normalize_exact(value: str) -> str:
@@ -189,7 +209,9 @@ def flexible_extract(response: str, choices: List[str]) -> str:
 
 def read_scores(cache_db: Path, answer_map: Dict[str, Dict]) -> Dict[str, float]:
     result = {"completed": 0, "matched": 0, "timeouts": 0, "strict": 0, "flexible": 0,
-              "unmatched": 0, "duplicate_docs": 0}
+              "unmatched": 0, "key_misses": 0, "value_decode_failures": 0,
+              "value_invalid_pickle": 0, "value_no_string": 0,
+              "value_multiple_strings": 0, "duplicate_docs": 0}
     if not cache_db.is_file():
         return result
     try:
@@ -208,10 +230,13 @@ def read_scores(cache_db: Path, answer_map: Dict[str, Dict]) -> Dict[str, float]
         info = answer_map.get(key)
         if info is None:
             result["unmatched"] += 1
+            result["key_misses"] += 1
             continue
-        response = safe_pickle_string(blob)
+        response, decode_status = inspect_pickle_string(blob)
         if response is None:
             result["unmatched"] += 1
+            result["value_decode_failures"] += 1
+            result[f"value_{decode_status}"] += 1
             continue
         if info["doc_id"] in seen_docs:
             result["duplicate_docs"] += 1
@@ -233,6 +258,11 @@ def format_score(stats: Dict[str, float], total: int) -> str:
     if stats.get("unavailable") or stats.get("unmatched") or stats.get("duplicate_docs"):
         return (f"UNAVAILABLE: cache/schema mismatch or unreadable cache; completed={stats['completed']}, "
                 f"matched={matched}, unmatched={stats.get('unmatched', 0)}, "
+                f"key_misses={stats.get('key_misses', 0)}, "
+                f"value_decode_failures={stats.get('value_decode_failures', 0)} "
+                f"(invalid_pickle={stats.get('value_invalid_pickle', 0)}, "
+                f"no_string={stats.get('value_no_string', 0)}, "
+                f"multiple_strings={stats.get('value_multiple_strings', 0)}), "
                 f"duplicate_docs={stats.get('duplicate_docs', 0)}; "
                 f"detail={stats.get('unavailable', 'verify the pinned evaluator/request schema')}. "
                 "This is not an accuracy score; use final lm-eval artifacts.")

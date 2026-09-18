@@ -108,7 +108,13 @@ write remotely.
   unrelated running service. Keep the launcher minimal: remove diagnostic,
   profiling, tracing, dump, temporary-path, obsolete workaround, duplicated
   default, experimental tuning, and unrelated model/platform settings unless
-  the accepted configuration demonstrably requires them. Every retained explicit
+  the accepted configuration demonstrably requires them. Rebuild it from the
+  smallest accepted production command instead of copying the last diagnostic,
+  accuracy, or performance command. In particular, do not carry the
+  performance-only `--no-enable-prefix-caching` argument into the final launcher.
+  Prefer engine defaults over explicit flags when behavior and reproducibility
+  do not depend on pinning them; do not add convenience flags merely because they
+  appeared in an earlier run. Every retained explicit
   environment variable and argument must have a documented correctness, safety,
   resource-placement, or reproducibility reason; pinning a default is acceptable
   only when that reason is recorded. Verify its syntax, exact arguments, revisions,

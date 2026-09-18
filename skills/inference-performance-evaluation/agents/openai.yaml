@@ -1,0 +1,7 @@
+interface:
+  display_name: "推理性能评测"
+  short_description: "编排新模型适配与端到端优化中的分层性能测试和正式验收"
+  default_prompt: "Use $inference-performance-evaluation to select and run the appropriate performance measurement for the current inference service."
+
+policy:
+  allow_implicit_invocation: true
