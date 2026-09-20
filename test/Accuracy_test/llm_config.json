@@ -25,9 +25,13 @@
   "run_id": "auto",
   "offline": true,
   "hf_datasets_cache": "/root/.cache/huggingface/datasets",
-  "dataset_path": "Idavidrein/gpqa",
-  "dataset_name": "gpqa_diamond",
-  "dataset_split": "train",
+  "datasets": {
+    "gpqa_diamond_generative_cot": {
+      "path": "Idavidrein/gpqa",
+      "name": "gpqa_diamond",
+      "split": "train"
+    }
+  },
   "expected_samples": 198,
   "allow_timeouts": true,
   "wait_for_service": true,

@@ -307,7 +307,13 @@ second storage location or permission to write outside this workspace.
       target platform. Use `test/Accuracy_test/llmrun.py`; do not substitute
       another runner unless the user explicitly requests it. Prepare a
       model-specific `llm_config.json`, run `llmrun.py` with `--preflight-only`,
-      and then run the formal evaluation. Formal full accuracy evaluation must
+      and then run the formal evaluation. The frozen configuration may contain
+      one or more FlagEval/lm-eval tasks. Freeze an exact metric threshold and
+      complete sample count for every task; for multiple tasks, use task-keyed
+      sample counts and optional task-keyed dataset descriptors. GPQA is one
+      supported configuration, not a required or exclusive dataset. Tasks that
+      need different generation parameters or chat templates must use separate
+      frozen configurations and runs. Formal full accuracy evaluation must
       use request concurrency of at least 32; the concurrency of 10 applies only
       to the preceding small-batch sanity check. Start at 32 or a higher verified
       safe concurrency and increase it as resources and service stability allow

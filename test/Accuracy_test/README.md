@@ -1,6 +1,6 @@
 # 精度评测工具
 
-本目录保存可复用工具和通用配置示例。模型名称、输出路径、生成参数和验收阈值放在
+本目录保存可复用的多数据集评测工具和通用配置示例。模型名称、输出路径、任务/数据集、生成参数和验收阈值放在
 `models/<model>/<platform>/acceptance/` 的专用配置中，不修改公共配置承载一次评测。
 
 ## 正式入口
@@ -14,8 +14,57 @@
 - `eval_model`：本轮输出标签；`model_name`：服务 /v1/models 返回的精确模型 ID。
 - `base_url`：完整的 Chat Completions 地址；`service_mode` 固定为 graph。
 - `gen_kwargs`：根据模型约定明确设置；公共示例值不代表所有模型的推荐值。
-- `expected_samples`：目标任务完整样本数；GPQA Diamond 为 198。
+- `tasks`：FlagEval 镜像内 `lm_eval` 可识别的一个或多个 task ID。
+- `expected_samples`：单 task 可使用正整数；多 task 必须使用 `{task: 完整样本数}` 映射。
+- `datasets`：可选的 task 级数据集预检映射，每项包含 `path`、可空的 `name` 和 `split`。
+  对 FlagEval 自带或 `include_path` 提供且无法独立 `load_dataset` 的 task，可省略该映射，
+  但最终样本完整性仍由 `expected_samples` 强制校验。
 - `acceptance_criteria`：每个 task 的精确指标键和事先确定的准确率下限（0 到 1）。
+
+多数据集配置的核心结构如下；task ID、数据集标识、样本数、指标键和阈值必须在运行前
+根据当前 FlagEval 镜像实际能力冻结，不得照抄占位符：
+
+```json
+{
+  "tasks": ["<task-a>", "<task-b>"],
+  "expected_samples": {"<task-a>": 100, "<task-b>": 200},
+  "datasets": {
+    "<task-a>": {"path": "<dataset-a>", "name": null, "split": "test"},
+    "<task-b>": {"path": "<dataset-b>", "name": "<subset>", "split": "validation"}
+  },
+  "acceptance_criteria": {
+    "<task-a>": {"metric": "<metric-a>", "minimum": 0.8},
+    "<task-b>": {"metric": "<metric-b>", "minimum": 0.7}
+  }
+}
+```
+
+同一个配置中的 task 共用模型服务、并发和生成参数；如果不同数据集需要不同的
+`gen_kwargs`、聊天模板或超时，应拆成多份冻结配置和独立 run，不得用一套参数勉强混跑。
+
+### FlagEval task 配置边界
+
+FlagEval 镜像中的 task YAML 才是数据集语义的来源：它定义 `dataset_path`、`dataset_name`、
+split、prompt、few-shot、生成参数、filter 和 metric。模型专用 JSON 负责选择 task、连接服务、
+冻结完整样本数和验收阈值；其中的 `datasets` 只用于提前验证数据集及样本数，不会替换 task
+YAML。更换 FlagEval 镜像或 task revision 后，必须重新核对这些字段。
+
+在既有 FlagEval v1 环境中核对到的代表性配置如下。它们用于说明配置形态，不提供可直接
+照抄的样本数或阈值：
+
+| task 形态 | task YAML 中的数据源 | 主要差异 |
+|---|---|---|
+| `gsm8k_cot_zeroshot` | `gsm8k` / `main` / `test` | 生成式 exact-match，包含 `strict-match` 与 `flexible-extract` filter |
+| `mmlu_pro_<subject>` | `TIGER-Lab/MMLU-Pro` / `test` | 各学科为叶子 task，使用 `custom-extract`；`mmlu_pro` 本身是聚合 group |
+| `ifeval` | `google/IFEval` / `train` | 同时产生 prompt/指令级 strict/loose 多个指标 |
+| `math_500` | task YAML 引用本地 JSONL | 依赖 `LMEVAL_DATASET_DOWNLOAD_PATH`，数据文件由 task YAML 的 `data_files` 解析 |
+| `humaneval_instruct` | `openai/openai_humaneval` / `test` | task 标记 `unsafe_code: true`，会执行生成代码，不属于默认安全评测路径 |
+
+正式配置应优先列出叶子 task。对于 `mmlu_pro` 这类 group，应先展开并冻结实际参与验收的
+叶子 task、各自完整样本数和指标，不能只用 group 名掩盖子任务缺失。对于 `math_500` 这类
+由 task YAML 解析本地文件的数据集，可以省略 `datasets` 预检映射，但必须在容器内验证环境
+变量、文件路径和最终完整样本数。HumanEval 等执行模型生成代码的 task，只有在隔离执行环境、
+明确启用危险代码评测并获得用户授权后才能接入；当前通用 runner 不默认启用该能力。
 
 公共示例故意留空模型名和阈值，直接运行会失败，避免无意启动错误任务。
 `llmrun.py` 必须显式接收配置路径：
@@ -33,9 +82,10 @@ python3 llmrun.py <模型专用配置路径>
 | service_mode | graph |
 | limit | 0，全量 |
 | num_concurrent | 至少 32 |
-| expected_samples | 正整数 |
+| expected_samples | 单 task 为正整数；多 task 为键集合完全一致的正整数映射 |
 | allow_timeouts | true（最终超时样本按错误答案计入分母） |
 | acceptance_criteria | 每个 task 都有 metric、minimum |
+| datasets | 可选；提供时必须为每个 task 配置 path/name/split |
 
 十并发只用于前置 sanity，不用于正式全量精度验收。
 正式精度按 `acceptance_criteria` 中每个 task 的 `metric`/`minimum` 判定：有效完整结果的
@@ -62,8 +112,9 @@ acceptance-result.json
 
 正式模式会检查精确指标阈值、完整样本数、有效 doc_id、有效回复及错误；最终超时回复必须
 保留为错误样本。
-支持单文档单行，以及规定 FlagEval GPQA 的 strict-match/flexible-extract 双 filter 行格式。
-后者要求 `(doc_id, filter)` 唯一、每题 filter 覆盖一致，且跨 filter 的原始输入、响应和
+支持单文档单行，以及 FlagEval 的单 filter 或多 filter 行格式。
+filter 格式要求 `(doc_id, filter)` 唯一、每题 filter 覆盖一致，验收指标指定的 filter 必须
+存在，且跨 filter 的原始输入、响应和
 已有哈希一致；不接受把真正重复、冲突记录或混合 schema 静默去重。
 配置只读取一次：解析与 `source_config_sha256` 使用同一份原始 bytes，
 `source_config.json` 保留该原文，`effective_config.json` 保存补齐默认值、解析路径后的有效配置。
@@ -71,7 +122,7 @@ acceptance-result.json
 源配置路径之后的修改不会改变已启动任务的 snapshot，也不会被错误绑定为本轮配置。
 
 失败返回非零；已有 run 目录且存储可用时，正常失败、可处理异常和中断会生成 failed 报告。
-成功报告包含 passed、运行 ID、配置哈希、阈值、结果/样本路径及 SHA256，新增
+成功报告包含 passed、运行 ID、task 列表、数据集描述、task 级完整样本数、阈值、配置哈希、结果/样本路径及 SHA256，新增
 `config_artifacts`、`task_attempts` 和 `errors` 用于追踪配置、各次尝试及终止原因。
 报告保持原有 schema_version=1 和 passed/failed 字段，以临时文件完整写入后独占发布，
 不会覆盖已有 `acceptance-result.json`；成功重试只绑定最终通过 attempt 的产物。

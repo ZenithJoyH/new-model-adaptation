@@ -53,6 +53,14 @@ class SamplesAndCacheTests(unittest.TestCase):
         self.assertTrue(self.validate(dual_filter_rows()))
         self.assertTrue(self.validate([{'doc_id': i, 'resps': [['answer']]} for i in range(2)]))
 
+    def test_non_gpqa_consistent_filter_schema_is_supported(self):
+        rows = dual_filter_rows()
+        for row in rows:
+            row['filter'] = {'strict-match': 'primary', 'flexible-extract': 'secondary'}[row['filter']]
+        cfg = formal_config()
+        cfg['acceptance_criteria']['example']['metric'] = 'exact_match,primary'
+        self.assertTrue(self.validate(rows, cfg))
+
     def test_formal_timeout_samples_are_retained_as_incorrect(self):
         rows = dual_filter_rows()
         for row in rows:

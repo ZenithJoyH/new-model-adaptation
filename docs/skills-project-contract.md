@@ -47,9 +47,12 @@ FlagGems、启动参数和执行模式必须来自当前远端取证以及当前
   `acceptance_contract.py`、`score_progress.py` 同目录，先执行
   `python3 llmrun.py <frozen-config> --preflight-only`，再使用同一配置执行
   `python3 llmrun.py <frozen-config>`。
-- 正式配置映射：graph、`limit=0`、并发至少 32、正整数 `expected_samples`、
-  `allow_timeouts=true`，每个任务的 metric/minimum 在运行前冻结；GPQA Diamond 为 198 个
-  唯一问题。完整规则由公共方法拥有，本条仅声明本项目 runner 字段映射。
+- 正式配置映射：graph、`limit=0`、并发至少 32、`allow_timeouts=true`，每个任务的
+  metric/minimum 和完整样本数在运行前冻结。单 task 的 `expected_samples` 可为正整数；多
+  task 必须为键集合与 `tasks` 完全一致的正整数映射。可用 `datasets` 为每个 task 配置
+  `path`/`name`/`split` 并在 FlagEval 容器内预检；FlagEval 自带或 `include_path` 提供的 task
+  仍必须通过最终样本完整性校验。GPQA Diamond 只是其中一个 198 题的配置，不是唯一支持
+  的正式数据集。完整规则由公共方法拥有，本条仅声明本项目 runner 字段映射。
 - 正式精度的完成判定按冻结阈值执行：有效完整结果中每个任务的指定 metric 达到对应
   minimum，即可将精度子步骤标记为 `passed` 或 `complete`。metric 不要求为 `1.0`，允许
   个别题目答错；`service-sanity` 的逐题正确要求不得替代正式精度的阈值判定。最终超时请求

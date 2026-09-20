@@ -14,7 +14,7 @@ sys.path[:0] = [str(ROOT / 'scripts'), str(ROOT / 'test/Accuracy_test')]
 import adapt_model as workflow
 import audit_workspace
 import llmrun
-from acceptance_contract import validate_formal_config, metric_errors
+from acceptance_contract import expected_samples_by_task, validate_formal_config, metric_errors
 
 
 def formal_config():
@@ -46,9 +46,74 @@ class AcceptanceTests(unittest.TestCase):
             self.assertTrue(metric_errors(formal_config(), 'example', {'acc': value}))
         self.assertEqual(metric_errors(formal_config(), 'example', {'acc': 0.9}), [])
 
+    def test_formal_multi_dataset_contract_uses_task_keyed_counts(self):
+        cfg = formal_config()
+        cfg.update(
+            tasks=['task-a', 'task-b'],
+            expected_samples={'task-a': 100, 'task-b': 200},
+            acceptance_criteria={
+                'task-a': {'metric': 'acc', 'minimum': 0.8},
+                'task-b': {'metric': 'exact_match', 'minimum': 0.7},
+            },
+            datasets={
+                'task-a': {'path': 'org/dataset-a', 'name': 'default', 'split': 'test'},
+                'task-b': {'path': 'org/dataset-b', 'name': None, 'split': 'validation'},
+            },
+        )
+        self.assertEqual(validate_formal_config(cfg, require_formal=True), [])
+        self.assertEqual(expected_samples_by_task(cfg), {'task-a': 100, 'task-b': 200})
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / 'multi-dataset.json'
+            path.write_text(json.dumps({
+                **cfg,
+                'eval_model': 'multi-dataset-run',
+                'model_name': 'Example',
+                'base_url': 'http://127.0.0.1:8000/v1/chat/completions',
+            }))
+            loaded = llmrun.load_config(path)
+            self.assertEqual(loaded['expected_samples_by_task'], {'task-a': 100, 'task-b': 200})
+            self.assertEqual(set(loaded['datasets']), {'task-a', 'task-b'})
+        for change in (
+            lambda value: value.update(expected_samples=100),
+            lambda value: value['expected_samples'].pop('task-b'),
+            lambda value: value['datasets'].pop('task-b'),
+            lambda value: value['datasets']['task-a'].update(path=''),
+        ):
+            broken = copy.deepcopy(cfg)
+            change(broken)
+            self.assertTrue(validate_formal_config(broken, require_formal=True))
+
     def test_generic_diagnostic_keeps_lower_concurrency(self):
         cfg = {'formal_acceptance': False, 'num_concurrent': 1}
         self.assertEqual(validate_formal_config(cfg), [])
+
+    def test_dataset_preflight_checks_each_task_descriptor_and_count(self):
+        import types
+        calls = []
+
+        def load_dataset(path, name, *, split, cache_dir):
+            calls.append((path, name, split, cache_dir))
+            return list(range({'org/a': 2, 'org/b': 3}[path]))
+
+        cfg = {
+            'tasks': ['task-a', 'task-b'],
+            'expected_samples_by_task': {'task-a': 2, 'task-b': 3},
+            'datasets': {
+                'task-a': {'path': 'org/a', 'name': None, 'split': 'test'},
+                'task-b': {'path': 'org/b', 'name': 'subset', 'split': 'validation'},
+            },
+            'hf_datasets_cache': '/cache',
+        }
+        with patch.dict(sys.modules, {'datasets': types.SimpleNamespace(load_dataset=load_dataset)}):
+            llmrun.verify_dataset(cfg)
+        self.assertEqual(calls, [
+            ('org/a', None, 'test', '/cache'),
+            ('org/b', 'subset', 'validation', '/cache'),
+        ])
+        cfg['expected_samples_by_task']['task-b'] = 4
+        with patch.dict(sys.modules, {'datasets': types.SimpleNamespace(load_dataset=load_dataset)}), \
+             self.assertRaises(SystemExit):
+            llmrun.verify_dataset(cfg)
 
     def test_formal_samples_reject_invalid_records_but_retain_timeouts(self):
         good = [{'doc_id': i, 'resps': [['answer']]} for i in range(2)]
@@ -59,9 +124,10 @@ class AcceptanceTests(unittest.TestCase):
                  [good[0], {'doc_id': 1, 'resps': [['answer']], 'error': 'HTTP 500'}]]
         with tempfile.TemporaryDirectory() as d:
             path = Path(d) / 'samples_example_1.jsonl'
-            for records in cases:
-                path.write_text('\n'.join(json.dumps(r) for r in records))
-                self.assertFalse(llmrun.validate_samples(formal_config(), 'example', Path(d)))
+            for index, records in enumerate(cases):
+                with self.subTest(invalid_case=index):
+                    path.write_text('\n'.join(json.dumps(r) for r in records))
+                    self.assertFalse(llmrun.validate_samples(formal_config(), 'example', Path(d)))
             for records in (timed_out, good):
                 path.write_text('\n'.join(json.dumps(r) for r in records))
                 self.assertTrue(llmrun.validate_samples(formal_config(), 'example', Path(d)))

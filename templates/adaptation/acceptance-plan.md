@@ -23,6 +23,7 @@
 - [ ] 使用适用的 FlagEval 镜像
 - [ ] `--preflight-only` 通过
 - [ ] `formal_acceptance=true`、graph、全量样本、并发至少 32、超时样本按错误答案计入分母
+- [ ] 已列出本轮全部 FlagEval/lm-eval task；每个 task 的完整样本数及可选数据集描述已冻结
 - [ ] 每个 task 的精确指标键和阈值已在评测前确定
 - [ ] 每个 task 的指标均达到冻结阈值；不要求指标为 1.0，也不要求每题全部答对
 - [ ] `acceptance-result.json` 为 passed，配置哈希与本轮配置一致

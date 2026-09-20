@@ -56,7 +56,9 @@ Plugin 仓库。问题台账只引用准确路径、revision、命令和结论�
 
 公共的最终性能、精度和通信测试工具位于 [test/](test/README.md)。每次模型适配完成前，
 应选择与目标平台适用的测试工具执行验证；模型专用可执行配置和原始结果留在远端工作根
-目录，本地平台 `acceptance/` 只记录验收结论和准确证据路径。
+目录，本地平台 `acceptance/` 只记录验收结论和准确证据路径。正式精度 runner 支持同一
+FlagEval 镜像内的一个或多个 lm-eval task；GPQA 只是默认示例，每个数据集都必须单独冻结
+完整样本数、指标键和验收阈值。
 
 精度和性能评测分别提供同名于“端到端推理优化”项目的仓库级 Skill：
 `$inference-accuracy-evaluation` 与 `$inference-performance-evaluation`。两个项目统一调用名、

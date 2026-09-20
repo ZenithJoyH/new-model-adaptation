@@ -3,6 +3,30 @@
 import math
 
 
+def expected_samples_by_task(cfg, tasks=None):
+    """Return the frozen full-run sample count for every task.
+
+    A scalar remains supported for one-task historical configurations. Formal
+    multi-task runs must name each task explicitly so one dataset's count cannot
+    be silently reused for another dataset.
+    """
+    tasks = cfg.get("tasks") if tasks is None else tasks
+    if not isinstance(tasks, list) or not tasks:
+        raise ValueError("tasks must be a non-empty list")
+    expected = cfg.get("expected_samples")
+    if type(expected) is int:
+        if expected < 1:
+            raise ValueError("expected_samples must be positive")
+        if len(tasks) != 1:
+            raise ValueError("multi-task formal acceptance requires expected_samples keyed by task")
+        return {tasks[0]: expected}
+    if not isinstance(expected, dict) or set(expected) != set(tasks):
+        raise ValueError("expected_samples must specify exactly one positive count per task")
+    if any(type(value) is not int or value < 1 for value in expected.values()):
+        raise ValueError("expected_samples counts must be positive integers")
+    return dict(expected)
+
+
 def validate_formal_config(cfg, *, require_formal=False):
     if not isinstance(cfg, dict):
         return ["accuracy config must be a JSON object"]
@@ -17,8 +41,6 @@ def validate_formal_config(cfg, *, require_formal=False):
         errors.append("formal acceptance requires num_concurrent >= 32")
     if type(cfg.get("limit")) is not int or cfg["limit"] != 0:
         errors.append("formal acceptance requires limit=0 (full dataset)")
-    if type(cfg.get("expected_samples")) is not int or cfg["expected_samples"] < 1:
-        errors.append("formal acceptance requires positive expected_samples")
     if cfg.get("allow_timeouts") is not True:
         errors.append("formal acceptance requires allow_timeouts=true so timeout samples count as incorrect")
     tasks = cfg.get("tasks")
@@ -28,9 +50,35 @@ def validate_formal_config(cfg, *, require_formal=False):
         return errors
     if len(set(tasks)) != len(tasks):
         errors.append("tasks must not contain duplicates")
+    try:
+        expected_samples_by_task(cfg, tasks)
+    except ValueError as exc:
+        errors.append(f"formal acceptance {exc}")
     if not isinstance(criteria, dict) or set(criteria) != set(tasks):
         errors.append("acceptance_criteria must specify exactly one criterion per task")
         return errors
+    datasets = cfg.get("datasets")
+    legacy_dataset = cfg.get("dataset_path")
+    if datasets is not None and legacy_dataset:
+        errors.append("use either datasets or legacy dataset_path fields, not both")
+    if datasets is not None and not isinstance(datasets, dict):
+        errors.append("datasets must be an object when provided")
+    elif datasets:
+        if set(datasets) != set(tasks):
+            errors.append("datasets must specify exactly one dataset descriptor per task")
+        else:
+            for task, descriptor in datasets.items():
+                if not isinstance(descriptor, dict):
+                    errors.append(f"{task}: dataset descriptor must be an object")
+                    continue
+                if not isinstance(descriptor.get("path"), str) or not descriptor["path"].strip():
+                    errors.append(f"{task}: dataset path must be a non-empty string")
+                if descriptor.get("name") is not None and not isinstance(descriptor.get("name"), str):
+                    errors.append(f"{task}: dataset name must be a string or null")
+                if not isinstance(descriptor.get("split", "train"), str) or not descriptor.get("split", "train").strip():
+                    errors.append(f"{task}: dataset split must be a non-empty string")
+    elif legacy_dataset and len(tasks) != 1:
+        errors.append("legacy dataset_path fields support only one task; use datasets for multi-task runs")
     for task in tasks:
         item = criteria[task]
         if not isinstance(item, dict) or not isinstance(item.get("metric"), str) or not item["metric"]:

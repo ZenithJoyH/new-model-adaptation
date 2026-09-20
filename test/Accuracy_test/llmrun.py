@@ -22,7 +22,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 
-from acceptance_contract import metric_errors, validate_formal_config
+from acceptance_contract import expected_samples_by_task, metric_errors, validate_formal_config
 
 
 class ConfigSnapshot(dict):
@@ -106,6 +106,37 @@ def load_config(config_path: Path) -> Dict:
     if not tasks or not all(isinstance(task, str) and task for task in tasks):
         fail("tasks must be a non-empty string or list of strings")
     cfg["tasks"] = tasks
+    if cfg.get("formal_acceptance"):
+        cfg["expected_samples_by_task"] = expected_samples_by_task(cfg, tasks)
+    else:
+        expected = cfg.get("expected_samples", 0)
+        if isinstance(expected, dict):
+            if set(expected) != set(tasks) or any(type(value) is not int or value < 0 for value in expected.values()):
+                fail("expected_samples mapping must contain one non-negative integer per task")
+            cfg["expected_samples_by_task"] = dict(expected)
+        else:
+            try:
+                expected = int(expected)
+            except (TypeError, ValueError):
+                fail("expected_samples must be an integer or a task-keyed mapping")
+            if expected < 0:
+                fail("expected_samples must be >= 0")
+            cfg["expected_samples"] = expected
+            cfg["expected_samples_by_task"] = {task: expected for task in tasks}
+
+    datasets = cfg.get("datasets")
+    if datasets is None:
+        if cfg.get("dataset_path"):
+            if len(tasks) != 1:
+                fail("legacy dataset_path fields support only one task; use datasets")
+            datasets = {tasks[0]: {
+                "path": cfg["dataset_path"],
+                "name": cfg.get("dataset_name") or None,
+                "split": cfg.get("dataset_split", "train"),
+            }}
+        else:
+            datasets = {}
+    cfg["datasets"] = datasets
 
     config_dir = config_path.parent.resolve()
     cfg["output_root"] = resolve_path(cfg["output_root"], config_dir)
@@ -119,7 +150,6 @@ def load_config(config_path: Path) -> Dict:
         "api_max_retries",
         "eval_max_retries",
         "retry_delay",
-        "expected_samples",
         "service_poll_interval",
         "service_wait_timeout",
         "progress_score_interval",
@@ -211,27 +241,45 @@ def wait_for_service(cfg: Dict) -> None:
         time.sleep(interval)
 
 
-def verify_dataset(cfg: Dict) -> None:
-    dataset_path = cfg.get("dataset_path")
-    dataset_name = cfg.get("dataset_name")
+def expected_samples_for(cfg: Dict, task: str) -> int:
+    mapped = cfg.get("expected_samples_by_task")
+    if isinstance(mapped, dict):
+        return mapped.get(task, 0)
     expected = cfg.get("expected_samples", 0)
-    if not dataset_path:
+    if isinstance(expected, dict):
+        return expected.get(task, 0)
+    return expected if type(expected) is int else 0
+
+
+def verify_dataset(cfg: Dict) -> None:
+    datasets = cfg.get("datasets", {})
+    if not datasets:
         return
     try:
         from datasets import load_dataset
-
-        dataset = load_dataset(
-            dataset_path,
-            dataset_name or None,
-            split=cfg["dataset_split"],
-            cache_dir=cfg["hf_datasets_cache"],
-        )
     except Exception as exc:  # noqa: BLE001 - surface dataset/cache failures
-        fail(f"Dataset preflight failed for {dataset_path}/{dataset_name}: {exc}")
-    actual = len(dataset)
-    if expected and actual != expected:
-        fail(f"Dataset sample count mismatch: expected {expected}, found {actual}")
-    log("INFO", f"Dataset ready: {dataset_path}/{dataset_name}, split={cfg['dataset_split']}, samples={actual}")
+        fail(f"Dataset preflight cannot import datasets: {exc}")
+    for task in cfg["tasks"]:
+        descriptor = datasets.get(task)
+        if not isinstance(descriptor, dict):
+            fail(f"Dataset preflight descriptor is missing for task {task}")
+        dataset_path = descriptor.get("path")
+        dataset_name = descriptor.get("name") or None
+        dataset_split = descriptor.get("split", "train")
+        try:
+            dataset = load_dataset(
+                dataset_path,
+                dataset_name,
+                split=dataset_split,
+                cache_dir=cfg["hf_datasets_cache"],
+            )
+        except Exception as exc:  # noqa: BLE001 - surface dataset/cache failures
+            fail(f"Dataset preflight failed for {task} ({dataset_path}/{dataset_name}): {exc}")
+        actual = len(dataset)
+        expected = expected_samples_for(cfg, task)
+        if expected and actual != expected:
+            fail(f"{task}: dataset sample count mismatch: expected {expected}, found {actual}")
+        log("INFO", f"Dataset ready: task={task}, path={dataset_path}/{dataset_name}, split={dataset_split}, samples={actual}")
 
 
 def safe_name(value: str) -> str:
@@ -558,14 +606,11 @@ def validate_samples(cfg: Dict, task: str, task_dir: Path) -> bool:
         if any(filters != coverage for filters in doc_filters.values()):
             log("ERROR", "Incomplete per-filter document coverage")
             return False
-        if len(coverage) > 1 and coverage != {"strict-match", "flexible-extract"}:
-            log("ERROR", "Unsupported multi-filter schema; add a versioned schema fixture before using it")
-            return False
         metric = cfg.get("acceptance_criteria", {}).get(task, {}).get("metric", "")
         if schema == "filter" and "," in metric and metric.rsplit(",", 1)[1] not in coverage:
             log("ERROR", "Samples do not cover the acceptance criterion's filter")
             return False
-    expected = cfg["limit"] if cfg["limit"] > 0 else cfg.get("expected_samples", 0)
+    expected = cfg["limit"] if cfg["limit"] > 0 else expected_samples_for(cfg, task)
     log(
         "INFO",
         f"Samples file: {samples_file}, unique_samples={sample_count}, "
@@ -699,7 +744,8 @@ def write_acceptance_report(cfg, run_dir, failed, task_attempts, errors):
         "run_id": run_dir.name, "service_mode": cfg["service_mode"],
         "configured_concurrency": cfg["num_concurrent"], "observed_concurrency": None,
         "observation_note": "Actual concurrency must be recorded from service or client telemetry separately.",
-        "expected_samples": cfg["expected_samples"], "allow_timeouts": cfg["allow_timeouts"],
+        "tasks": list(cfg["tasks"]), "expected_samples": cfg["expected_samples"],
+        "datasets": cfg.get("datasets", {}), "allow_timeouts": cfg["allow_timeouts"],
         "timeout_policy": "count_as_incorrect",
         "source_config_sha256": cfg["source_config_sha256"],
         "criteria": cfg["acceptance_criteria"], "failed_tasks": list(failed),
