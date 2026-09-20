@@ -8,6 +8,7 @@ __pycache__/
 
 # Verified local historical snapshots; never source them as active operations.
 .local/adaptation-history/
+.codex-tmp
 
 # Model weights and bulky runtime artifacts must stay on remote storage.
 models/**/weights/
