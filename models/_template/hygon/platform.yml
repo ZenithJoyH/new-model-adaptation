@@ -10,6 +10,7 @@ engine_version: ""
 container_image: ""
 last_verified: null
 blocker: ""
+frameworks: {}
 workflow:
   architecture:
     status: not_started
