@@ -97,7 +97,9 @@ verification 位于 `workflow.<phase>.verification`；子步骤位于
 
 - accuracy 的 `native` 包含 `report`、`config` 两个 `{path, sha256}` 引用，分别指向
   `llmrun.py` 的 `acceptance-result.json` 和实际冻结配置。`acceptance_plan.accuracy_config_sha256`
-  在执行模式验收前冻结。验证配置、运行身份、每 task 指标阈值、进程完成、样本完整性、
+  在执行模式验收前冻结。重建并逐字段核对 runner 生效配置，包括模型名、endpoint、
+  生成参数、数据集、并发和容器映射后的路径身份。同时验证运行身份、每 task 指标阈值、
+  进程完成、样本完整性、
   超时策略及结果/样本哈希；低于 1 的达标得分可以通过。回执须记录 `service_instance_id`。
 - performance 的 `native` 包含 `report`、`runtime` 引用，指向 `perf_acceptance.py` 原生
   回执及其运行配置。正式回执要求独立的无 profiler 测量；诊断轮次不代替正式结果。

@@ -1,15 +1,16 @@
-# 新模型适配项目：公共 Skills 项目契约
+# 新模型适配项目：Skills 项目契约
 
-本文件只负责把 `skills-hub` 的公共方法映射到本仓库工具，不重新定义精度或性能测试方法。
-具体步骤、并发、预热、指标、比较和三态判定以对应 Skill 包为准；本项目规则与用户指令可以
-收紧执行范围，但不得降低其完整性要求。
+本项目的精度、性能调用以仓库内 `skills/` 入口、本文方法映射和原生 runner 为准。
+Hub 提供可参考的独立公共能力；项目原生回执与公共结果格式不同，不能动态加载旁边的 Hub
+工作区后混用。切换公共实现须显式核对接口和证据协议。
 
 ## 项目标识与规则优先级
 
 - 项目：新模型适配。
 - 根目录标记：`AGENTS.md`、`inventory/hosts.yml`、`models/`、`test/`。
-- 公共 Skill 来源：`skills-hub`；具体受支持 revision 在项目 README 或当前任务记录中冻结。
-- 解析顺序：用户当前指令 → 本仓库 `AGENTS.md` → 本契约 → 公共 Skill 方法。
+- 维护来源：本项目已有原生方法；参考来源为 `skills-hub`，并非公共 bundle 的完整复制版。
+- 能力 ID：`adaptation/accuracy`、`adaptation/performance`，公开操作见各入口的 `interface.json`。
+- 解析顺序：用户当前指令 → 本仓库 `AGENTS.md` → 本契约 → 本地 Skill 方法。
 
 ## 运行身份
 
@@ -37,9 +38,10 @@ FlagGems、启动参数和执行模式必须来自当前远端取证以及当前
 先读取 profile：以下服务精度/性能映射适用于 vllm-plugin-fl，Torch-FL experimental 使用
 device/operators/model-eager/可选 wheel，不要求 FlagEval、graph 或并发请求。
 
-公共方法来源由当前任务记录实际 skills-hub revision。本地 skills/ 仅保留转接入口，不能再
-维护独立并发/超时/缓存规则。用户已经确定的 10 并发、超时计失败、性能关闭缓存优先于旧
-公共示例。共享 runner 若不支持这些契约或原生格式不同，返回 incomplete，不能静默换工具。
+调用方明确选择操作并冻结完整 Skill bundle 哈希及所用配置。项目的 10 并发、超时计失败、
+性能关闭缓存和原生证据规则由本契约及 runner 维护，不因 Hub 同名能力更新而改变。
+入口路径沿用现有目录；机器调用用项目能力 ID，不能以目录同名推断接口兼容。
+恢复与执行前后校验见 [执行记录](agent-execution.md)。
 
 旧调用名在调用前明确映射：baseline-sanity → service-sanity，formal-gate → formal-full；
 minimal-regression 由框架定向测试承担，只有提供固定案例集时才调用 hard-case。
@@ -48,10 +50,9 @@ minimal-regression 由框架定向测试承担，只有提供固定案例集时�
 
 ## 精度评测映射
 
-- 公共方法：`inference-accuracy-evaluation` Skill 包中的
-  `references/accuracy-method.md`。
+- 方法：本节、项目本地精度入口及 `test/Accuracy_test/` 的原生执行/验证工具。
 - `service-sanity`：在已经通过执行模式验收的 graph 服务上使用 10 个固定 GPQA 类问题，
-  并发 10；逐题正确性、输出健康和明显性能异常按公共方法检查。固定题目 manifest、请求脚本
+  并发 10；逐题正确性、输出健康和明显性能异常按本节项目规则检查。固定题目 manifest、请求脚本
   和原始结果放在远端 `<host_root>/03-acceptance/` 与 `<host_root>/04-runs/<run_id>/`。
   当前仓库没有独立维护的通用 sanity runner；未提供已核实 manifest 和入口时返回
   `incomplete`，不得临时在本地模型目录造脚本。
@@ -66,7 +67,7 @@ minimal-regression 由框架定向测试承担，只有提供固定案例集时�
   task 必须为键集合与 `tasks` 完全一致的正整数映射。可用 `datasets` 为每个 task 配置
   `path`/`name`/`split` 并在 FlagEval 容器内预检；FlagEval 自带或 `include_path` 提供的 task
   仍必须通过最终样本完整性校验。GPQA Diamond 只是其中一个 198 题的配置，不是唯一支持
-  的正式数据集。完整规则由公共方法拥有，本条仅声明本项目 runner 字段映射。
+  的正式数据集。完整性由项目原生验收器执行，配置字段以当前 runner 为准。
 - 正式精度的完成判定按冻结阈值执行：有效完整结果中每个任务的指定 metric 达到对应
   minimum，即可将精度子步骤标记为 `passed` 或 `complete`。metric 不要求为 `1.0`，允许
   个别题目答错；`service-sanity` 的逐题正确要求不得替代正式精度的阈值判定。最终超时请求
@@ -89,8 +90,7 @@ minimal-regression 由框架定向测试承担，只有提供固定案例集时�
 - 先读取当前 `framework.yml` 引用的 profile；profile 的
   `acceptance.performance_adapter` 决定可使用的正式 runner。旧直接平台记录按
   `vllm-plugin-fl` 处理。不得仅因某个 CLI 已安装就跨 profile 选择 runner。
-- 公共方法：`inference-performance-evaluation` Skill 包中的
-  `references/performance-method.md`。
+- 方法：本节、项目本地性能入口及 `test/perf_test/` 的原生执行/验证工具。
 - vLLM runner：`test/perf_test/vllm_perf.py`；SGLang runner：
   `test/perf_test/sglang_perf.py`；`all_perf.py` 仅在其文档支持范围内作为兼容入口。
 - `single-scenario`：把冻结的单个场景映射为一个
@@ -99,7 +99,7 @@ minimal-regression 由框架定向测试承担，只有提供固定案例集时�
 - `full-suite`：把版本化完整场景 manifest 中每项映射为重复的 `--case`；不得静默遗漏。
   `--model`、`--tokenizer`、`--max-model-len`、Host、端口和 endpoint 来自当前服务取证，且
   每个 `INPUT+OUTPUT` 不超过当前上下文预算。
-- 测量与验证：按公共方法执行显式预热、多轮无 profiler 测量、请求/token/指标校验；项目
+- 测量与验证：按冻结配置及原生 runner 执行显式预热、多轮无 profiler 测量、请求/token/指标校验；项目
   原生报告为 `benchmark-result.json`，使用 `perf_common.validate_report` 完整校验。
 - 正式回执：在完整远端报告旁执行
   `python3 test/perf_test/perf_acceptance.py --report <benchmark-result.json> --runtime-config <runtime.yml> --output <receipt.json> --model <model> --platform <platform> --deployment-fingerprint <sha256> --service-instance-id <id>`。

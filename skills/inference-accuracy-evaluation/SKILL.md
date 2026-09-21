@@ -1,29 +1,41 @@
 ---
 name: inference-accuracy-evaluation
-description: Route accuracy evaluation requests in this model-adaptation repository to the shared skills-hub capability and the selected framework's project contract.
+description: Execute the explicitly selected accuracy operation with this model-adaptation project's framework profile, maintained native runner, and evidence contract.
 ---
 
-# Project accuracy adapter
+# Model adaptation accuracy
 
-Read [the single project contract](references/project-contract.md) before executing.
-This file is a project adapter, not a separate copy of the shared testing method.
+This repository-local entrypoint has capability ID `adaptation/accuracy` and the
+interface in [interface.json](interface.json). Its legacy directory name is not
+an alias for the Hub package. Load this exact path; do not substitute a global
+namesake or dynamically read a sibling checkout.
 
-Locate the actual installed `skills-hub/skills/inference-accuracy-evaluation/SKILL.md`
-(prefer the sibling skills-hub checkout when available), read that Skill and its
-required method references, and record the source revision. Do not create a
-second copy or change the shared repository as part of a project-only request.
-If unavailable, return incomplete with the missing dependency.
+Read [the project contract](references/project-contract.md) and the selected
+framework profile before running anything. The contract specifies methods,
+concurrency, cache state, native commands, output paths and verification.
 
-Use the operation supplied by the caller; the project contract maps legacy names.
-Do not infer another operation or start unselected phases. The selected framework
-must declare the requested capability. Torch-FL experimental device/operator/eager
-checks use its own workflow; they are not vLLM/FlagEval formal service acceptance.
+Require the caller to explicitly select one of: `service-sanity`, `hard-case`, `formal-full`, `gate-check`.
+Return `incomplete` for missing or unsupported selection. Do not choose another
+operation, broaden the selected stage, or invoke another Skill. Return missing
+prerequisites and suggested next actions for the calling Agent to decide.
 
-User requirements take precedence over stale shared defaults. For this project,
-the contract defines concurrency, timeout handling, cache settings and supported
-native receipts. If the selected shared implementation cannot express them or
-its result schema is unsupported, report incomplete rather than silently swapping
-runners or treating incompatible evidence as a pass.
+Before execution, record the exact Skill bundle fingerprint using
+`python3 scripts/skill_bundle.py inspect --skill-dir <absolute-local-skill-directory> --capability-id adaptation/accuracy --selection <explicit-operation> --interface-version 1.0.0 --result-contract adaptation-native-accuracy/v1`
+from the project root. Record the framework, model/platform/Hosts, current service
+identity and frozen request/measurement configuration alongside it.
 
-Return passed/failed/incomplete for the selected operation only. A measurement
-or basic check is not complete model adaptation.
+Use only the runner and native receipts supported by the selected framework.
+For vllm-plugin-fl, follow the contract's dry-run/preflight, measured-run and
+`adapt-model --check-only --verify-records` path. A public Hub result or a log line
+cannot replace these native receipts. Torch-FL experimental device/operator/eager
+checks follow their own profile and do not imply formal service acceptance.
+
+When a long operation needs a recoverable control record, use
+[the execution journal](../../docs/agent-execution.md). It wraps existing checks
+and preserves context; it does not launch work or change workflow status. Its
+supported completion gates are narrower than this Skill's complete mode list;
+unsupported checks return `incomplete`.
+
+Return `passed`, `failed`, or `incomplete` for the selected operation and exact
+scope, with native evidence paths and hashes. A measurement or basic check is
+not complete model adaptation.

@@ -67,9 +67,11 @@ Playbook、JSON/YAML、原始日志、缓存或临时子目录。框架 profile 
 FlagEval 镜像内的一个或多个 lm-eval task；GPQA 只是默认示例，每个数据集都必须单独冻结
 完整样本数、指标键和验收阈值。
 
-精度和性能评测分别提供同名于“端到端推理优化”项目的仓库级 Skill：
-`$inference-accuracy-evaluation` 与 `$inference-performance-evaluation`。公共方法由 skills-hub 维护，本仓库的入口只保留项目映射；统一`passed`/`failed`/`incomplete` 结论及报告字段，但各自使用项目内的 runner、目录
-和正式证据格式。具体模式和映射见 [评测 Skills](skills/README.md)。
+精度和性能使用项目内维护的评测入口，能力 ID 为 `adaptation/accuracy`、
+`adaptation/performance`，保留原有目录路径。Hub 的公共能力可作为参考，但不得动态读取
+未冻结的同名 Skill 来替代本项目的 runner 与原生回执。具体操作见
+[评测 Skills](skills/README.md)，接口指纹、前后校验和长任务恢复见
+[Agent 执行记录](docs/agent-execution.md)。
 
 使用 `vllm-plugin-fl` profile 修改模型适配 Plugin 前，可参考
 [vllm-plugin-FL 项目分析与新模型适配代码修改指南](docs/vllm-plugin-FL-analysis.md)，按模型注册、算子 dispatch、平台 backend、量化、attention/MoE 和 graph 执行链路选择最小改动面。

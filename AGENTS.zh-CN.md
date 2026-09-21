@@ -192,13 +192,14 @@ draft/不完整 profile 只允许模型分析和只读调查；experimental 允�
 
 ## 工作流调用与阶段隔离
 
-- 精度与性能工作分别使用公共的 `inference-accuracy-evaluation` 和
-  `inference-performance-evaluation` Skill。测试等级/模式、具体执行方法、并发与预热、指标
-  计算、证据校验、三态判定和报告字段都由对应 Skill 包维护，不得在本 AGENTS 文件中复制
-  或重新定义。
-- 执行前读取 `docs/skills-project-contract.md`，把公共方法映射到本仓库的正式 runner、容器、
-  路径和原生回执。该契约只承担项目适配；项目规则和用户指定范围可以收紧执行边界，但
-  契约与本文件都不得静默替换或削弱 Skill 方法。
+- 精度与性能工作使用本仓库入口，能力 ID 为 `adaptation/accuracy`、
+  `adaptation/performance`，要求调用方显式传入操作。Hub 或全局同名 Skill 不代表
+  相同的原生证据生产者。
+- 执行前读取 `docs/skills-project-contract.md` 中的项目方法及原生 runner 映射，
+  不动态读取旁边可变的 Hub 工作区。切换实现必须显式比较接口与证据协议。
+- 长任务需要恢复记录时遵循 `docs/agent-execution.md`：冻结 Skill 与输入身份，
+  执行原生前后检查，重试前先检查既有 run。记录器不扩大远程权限，不替代框架业务状态；
+  后续动作由调用方 Agent 决定。
 - 对具备前缀缓存的框架，模型分析、环境分析、适配、执行模式、小批量与精度等非性能环节
   保持前缀缓存开启。本项目仅对性能测试增加一个强制前置条件：任何性能测试或
   Profiling 开始前，必须使用性能测试专用的服务启动配置，不得把关闭参数写入通用 graph

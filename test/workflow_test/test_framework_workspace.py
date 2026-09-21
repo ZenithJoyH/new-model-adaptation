@@ -249,17 +249,20 @@ class FrameworkGateTests(unittest.TestCase):
         self.cfg['workspace']['roots'][0]['host_root'] = str(self.remote)
         reader = gate.Artifacts(self.cfg, 'PPU-01', self.mounts)
         config = formal_config()
+        config.update(eval_model='accuracy-run', model_name='Example',
+                      base_url='http://127.0.0.1:8000/v1/chat/completions')
         config['acceptance_criteria']['example']['minimum'] = 0.5
         config_path = self.remote/'config.json'; config_path.write_text(json.dumps(config))
         run = self.remote/'accuracy-run'; run.mkdir()
         (run/'source_config.json').write_bytes(config_path.read_bytes())
-        (run/'effective_config.json').write_bytes(config_path.read_bytes())
+        config = llmrun.load_config(config_path)
+        config['run_nonce'] = 'fixture-nonce'
+        (run/'effective_config.json').write_text(json.dumps(config))
         samples = run/'samples_example_1.jsonl'
         samples.write_text('\n'.join(json.dumps({'doc_id': i, 'resps': [[answer]]})
                                      for i, answer in enumerate(['answer', '<TIMEOUT>'])))
         result_path = run/'results_1.json'
         result_path.write_text(json.dumps({'results': {'example': {'acc': 0.5}}}))
-        config['source_config_sha256'] = gate.digest(config_path)
         llmrun.write_acceptance_report(config, run, [], {'example': [
             {'output_dir': str(run), 'returncode': 0, 'status': 'passed', 'errors': []}]}, [])
         report_path = run/'acceptance-result.json'
@@ -267,6 +270,19 @@ class FrameworkGateTests(unittest.TestCase):
         native = {'report': ref(report_path), 'config': ref(config_path)}
         self.cfg['acceptance_plan'] = {'accuracy_config_sha256': gate.digest(config_path)}
         gate.native_accuracy(reader, native, {'run_id': 'accuracy-run'}, self.cfg)
+        effective_path = run/'effective_config.json'
+        effective = json.loads(effective_path.read_text())
+        effective['model_name'] = 'another-model'
+        effective_path.write_text(json.dumps(effective))
+        report = json.loads(report_path.read_text())
+        report['config_artifacts']['effective_config'] = ref(effective_path)
+        report_path.write_text(json.dumps(report)); native['report'] = ref(report_path)
+        with self.assertRaisesRegex(ValueError, '生效精度配置与冻结'):
+            gate.native_accuracy(reader, native, {'run_id': 'accuracy-run'}, self.cfg)
+        effective['model_name'] = 'Example'
+        effective_path.write_text(json.dumps(effective))
+        report['config_artifacts']['effective_config'] = ref(effective_path)
+        report_path.write_text(json.dumps(report)); native['report'] = ref(report_path)
         # A reported pass is insufficient when its current metric misses the threshold.
         result_path.write_text(json.dumps({'results': {'example': {'acc': 0.1}}}))
         report = json.loads(report_path.read_text())

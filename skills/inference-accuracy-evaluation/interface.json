@@ -1,0 +1,16 @@
+{
+  "schema_version": 1,
+  "capability_id": "adaptation/accuracy",
+  "interface_version": "1.0.0",
+  "selector": "operation",
+  "operations": [
+    "service-sanity",
+    "hard-case",
+    "formal-full",
+    "gate-check"
+  ],
+  "result_contract": "adaptation-native-accuracy/v1",
+  "resources": [
+    "SKILL.md"
+  ]
+}

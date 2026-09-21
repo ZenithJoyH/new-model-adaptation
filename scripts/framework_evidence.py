@@ -114,14 +114,30 @@ class Artifacts:
     def json(self, ref):
         return json.loads(self.file(ref).read_text(encoding="utf-8"))
 
+    def logical_path(self, value):
+        """Normalize the same approved-root path across host/container/local mounts."""
+        if not value:
+            return ""
+        path = PurePosixPath(value)
+        if not path.is_absolute():
+            return {"relative": path.as_posix()}
+        for prefix in self.prefixes:
+            if path.is_relative_to(prefix):
+                return {"root_relative": path.relative_to(prefix).as_posix()}
+        local = Path(value).resolve(strict=False)
+        if local.is_relative_to(self.root):
+            return {"root_relative": local.relative_to(self.root).as_posix()}
+        return {"absolute": path.as_posix()}
+
 
 def native_accuracy(reader, native, envelope, cfg):
     sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "test/Accuracy_test"))
     try:
         from acceptance_contract import validate_formal_config, metric_errors
-        from llmrun import validate_samples
+        from llmrun import load_config, validate_samples
         report = reader.json(native["report"])
-        frozen = reader.json(native["config"])
+        frozen_path = reader.file(native["config"])
+        frozen = json.loads(frozen_path.read_text(encoding="utf-8"))
         require(not validate_formal_config(frozen, require_formal=True), "无效正式精度配置")
         require(report.get("kind") == "formal_accuracy" and report.get("status") == "passed"
                 and report.get("errors") == [] and report.get("failed_tasks") == [], "正式精度未通过")
@@ -132,6 +148,21 @@ def native_accuracy(reader, native, envelope, cfg):
         require(digest(source) == native["config"]["sha256"], "原始配置快照与冻结输入不一致")
         effective = reader.json(snapshots["effective_config"])
         require(not validate_formal_config(effective, require_formal=True), "生效精度配置不符合正式契约")
+        try:
+            expected_effective = dict(load_config(frozen_path))
+        except SystemExit as exc:
+            raise ValueError("冻结精度配置无法按原生 runner 解析") from exc
+        # Path roots differ across host/container/read-only mounts, so compare
+        # their approved-root-relative identity. run_nonce is generated only
+        # after configuration loading and is separately unique per invocation.
+        path_fields = {"output_root", "cache_root", "include_path"}
+        def normalized_config(value):
+            return {key: reader.logical_path(item) if key in path_fields else item
+                    for key, item in value.items() if key != "run_nonce"}
+        normalized_actual = normalized_config(effective)
+        normalized_expected = normalized_config(expected_effective)
+        require(normalized_actual == normalized_expected,
+                "生效精度配置与冻结配置不一致")
         for report_key, config_key in (("tasks", "tasks"), ("expected_samples", "expected_samples"),
                                      ("criteria", "acceptance_criteria"), ("configured_concurrency", "num_concurrent"),
                                      ("service_mode", "service_mode"), ("allow_timeouts", "allow_timeouts")):

@@ -275,17 +275,16 @@ write remotely.
 
 ## Workflow invocation and phase isolation
 
-- Use the shared `inference-accuracy-evaluation` and
-  `inference-performance-evaluation` Skills for accuracy and performance work.
-  Their Skill bundles own the test levels/modes, concrete execution method,
-  concurrency and warmup rules, metric calculations, evidence validation,
-  three-state decisions, and report fields. Do not duplicate or redefine those
-  methods in this AGENTS file.
-- Read `docs/skills-project-contract.md` to map the shared methods to this
-  repository's canonical runners, containers, paths and native receipts. The
-  contract is an adapter only: project rules and the user's selected execution
-  boundary may narrow execution, but neither the contract nor this file may
-  silently replace or weaken the Skill method.
+- Use the repository-local accuracy/performance entrypoints with capability IDs
+  `adaptation/accuracy` and `adaptation/performance`. Require an explicit operation;
+  same-named Hub/global Skills are not interchangeable native evidence producers.
+- Read `docs/skills-project-contract.md` for the project-owned methods and native
+  runners. Do not dynamically load a mutable sibling Hub checkout. Any migration
+  must explicitly compare the bundle interface and evidence contract.
+- For recoverable long-running steps, follow `docs/agent-execution.md`: freeze
+  Skill/input identity, run native pre/post checks, and inspect the existing run
+  before retrying. The journal does not grant remote permissions or replace the
+  framework workflow records; the calling Agent decides next actions.
 - For frameworks that provide prefix caching, it remains enabled for architecture, environment, adaptation,
   execution-mode, sanity, accuracy, and all other non-performance work. This
   project adds one mandatory performance-only precondition: prefix caching must

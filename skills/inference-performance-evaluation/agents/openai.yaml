@@ -1,6 +1,6 @@
 interface:
-  display_name: "推理性能评测"
-  short_description: "编排新模型适配与端到端优化中的分层性能测试和正式验收"
+  display_name: "模型适配性能评测"
+  short_description: "使用模型适配项目原生工具执行显式操作，校验服务绑定与性能证据"
   default_prompt: "Use $inference-performance-evaluation with an explicit mode to measure for the current inference service."
 
 policy:
