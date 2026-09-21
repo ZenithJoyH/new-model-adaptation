@@ -1,0 +1,71 @@
+schema_version: 1
+id: torch-fl
+display_name: Torch-FL on PPU
+profile_version: 2
+status: experimental
+platforms: [ppu]
+
+components:
+  - role: framework_runtime
+    name: Torch-FL
+    required: true
+    mutation_policy: editable_product_code
+  - role: vendor_torch
+    name: PPU vendor PyTorch and libtorch
+    required: true
+    mutation_policy: read_only
+  - role: reference_torch
+    name: official CPU PyTorch
+    required: true
+    mutation_policy: read_only
+  - role: platform_runtime
+    name: PPU SDK, Driver and Runtime
+    required: true
+    mutation_policy: read_only
+  - role: model_implementation
+    name: model implementation and weights
+    required: true
+    mutation_policy: read_only
+
+source_policy:
+  default: read_only
+  writable_roles:
+    - framework_runtime
+
+execution_modes:
+  required:
+    - eager
+  acceptance_primary: eager
+
+service:
+  protocols:
+    - python-api
+
+acceptance:
+  steps:
+    device:
+      validator: checks
+      checks: [flagos_available, allocation, cpu_transfer]
+    operators:
+      validator: checks
+      checks: [reference_numerics, dispatch_route, fallback_review]
+    model-eager:
+      validator: checks
+      checks: [model_inference, reference_numerics]
+    wheel:
+      validator: checks
+      optional: true
+      checks: [wheel_contents, abi, rpath, clean_environment, library_resolution, model_inference]
+    summary:
+      validator: checks
+      checks: [source_review, limitations_recorded]
+  accuracy_adapter: null
+  performance_adapter: null
+  prefix_caching:
+    non_performance: not_applicable
+    performance: unavailable
+    disable_mechanism: null
+
+documents:
+  workflow: workflow.md
+  acceptance: acceptance.md

@@ -1,0 +1,37 @@
+schema_version: 1
+id: replace-me
+display_name: Replace me
+profile_version: 1
+status: draft
+platforms: []
+
+components: []
+# Example:
+# - role: inference_engine
+#   name: engine-name
+#   required: true
+#   mutation_policy: read_only
+
+source_policy:
+  default: read_only
+  writable_roles: []
+
+execution_modes:
+  required: []
+  acceptance_primary: ""
+
+service:
+  protocols: []
+
+acceptance:
+  steps: {}
+  accuracy_adapter: null
+  performance_adapter: null
+  prefix_caching:
+    non_performance: enabled
+    performance: disabled
+    disable_mechanism: ""
+
+documents:
+  workflow: workflow.md
+  acceptance: acceptance.md

@@ -4,17 +4,17 @@
     {
       "id": "formal_accuracy_gate",
       "prompt": "对 Hy4-preview 在 PPU-07 上已经跑通的 graph 服务做正式全量精度验收。",
-      "expected_behavior": "Select formal-gate, require execution-mode and C8 sanity evidence, use the canonical FlagEval llmrun.py flow at concurrency >=32, and refuse a formal claim without a valid acceptance-result.json bound to the current service."
+      "expected_behavior": "Select formal-full, require execution-mode and 10-concurrency sanity evidence, use the canonical FlagEval llmrun.py flow at concurrency >=32, and refuse a formal claim without a valid acceptance-result.json bound to the current service."
     },
     {
       "id": "minimal_dispatch_regression",
       "prompt": "刚修改了 MoE dispatch，只做保留这次修改前需要的最小精度回归。",
-      "expected_behavior": "Select minimal-regression, test the affected and fallback surfaces with eager/graph coverage as applicable, avoid starting the full formal dataset, and label the conclusion as scoped rather than formal."
+      "expected_behavior": "Use the selected framework's scoped regression, test the affected and fallback surfaces with eager/graph coverage as applicable, avoid starting the full formal dataset, and label the conclusion as scoped rather than formal."
     },
     {
       "id": "accuracy_gate_check",
       "prompt": "正式性能测试前检查已有精度结果是否还能用于当前服务，不要重跑评测。",
-      "expected_behavior": "Select gate-check, perform read-only identity/config/artifact validation without traffic, return incomplete or failed on any mismatch, and never silently run formal-gate."
+      "expected_behavior": "Select gate-check, perform read-only identity/config/artifact validation without traffic, return incomplete or failed on any mismatch, and never silently run formal-full."
     }
   ]
 }

@@ -1,5 +1,8 @@
 # vllm-plugin-FL 修改与 PR 交付标准
 
+本标准只适用于 `framework-profiles/vllm-plugin-fl`。其他推理框架必须使用自己的 active
+profile、源码贡献规范和验收文档，不得自动继承这里的 Plugin/FlagGems/vLLM 假设。
+
 这是本项目对适配代码的交付要求。每次修改应符合插件的整体设计，保持已有模型和平台
 的行为，并让上游审查者能理解问题、设计选择和验证范围。实际能否合并由上游维护者决定。
 

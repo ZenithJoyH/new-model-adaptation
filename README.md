@@ -6,23 +6,27 @@
 
 模型适配工作区分为两部分，二者用途不同，不做整目录镜像：
 
-- **远端工作目录**：用户在目标服务器上明确指定的绝对目录，使用 `01-environment/` 至
+- **远端工作目录**：用户为一个“模型 × 平台 × framework profile”适配任务在目标服务器上
+  明确指定的绝对目录，使用 `01-environment/` 至
   `07-bugs/` 的带序号目录保存环境采集、临时诊断、运行日志、缓存、
   验收结果和算子复现；适配完成后在根目录顶层保留最终 `start-model.sh`。涉及容器时还要
   核实该脚本及各子目录对应的容器绝对路径与挂载关系。最终脚本只保留已验收配置必需的
   参数和设置，不复制诊断或测试命令，不包含性能测试专用参数；能依赖稳定默认值时不显式
   传入，每个最终保留的显式项都要有可追溯的必要性依据。
-- **容器内源码**：远端工作目录不创建源码仓库子目录或源码副本。适配修改直接落在容器内
-  已核实的 editable-install Plugin 源码中；vLLM 保持只读，FlagGems 使用容器内已核实且
-  获准同步的现有 checkout。
-- **本地工作目录**：当前 Git 仓库，保存 `models/` 下精简、可追溯的模型/平台记录，以及
+- **容器内源码**：远端工作目录不创建源码仓库子目录或源码副本。允许修改的组件和位置由
+  当前 [framework profile](framework-profiles/README.md) 明确声明，未声明组件默认只读。
+  `vllm-plugin-fl` profile 仍要求修改 editable-install Plugin、保持 vLLM 只读，并只使用
+  容器内已核实且获准同步的 FlagGems checkout。
+- **本地工作目录**：当前 Git 仓库，保存 `models/` 下精简、可追溯的模型/平台/框架记录，以及
   `scripts/`、`test/`、`templates/` 和 `docs/` 中的通用工具与规范。本地只记录准确远端路径、
   revision、命令和结论，不复制完整远端日志、缓存或临时文件。
 
 新编号从新写入和新运行计划开始生效。既有适配记录中的旧编号路径仍表示真实历史位置，
 不会在远端目录尚未迁移和复核时仅为统一文本而改写。
 
-本地模型记录统一放在 `models/<model-name>/<platform>/`。现有模型与状态入口：
+本地模型记录统一放在 `models/<model-name>/<platform>/`；同一模型和平台存在多套推理框架
+时，使用 `frameworks/<framework-id>/` 隔离。现有直接位于平台根目录的历史记录按隐式
+`vllm-plugin-fl` profile 解释，不批量迁移。现有模型与状态入口：
 
 - [GLM-5.3-Flash-BF16](models/GLM-5.3-Flash-BF16/README.md)
 - [Hy4-preview](models/Hy4-preview/README.md)
@@ -37,21 +41,24 @@ models/<model-name>/
 ├── _shared/
 ├── nvidia/
 ├── ppu/
+│   └── frameworks/
+│       ├── vllm-plugin-fl/
+│       └── <future-framework>/
 ├── metax/
 ├── ascend/
 ├── mthreads/
 └── hygon/
 ```
 
-每个平台目录分为三类材料：
+每个显式 framework 工作区分为三类材料：
 - `environment/` 只保存 Markdown 环境与平台分析；
 - `adaptation/` 只保存按问题编号的 Markdown 台账及其索引；
 - `acceptance/` 只保存 Markdown 验收计划、结果报告、总结与复盘。三个目录均不保存脚本、
-Playbook、JSON/YAML、原始日志、缓存或临时子目录。Plugin 仓库只保存必要的产品实现和
-可长期维护的回归测试。
+Playbook、JSON/YAML、原始日志、缓存或临时子目录。框架 profile 指定的产品代码仓库只保存
+必要实现和可长期维护的回归测试。
 
 一次性诊断、部署、日志分析、探针和试验代码放在用户批准的远端工作根目录，不得放入
-Plugin 仓库。问题台账只引用准确路径、revision、命令和结论。跨平台内容放在 `_shared`。
+任何产品源码仓库。问题台账只引用准确路径、revision、命令和结论。跨平台内容放在 `_shared`。
 完整约定见 [models/README.md](models/README.md)。
 
 公共的最终性能、精度和通信测试工具位于 [test/](test/README.md)。每次模型适配完成前，
@@ -61,23 +68,35 @@ FlagEval 镜像内的一个或多个 lm-eval task；GPQA 只是默认示例，�
 完整样本数、指标键和验收阈值。
 
 精度和性能评测分别提供同名于“端到端推理优化”项目的仓库级 Skill：
-`$inference-accuracy-evaluation` 与 `$inference-performance-evaluation`。两个项目统一调用名、
-分层模式、`passed`/`failed`/`incomplete` 结论及报告字段，但各自使用项目内的 runner、目录
+`$inference-accuracy-evaluation` 与 `$inference-performance-evaluation`。公共方法由 skills-hub 维护，本仓库的入口只保留项目映射；统一`passed`/`failed`/`incomplete` 结论及报告字段，但各自使用项目内的 runner、目录
 和正式证据格式。具体模式和映射见 [评测 Skills](skills/README.md)。
 
-修改模型适配 plugin 代码前，可参考
+使用 `vllm-plugin-fl` profile 修改模型适配 Plugin 前，可参考
 [vllm-plugin-FL 项目分析与新模型适配代码修改指南](docs/vllm-plugin-FL-analysis.md)，按模型注册、算子 dispatch、平台 backend、量化、attention/MoE 和 graph 执行链路选择最小改动面。
 
-插件代码按 [修改与 PR 交付标准](docs/plugin-contribution-policy.md) 设计，重点核对框架职责、已有模型/平台行为、实际回归范围和最终 diff。设计审查结论写入对应编号适配问题和最终验收总结；文档存在不代表代码已通过设计审查。
+`vllm-plugin-fl` 的 Plugin 代码按 [修改与 PR 交付标准](docs/plugin-contribution-policy.md)
+设计；其他框架按各自 profile 和目标源码规范执行。所有框架都要核对职责、已有模型/平台
+行为、实际回归范围和最终 diff。设计审查结论写入对应编号适配问题和最终验收总结；文档
+存在不代表代码已通过设计审查。
 
 开始环境变更、适配实现或验收前，应先检索
-[新模型适配故障知识库](docs/troubleshooting/README.md)。已有经验只能作为需要在当前模型、平台和软件 revision 上重新验证的候选方案；新经验先记录在当前模型平台`adaptation/` 下对应的编号问题记录中，并登记到 `adaptation/README.md`，验证充分后再提升到仓库级知识库，并在复盘中审计。
+[新模型适配故障知识库](docs/troubleshooting/README.md)。已有经验只能作为需要在当前模型、
+平台、framework profile 和软件 revision 上重新验证的候选方案；新经验先记录在当前 framework
+工作区 `adaptation/` 下对应的编号问题记录中，验证充分后再提升到仓库级知识库，并在复盘中审计。
 
 创建下一个模型：
 
 ```bash
 ./scripts/new-model <model-name>
 ```
+
+为模型和平台创建一套显式框架适配记录：
+
+```bash
+./scripts/new-framework <model-name> <platform> <framework-id>
+```
+
+当前可用 profile 及新增方式见 [framework-profiles/README.md](framework-profiles/README.md)。
 
 ## 在 Codex 中按步骤调用适配流程
 
@@ -87,7 +106,7 @@ FlagEval 镜像内的一个或多个 lm-eval task；GPQA 只是默认示例，�
 旧的一次性执行入口已按[停用清单与替代路径](docs/legacy-entrypoints.md)保留原文并拒绝重放；
 不要把历史启动记录当作当前执行入口。
 
-完整的新模型适配流程分为五个可单独调用或组合调用的步骤：
+工作记录分为五个可单独调用或组合调用的阶段；每个框架的实际实施和验收步骤由 profile 独立定义：
 
 1. 模型结构与推理链路分析（`architecture`）
 2. 推理环境分析（`environment`）
@@ -100,6 +119,7 @@ FlagEval 镜像内的一个或多个 lm-eval task；GPQA 只是默认示例，�
 ```text
 模型：<模型名称>
 平台：<nvidia|ppu|metax|ascend|mthreads|hygon>
+推理框架：<framework profile ID；旧记录可写 vllm-plugin-fl>
 目标机器：<SSH Host 别名；步骤 1 可不填写>
 远端工作目录：<用户指定的宿主机绝对目录；多机逐一列出>
 容器工作目录：<已有容器名及容器内对应绝对目录；须核实挂载关系>
@@ -112,18 +132,19 @@ FlagEval 镜像内的一个或多个 lm-eval task；GPQA 只是默认示例，�
 
 未指定远端工作目录时，先确认目录再创建或写入远端文件。所有新增工作产物集中在该目录，不自动移动旧文件、修改挂载或在目录外创建临时脚本。规则及配置格式见[远端执行目录](docs/workflow-guide.md#3-远端执行目录)。
 
-步骤 1 可以使用阶段工具初始化模型结构分析文档。当前工具的平台阶段仍包含旧版结构化
-文件门禁，与精简目录标准不一致，因此步骤 2～5 暂时直接使用上面的自然语言方式调用，
-不得为通过旧门禁把 YAML 或过程文件重新放回平台目录。
+步骤 1 可以使用阶段工具初始化模型结构分析文档。显式框架工作区使用 `adapt-model --framework <id> --check-only` 检查前置，
+使用 `--verify-records` 验证完成证据；具体操作仍可用自然语言调用。旧入口只用于历史记录，
+不得把其旧 YAML/过程文件放回精简目录。命令及远端证据读取见 [框架证据契约](docs/framework-evidence.md)。
 
 ```bash
 ./scripts/adapt-model Qwen3.8-Flash-Next --steps architecture
 ```
 
 步骤 2～5 的请求必须明确目标 Host，并由执行者核对其是否属于对应 inventory 组。实际运行
-配置、采集脚本、验收包装和原始结果保存在用户批准的远端工作根目录，本地模型目录只保留
-Markdown 分析、问题记录和验收结论。vLLM 只读、适配容器保持运行、`eager`/`graph`、模型
-长度及正式验收要求仍按工作流执行。
+配置、采集脚本、验收包装和原始结果保存在用户为该 framework profile 批准的独立远端工作
+根目录，本地模型目录只保留 Markdown 分析、问题记录和验收结论。适配容器保持运行；源码
+修改边界、执行模式、服务协议和验收方式按选定 profile 执行。`vllm-plugin-fl` 仍要求 vLLM
+只读以及 eager/graph 验收。
 
 只执行模型分析：
 
@@ -137,6 +158,7 @@ Markdown 分析、问题记录和验收结论。vLLM 只读、适配容器保持
 ```text
 模型：Qwen3.8-Flash-Next
 平台：ppu
+推理框架：vllm-plugin-fl
 目标机器：PPU-01
 执行步骤：1、2
 执行边界：只执行步骤 1 和步骤 2
@@ -148,6 +170,7 @@ Markdown 分析、问题记录和验收结论。vLLM 只读、适配容器保持
 ```text
 模型：Qwen3.8-Flash-Next
 平台：ppu
+推理框架：vllm-plugin-fl
 目标机器：PPU-01
 执行步骤：3
 参考文件：使用该模型目录下已有的模型分析、PPU 环境分析和参考文件
@@ -155,7 +178,7 @@ Markdown 分析、问题记录和验收结论。vLLM 只读、适配容器保持
 完成条件：适配完成后停止，暂不进入验收
 ```
 
-步骤 4 还可以只调用某个验收子步骤，包括执行模式验收、10 并发小批量精度与
+vllm-plugin-fl 的步骤 4 还可以只调用某个验收子步骤，包括执行模式验收、10 并发小批量精度与
 性能验证、全量精度测试、正式性能测试、验收证据整理和最终适配总结。例如：
 
 ```text
@@ -173,7 +196,7 @@ Markdown 分析、问题记录和验收结论。vLLM 只读、适配容器保持
 模型：Qwen3.8-Flash-Next
 平台：ppu
 目标机器：PPU-01
-使用 $inference-accuracy-evaluation，模式：formal-gate
+使用 $inference-accuracy-evaluation，操作：formal-full
 执行边界：只执行正式精度；已有执行模式和 sanity 仅做前置核验
 ```
 
@@ -181,7 +204,7 @@ Markdown 分析、问题记录和验收结论。vLLM 只读、适配容器保持
 模型：Qwen3.8-Flash-Next
 平台：ppu
 目标机器：PPU-01
-使用 $inference-performance-evaluation，模式：formal
+使用 $inference-performance-evaluation，模式：full-suite，目的：正式验收
 执行边界：先以 gate-check 只读核验正式精度，再执行正式性能；不启动 profiling
 ```
 
@@ -189,12 +212,12 @@ Markdown 分析、问题记录和验收结论。vLLM 只读、适配容器保持
 
 ## 当前管理范围
 
-`managed` 总组当前包含 13 个具体主机别名：
+`managed` 总组当前包含 16 个具体主机别名（以本机 SSH 配置和 inventory 核对结果为准）：
 
 | 子组 | 主机 |
 |---|---|
-| `nvidia` | `H100-145`、`H100-149`、`H100-205` |
-| `metax` | `mx-103`、`mx-104` |
+| `nvidia` | `H100-145`、`H100-149` |
+| `metax` | `mx-57`、`mx-58`、`mx-59`、`mx-60`、`mx-103`、`mx-104` |
 | `mthreads` | `mthread-07`、`mthread-08` |
 | `ascend` | `910C-120`、`910C-121` |
 | `hygon` | 当前暂无 SSH 别名，已预留平台组 |
@@ -315,3 +338,7 @@ python --version
 ```
 
 执行修改前请遵循 [AGENTS.md](AGENTS.md) 中的安全边界。特别是批量变更、删除、重启、停止服务以及覆盖已有配置。
+
+Torch-FL 当前为 experimental，可以创建工作区并进行 PPU 适配、算子路由和 eager 模型验证；
+可选执行自包含 wheel 验证。它不强制使用 vLLM、graph 服务或 FlagEval，独立步骤通过不等于
+完整正式验收。具体流程见 [Torch-FL](framework-profiles/torch-fl/workflow.md)。

@@ -77,6 +77,7 @@ SECRET_KEYS = {
     "ssh_private_key_file", "ansible_ssh_private_key_file", "proxy_jump",
 }
 MODEL_NAME_RE = re.compile(r"^[A-Za-z0-9._-]+$")
+FRAMEWORK_ID_RE = re.compile(r"^[a-z0-9][a-z0-9._-]*$")
 
 
 class WorkflowError(RuntimeError):
@@ -267,6 +268,8 @@ def verification_errors(record: Any, platform_dir: Path, stage: str,
     elif evidence.stat().st_size == 0 or file_sha256(evidence) != record["evidence_sha256"]:
         errors.append(f"{stage} 证据为空或内容已变化，需要重新验证")
     compact = isinstance(platform_config, dict) and platform_config.get("record_layout") == "compact"
+    if compact and stage in {"accuracy", "performance"}:
+        errors.append(f"{stage}: compact Markdown 不等于正式回执；请使用 --framework 工作区和远端原生证据校验")
     if not compact and stage == "accuracy":
         try:
             report = json.loads(evidence.read_text(encoding="utf-8"))
@@ -607,6 +610,22 @@ def platform_schema_errors(config: dict, platform: str, allowed_hosts: set[str] 
     if not isinstance(status, str) or status not in PLATFORM_STATUSES:
         errors.append(f"非法平台 status: {status!r}")
         status = None
+    frameworks = config.get("frameworks", {})
+    if not isinstance(frameworks, dict):
+        errors.append("frameworks 必须是映射（无显式工作区时为 {}）")
+    else:
+        for framework, entry in frameworks.items():
+            if not isinstance(framework, str) or not FRAMEWORK_ID_RE.fullmatch(framework):
+                errors.append(f"非法 framework ID: {framework!r}")
+                continue
+            expected_workspace = f"frameworks/{framework}/framework.yml"
+            expected_profile = f"framework-profiles/{framework}/profile.yml"
+            if not isinstance(entry, dict):
+                errors.append(f"frameworks.{framework} 必须是映射")
+            elif entry.get("workspace") != expected_workspace or entry.get("profile") != expected_profile:
+                errors.append(
+                    f"frameworks.{framework} 必须准确引用 {expected_workspace} 和 {expected_profile}"
+                )
     hosts = config.get("validated_hosts")
     valid_hosts = (isinstance(hosts, list) and all(isinstance(h, str) and h.strip() for h in hosts))
     if not valid_hosts or len(hosts) != len(set(hosts)):
@@ -805,6 +824,10 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument("model", help="models/ 下的模型目录名")
     parser.add_argument("--platform", choices=PLATFORMS)
+    parser.add_argument("--framework", help="显式框架工作区；按 profile 选择流程")
+    parser.add_argument("--artifact-root", action="append", default=[], metavar="HOST=PATH",
+                        help="只读证据挂载根（或在远端执行时的批准工作根），可重复")
+    parser.add_argument("--verify-records", action="store_true", help="验证所选阶段/子步骤已经完成的证据")
     parser.add_argument("--hosts", help="逗号分隔的目标 SSH Host 别名")
     parser.add_argument("--steps", required=True, help="逗号分隔的步骤编号或英文名称")
     parser.add_argument(
@@ -817,7 +840,7 @@ def parse_args() -> argparse.Namespace:
         action="store_true",
         help="只检查，不创建缺失文件，也不输出 Codex 调用文本",
     )
-    parser.add_argument("--evidence-info", choices=(*STEP_ORDER, *ACCEPTANCE_SUBSTEP_ORDER),
+    parser.add_argument("--evidence-info",
                         help="只输出当前证据的绑定信息，不修改状态；需 --evidence 和 --run-id")
     parser.add_argument("--evidence", help="相对平台目录的已验证证据文件")
     parser.add_argument("--run-id", help="证据中记录的实际运行标识")
@@ -830,6 +853,14 @@ def parse_args() -> argparse.Namespace:
 
 def main() -> int:
     args = parse_args()
+    if args.framework:
+        from framework_evidence import check_command
+        try:
+            return check_command(args)
+        except (ValueError, OSError, KeyError, TypeError, AttributeError, StopIteration) as exc:
+            raise WorkflowError(str(exc)) from exc
+    if args.evidence_info and args.evidence_info not in {*STEP_ORDER, *ACCEPTANCE_SUBSTEP_ORDER}:
+        raise WorkflowError("旧入口不支持该证据阶段；框架特有步骤请指定 --framework")
     repo_root = args.repo_root.resolve()
     if not MODEL_NAME_RE.fullmatch(args.model) or args.model in {".", "..", "_template"}:
         raise WorkflowError("模型名只能包含字母、数字、点、下划线和连字符")

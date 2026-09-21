@@ -39,5 +39,17 @@ class DiscoveryTests(unittest.TestCase):
         selected = checks.shell_files(ROOT)
         for name in ("playbook", "ansible", "inventory", "bootstrap-control-node", "syntax-check"):
             self.assertIn(ROOT / "scripts" / name, selected)
+
+    def test_inventory_detects_alias_drift_and_includes(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            (root/'inventory').mkdir()
+            (root/'inventory/hosts.yml').write_text('all:\n  children:\n    managed:\n      children:\n        ppu:\n          hosts: {PPU-01: null}\n')
+            (root/'config').write_text('Host *\n  User ignored\nInclude more.conf\n')
+            (root/'more.conf').write_text('Host PPU-01\n')
+            self.assertEqual(checks.inventory_alias_errors(root, root/'config'), [])
+            (root/'more.conf').write_text('Host PPU-02\n')
+            errors = checks.inventory_alias_errors(root, root/'config')
+            self.assertEqual(len(errors), 2)
 if __name__ == "__main__":
     unittest.main()

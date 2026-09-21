@@ -1,0 +1,69 @@
+schema_version: 1
+id: vllm-plugin-fl
+display_name: vLLM + vllm-plugin-FL + FlagGems
+profile_version: 2
+status: active
+platforms: [nvidia, ppu, metax, ascend, mthreads, hygon]
+
+components:
+  - role: inference_engine
+    name: vllm
+    required: true
+    mutation_policy: read_only
+  - role: platform_adapter
+    name: vllm-plugin-FL
+    required: true
+    mutation_policy: editable_product_code
+  - role: kernel_library
+    name: FlagGems
+    required: true
+    mutation_policy: authorized_sync_and_reproducer_only
+
+source_policy:
+  default: read_only
+  writable_roles:
+    - platform_adapter
+
+execution_modes:
+  required:
+    - eager
+    - graph
+  acceptance_primary: graph
+
+service:
+  protocols:
+    - openai-chat
+    - openai-completions
+
+acceptance:
+  steps:
+    execution-mode:
+      validator: checks
+      checks: [eager, graph, model_inference]
+    sanity:
+      validator: checks
+      checks: [ten_concurrent_correct, output_health, performance_sanity]
+    accuracy:
+      validator: flageval
+      checks: [service_identity, dataset_provenance]
+    performance:
+      validator: vllm-performance
+      checks: [service_identity, accuracy_to_performance_transition]
+    evidence:
+      validator: checks
+      checks: [source_review, vllm_unchanged, artifacts_complete]
+    summary:
+      validator: checks
+      checks: [launcher_syntax, launcher_readiness, launcher_minimal, normal_cache_restored]
+  accuracy_adapter: flageval-openai
+  performance_adapter: vllm-bench-serve
+  prefix_caching:
+    non_performance: enabled
+    performance: disabled
+    disable_mechanism: --no-enable-prefix-caching
+
+documents:
+  workflow: workflow.md
+  acceptance: acceptance.md
+  detailed_workflow: detailed-workflow.md
+  detailed_workflow_zh: detailed-workflow.zh-CN.md

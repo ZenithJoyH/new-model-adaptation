@@ -1,0 +1,59 @@
+schema_version: 1
+model: ""
+platform: ""
+framework: ""
+profile: ""
+profile_version: null
+status: not_started
+validated_hosts: []
+container_image: ""
+last_verified: null
+blocker: ""
+target:
+  hosts: []
+  container_name: ""
+workspace:
+  roots: []
+deployment:
+  fingerprint: ""
+# Freeze framework-specific model inputs, criteria, and selected optional steps here.
+acceptance_plan: {}
+workflow:
+  architecture:
+    status: not_started
+    evidence: ../../../architecture-and-inference.md
+    last_verified: null
+    blocker: ""
+    verification: {}
+  environment:
+    status: not_started
+    evidence: environment/README.md
+    last_verified: null
+    blocker: ""
+    verification: {}
+  adaptation:
+    status: not_started
+    evidence: adaptation/README.md
+    last_verified: null
+    blocker: ""
+    verification: {}
+  acceptance:
+    status: not_started
+    evidence: acceptance/README.md
+    last_verified: null
+    blocker: ""
+    verification: {}
+    records: {}
+    substeps:
+      execution-mode: not_started
+      sanity: not_started
+      accuracy: not_started
+      performance: not_started
+      evidence: not_started
+      summary: not_started
+  retrospective:
+    status: not_started
+    evidence: acceptance/README.md
+    last_verified: null
+    blocker: ""
+    verification: {}

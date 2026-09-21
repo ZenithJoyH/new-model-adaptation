@@ -10,7 +10,7 @@ else
 fi
 
 cd "${repo_root}"
-"${repo_root}/scripts/inventory" >/dev/null
+./scripts/inventory >/dev/null
 
 "${python_bin}" -B -m unittest discover -s test/workflow_test -p 'test_*.py'
 "${python_bin}" -B -m unittest discover -s test/operations_test -p 'test_*.py'

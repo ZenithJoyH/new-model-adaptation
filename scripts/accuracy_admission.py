@@ -312,9 +312,21 @@ def main(argv=None):
     parser.add_argument("model")
     parser.add_argument("--platform", required=True)
     parser.add_argument("--repo-root", type=Path, default=Path(__file__).resolve().parents[1])
-    parser.add_argument("--run-plan", type=Path, required=True)
+    parser.add_argument("--run-plan", type=Path)
+    parser.add_argument("--framework", help="新框架使用 profile gate，不导出旧目录快照")
+    parser.add_argument("--hosts")
+    parser.add_argument("--artifact-root", action="append", default=[])
+    parser.add_argument("--check-only", action="store_true")
     args = parser.parse_args(argv)
     try:
+        if args.framework:
+            _require(args.check_only and args.run_plan is None,
+                     "framework admission 使用 --check-only；旧 background snapshot 不支持框架工作区")
+            from types import SimpleNamespace
+            from framework_evidence import check_command
+            return check_command(SimpleNamespace(**vars(args), steps="acceptance", acceptance_substeps="accuracy",
+                                 verify_records=False, evidence_info=None))
+        _require(args.run_plan is not None, "legacy snapshot 必须提供 --run-plan")
         raw = _plan_bytes(args.run_plan)
         plan = json.loads(raw)
         scope = {"model": args.model, "platform": args.platform, "host_alias": plan["host_alias"], "service_port": plan["service_port"]}

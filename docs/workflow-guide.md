@@ -3,6 +3,14 @@
 本指南说明如何按阶段调用工作流，以及本地记录与远端执行产物如何分离。完整技术要求见
 [详细五阶段工作流程](model-adaptation-workflow.zh-CN.md)。
 
+步骤 2～5 还必须明确 framework profile。现有直接平台记录使用隐式
+`vllm-plugin-fl`；新工作先从 [framework profiles](../framework-profiles/README.md) 选择 active 或 experimental
+profile，并创建独立工作区：
+
+```bash
+./scripts/new-framework <模型目录名> <平台> <framework-id>
+```
+
 ## 1. 调用一个或多个阶段
 
 阶段编号和名称如下：
@@ -22,7 +30,8 @@
 ```
 
 当前 `adapt-model` 的平台阶段仍包含旧版结构化文件门禁，与精简目录标准不一致，因此步骤
-2～5 暂时不要用它的创建模式。直接在 Codex 中用自然语言提供模型、平台、准确 Host 和所选
+2～5 暂时不要用它的创建模式。直接在 Codex 中用自然语言提供模型、平台、framework
+profile、准确 Host 和所选
 阶段；本地布局用 `./scripts/audit-workspace` 检查。不得为通过旧门禁把 YAML 或过程文件放回
 平台目录。
 
@@ -32,15 +41,18 @@
 
 ## 2. 本地记录目录
 
-本地平台目录固定为：
+新任务的本地目录为：
 
 ```text
 models/<model>/<platform>/
 ├── README.md
 ├── platform.yml
-├── environment/
-├── adaptation/
-└── acceptance/
+└── frameworks/<framework-id>/
+    ├── README.md
+    ├── framework.yml
+    ├── environment/
+    ├── adaptation/
+    └── acceptance/
 ```
 
 - `environment/`：只保存 Markdown 环境/平台分析。
@@ -48,18 +60,19 @@ models/<model>/<platform>/
 - `acceptance/`：只保存 Markdown 验收计划、结果报告、总结和复盘。
 
 这三个目录不得保存脚本、Playbook、JSON/YAML 运行配置、原始日志、缓存、源码快照、测试
-输出或临时子目录。平台根目录的 `platform.yml` 仅保存简洁状态和证据索引。
+输出或临时子目录。`framework.yml` 保存当前框架状态和 profile 身份。既有平台根目录的
+`environment/`、`adaptation/`、`acceptance/` 保持为历史隐式 `vllm-plugin-fl` 记录，不批量迁移。
 
 ## 3. 远端执行目录
 
 任何远端写入前，用户必须明确每台目标机器的 SSH Host 别名、绝对 `host_root`，以及目标
 容器的名称、绝对 `container_root` 和二者映射。在核实前只允许只读检查。
 
-远端批准工作根目录采用以下布局：
+每个模型、平台和 framework profile 使用独立的远端批准工作根目录：
 
 ```text
 <approved-root>/
-├── start-model.sh     # 最终通过验收的 graph 模型启动入口
+├── start-model.sh     # 最终通过 profile 验收的主执行模式启动入口
 ├── 01-environment/   # 环境采集、运行配置和启动参数
 ├── 02-issues/        # 一次性诊断脚本和过程代码
 ├── 03-acceptance/    # 验收配置与包装
@@ -69,18 +82,19 @@ models/<model>/<platform>/
 └── 07-bugs/          # FlagGems 最小复现
 ```
 
-远端工作根目录不存放源码，不创建源码仓库子目录或其他仓库副本。适配代码直接修改目标容器
-中已经核实的 editable-install Plugin 源码；应记录包元数据、import 路径、Git 根目录、
-revision 和工作区状态。vLLM 始终只读，FlagGems 使用容器内已核实且获准同步的现有 checkout。
+远端工作根目录不存放源码，不创建源码仓库子目录或其他仓库副本。适配代码只修改 profile
+声明可写且已经核实身份的源码；应记录包元数据、import 路径、Git 根目录、revision 和工作
+区状态。`vllm-plugin-fl` 中仍只修改 editable-install Plugin，vLLM 始终只读，FlagGems
+使用容器内已核实且获准同步的现有 checkout。
 
 当前编号对应精度后台运行计划 `schema_version=5`；旧版 schema 4 计划不会自动迁移或继续
 执行。既有旧编号目录及本地引用保留为历史事实，只有实际完成远端迁移并重新核验后才能
 更新记录。
 
 本地 Markdown 记录准确的远端路径、命令、Host、容器、revision、镜像、参数、日期和结果，
-不复制远端过程产物。Plugin 仓库只接收产品必需代码和可维护回归测试；一次性脚本不得放入
-Plugin、vLLM 或 FlagGems 仓库。vLLM 源码全程不得修改，适配容器不得停止、重启或删除。
-适配完成前必须验证根目录 `start-model.sh` 能从已核实的容器对应路径启动最终 graph 配置；
+不复制远端过程产物。Profile 声明的产品仓库只接收产品必需代码和可维护回归测试；一次性
+脚本不得放入任何产品、框架或内核仓库。适配容器不得停止、重启或删除。适配完成前必须
+验证根目录 `start-model.sh` 能从已核实的容器对应路径启动 profile 的最终主执行模式；
 脚本只保留已验收配置必需的参数和设置，删除调试/诊断、临时路径、过期 workaround、重复
 默认值、实验项和无关配置；不得复制最后一次测试命令，也不得包含性能测试专用的
 `--no-enable-prefix-caching`。可依赖稳定引擎默认值的参数不再显式传入，并为每个最终保留
@@ -101,28 +115,31 @@ Plugin、vLLM 或 FlagGems 仓库。vLLM 源码全程不得修改，适配容器
 
 ## 5. 状态与证据
 
-只有阶段真实完成且本地结论文档已经更新后，才能修改 `platform.yml` 的状态。通过状态必须
+只有阶段真实完成且本地结论文档已经更新后，才能修改当前 `framework.yml` 的状态；历史
+隐式记录继续使用 `platform.yml`。通过状态必须
 记录实际 `run_id`、验证日期、本地证据文档及其哈希；本地哈希只能证明记录未变化，不能
 证明远端现场仍然有效。
 
-先核对真实远端产物、服务身份和本地结论文档，再人工更新 `platform.yml` 中的运行标识、
+先核对真实远端产物、服务身份和本地结论文档，再人工更新对应状态文件中的运行标识、
 验证日期、证据路径和摘要；不得仅为消除告警刷新哈希。旧版结构化证据门禁迁移前，历史
 绑定只作为待复核记录，不得据此声称新一次验收通过。
 
 ## 6. 验收顺序
 
-验收子步骤顺序固定：
+以下是 **vllm-plugin-fl** 的验收顺序。Torch-FL 使用自己的 device → operators → model-eager → 可选 wheel → summary，详见其 profile；不可套用以下服务评测流程：
 
-1. `execution-mode`：分别跑通 `eager` 与 `graph`。
-2. `sanity`：基于 `graph` 做 10 并发小批量正确性与性能预检。
+1. `execution-mode`：跑通 profile 声明的全部必需执行模式；`vllm-plugin-fl` 为 `eager` 与 `graph`。
+2. `sanity`：基于 profile 的验收主模式做 10 并发小批量正确性与性能预检；
+   `vllm-plugin-fl` 的主模式为 `graph`。
 3. `accuracy`：预检正常后，在规定 FlagEval 容器中用
    `test/Accuracy_test/llmrun.py` 进行至少 32 并发正式精度评测。有效完整结果中的各项
    冻结指标达到配置阈值即可完成该子步骤；指标无需为 `1.0`，个别题目答错不等于正式
    精度失败。支持一个或多个 FlagEval/lm-eval task；每个 task 都要冻结样本数、指标键和
    阈值，多 task 使用 task 级映射。逐题全部正确只用于前置 `sanity`。最终超时请求保留为错误样本并计入指标
    分母；只要样本完整且全部冻结指标达到阈值，允许存在少量超时。
-4. `performance`：精度通过后，基于 `graph` 进行性能验收。非性能测试保持前缀缓存开启；
-   性能测试开始前切换到专用服务启动配置，把 `--no-enable-prefix-caching` 加入准确服务实例
+4. `performance`：精度通过后，基于 profile 的验收主模式进行性能验收。非性能测试保持前缀缓存开启；
+   性能测试开始前切换到专用服务启动配置，使用 profile 声明的缓存关闭机制；
+   `vllm-plugin-fl` 必须把 `--no-enable-prefix-caching` 加入准确服务实例
    的启动命令，但不得写入通用 graph 参数。核实该参数已生效且服务端前缀缓存已关闭，并
    把证据绑定到正式性能回执；状态开启或无法核实时不得执行。
 5. `evidence`：核对运行身份、配置、日志和结果完整性。
@@ -141,3 +158,10 @@ Plugin、vLLM 或 FlagGems 仓库。vLLM 源码全程不得修改，适配容器
 `audit-workspace` 只检查本地结构、状态与链接，不连接远端。历史目录中违反新布局的过程文件
 会标记为待迁移 warning；warning 不是成功证据。修改 inventory、组变量或 Playbook 后还需
 按仓库规则运行 inventory 和语法检查。
+
+## 显式框架门禁
+
+新工作区使用 `adapt-model --framework <id> --platform <platform> --hosts <hosts> --steps <phase> --check-only`。
+带 `--artifact-root Host=/已核实可读根` 核验前置远端回执；加 `--verify-records` 验证所选已完成
+结果。缺少证据时失败，不会生成本地过程文件。完整命令和回执字段见
+[框架证据契约](framework-evidence.md)。本指南原有旧工具限制仅适用于未指定 framework 的历史入口。

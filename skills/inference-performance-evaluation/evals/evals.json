@@ -4,17 +4,17 @@
     {
       "id": "new_service_baseline",
       "prompt": "给这个刚通过正确性检查的 graph 服务建立一个性能基线。",
-      "expected_behavior": "Select baseline, freeze the service/workload identity and scenario set, use no-profiler maintained tooling, and limit conclusions to the measured scenarios."
+      "expected_behavior": "Map the requested baseline scenario manifest to full-suite or single-scenario, freeze the service/workload identity and scenario set, use no-profiler maintained tooling, and limit conclusions to the measured scenarios."
     },
     {
       "id": "targeted_moe_measurement",
       "prompt": "我只改了 MoE dispatch，测一下这次改动的性能收益。",
-      "expected_behavior": "Select targeted, measure directly affected scenarios plus a relevant sentinel, require a matching baseline and one-variable comparison, and avoid claiming full acceptance."
+      "expected_behavior": "Map the explicitly selected scenarios to full-suite or single-scenario, measure directly affected scenarios plus a relevant sentinel, require a matching baseline and one-variable comparison, and avoid claiming full acceptance."
     },
     {
       "id": "formal_performance_gate",
       "prompt": "对最终候选做正式性能验收。",
-      "expected_behavior": "Select formal, run accuracy gate-check first, use the accepted graph service and frozen suite, validate full benchmark artifacts, export perf_acceptance.py evidence, and refuse Markdown/CSV-only success."
+      "expected_behavior": "Use full-suite for the explicitly frozen final manifest, run accuracy gate-check first, use the accepted graph service and frozen suite, validate full benchmark artifacts, export perf_acceptance.py evidence, and refuse Markdown/CSV-only success."
     }
   ]
 }

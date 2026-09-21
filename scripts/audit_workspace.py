@@ -8,6 +8,8 @@ from pathlib import Path
 from urllib.parse import unquote
 
 import adapt_model as workflow
+import framework_workspace
+import framework_evidence
 from workflow_state import model_identity
 
 
@@ -36,7 +38,7 @@ def audit(root):
             if not directory.exists():
                 continue
             for item in directory.iterdir():
-                if item.name not in {"README.md", "platform.yml", "environment", "adaptation", "acceptance"}:
+                if item.name not in {"README.md", "platform.yml", "environment", "adaptation", "acceptance", "frameworks"}:
                     add("error", item, "平台根目录存在未归属的材料")
             for section, label in (("environment", "environment"), ("acceptance", "acceptance")):
                 section_dir = directory / section
@@ -60,6 +62,7 @@ def audit(root):
                     not re.fullmatch(r"(?:README|[0-9]{3}-[A-Za-z0-9._-]+)\.md", item.name)):
                     add("error", item, "adaptation 仅允许 README.md 和 NNN-title.md 问题记录")
             path = directory / "platform.yml"
+            cfg = {}
             try:
                 cfg = workflow.load_yaml(path)
                 inventory_path = root / "inventory/hosts.yml"
@@ -102,8 +105,75 @@ def audit(root):
                             add("warning", path, error)
             except (workflow.WorkflowError, TypeError, AttributeError) as exc:
                 add("error", path, str(exc))
+
+            frameworks_dir = directory / "frameworks"
+            registered_frameworks = cfg.get("frameworks", {}) if isinstance(cfg, dict) else {}
+            if not isinstance(registered_frameworks, dict):
+                registered_frameworks = {}
+            if frameworks_dir.is_dir():
+                for framework_dir in sorted(frameworks_dir.iterdir()):
+                    if not framework_dir.is_dir() or framework_dir.name.startswith("_"):
+                        if framework_dir.name != "README.md":
+                            add("error", framework_dir, "frameworks/ 只允许 framework 目录和 README.md")
+                        continue
+                    framework_id = framework_dir.name
+                    if framework_id not in registered_frameworks:
+                        add("error", framework_dir, "framework 工作区未在 platform.yml frameworks 中登记")
+                    allowed = {"README.md", "framework.yml", *framework_workspace.WORKSPACE_SECTIONS}
+                    for item in framework_dir.iterdir():
+                        if item.name not in allowed:
+                            add("error", item, "framework 根目录存在未归属的材料")
+                    config_path = framework_dir / "framework.yml"
+                    try:
+                        config = framework_workspace.load_yaml(config_path)
+                        for error in framework_workspace.workspace_errors(
+                            config, model=model.name, platform=platform, framework=framework_id
+                        ):
+                            add("error", config_path, error)
+                        profile_path, profile = framework_workspace.resolved_profile(root, framework_id)
+                        for error in framework_evidence.validate_workspace(root, framework_dir, config, profile):
+                            add("error", config_path, error)
+                    except ValueError as exc:
+                        add("error", config_path, str(exc))
+                    for section in framework_workspace.WORKSPACE_SECTIONS:
+                        section_dir = framework_dir / section
+                        if not section_dir.is_dir():
+                            add("error", section_dir, f"framework 工作区缺少 {section}/")
+                            continue
+                        numbers = set()
+                        for item in section_dir.rglob("*"):
+                            if item.is_dir():
+                                add("error", item, f"framework {section}/ 不允许子目录")
+                                continue
+                            if item.suffix.lower() != ".md":
+                                add("error", item, f"framework {section}/ 仅允许 Markdown")
+                                continue
+                            if section == "adaptation" and re.match(r"^[0-9]{3}-", item.name):
+                                number = item.name[:3]
+                                if number in numbers:
+                                    add("error", item, f"framework 问题编号重复: {number}")
+                                numbers.add(number)
+                            if section == "adaptation" and not re.fullmatch(
+                                r"(?:README|[0-9]{3}-[A-Za-z0-9._-]+)\.md", item.name
+                            ):
+                                add("error", item, "framework adaptation/ 仅允许 README.md 和 NNN-title.md")
+            for framework_id, entry in registered_frameworks.items():
+                workspace = entry.get("workspace") if isinstance(entry, dict) else None
+                if isinstance(workspace, str) and not (directory / workspace).is_file():
+                    add("error", path, f"frameworks.{framework_id}.workspace 不存在: {workspace}")
+    for profile_path in sorted((root / "framework-profiles").glob("*/profile.yml")):
+        if profile_path.parent.name == "_template":
+            continue
+        try:
+            profile = framework_workspace.load_yaml(profile_path)
+            for error in framework_workspace.profile_errors(profile, profile_path.parent.name):
+                add("error", profile_path, error)
+        except ValueError as exc:
+            add("error", profile_path, str(exc))
     docs = [root / "README.md", root / "AGENTS.md", root / "AGENTS.zh-CN.md"]
     docs += list((root / "docs").rglob("*.md")) + list((root / "models").rglob("*.md"))
+    docs += list((root / "framework-profiles").rglob("*.md"))
+    docs += list((root / "skills").rglob("*.md"))
     docs += list((root / "test").rglob("README.md"))
     for path in docs:
         if not path.is_file() or "_template" in path.parts:

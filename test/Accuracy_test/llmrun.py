@@ -518,8 +518,8 @@ def newest_samples(task: str, task_dir: Path) -> Optional[Path]:
     return max(files, key=lambda path: path.stat().st_mtime) if files else None
 
 
-def validate_samples(cfg: Dict, task: str, task_dir: Path) -> bool:
-    samples_file = newest_samples(task, task_dir)
+def validate_samples(cfg: Dict, task: str, task_dir: Path, *, samples_file=None) -> bool:
+    samples_file = newest_samples(task, task_dir) if samples_file is None else samples_file
     if samples_file is None:
         log("ERROR", f"No samples JSONL was found for {task} under {task_dir}")
         return False

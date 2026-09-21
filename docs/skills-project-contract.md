@@ -32,6 +32,20 @@ FlagGems、启动参数和执行模式必须来自当前远端取证以及当前
 五阶段及验收子步骤顺序由 `AGENTS.md` 和 `docs/model-adaptation-workflow.md` 维护。公共 Skill
 只执行用户明确选择的操作；未选择步骤仅检查前置条件，不自动补跑。
 
+## 框架与调用名
+
+先读取 profile：以下服务精度/性能映射适用于 vllm-plugin-fl，Torch-FL experimental 使用
+device/operators/model-eager/可选 wheel，不要求 FlagEval、graph 或并发请求。
+
+公共方法来源由当前任务记录实际 skills-hub revision。本地 skills/ 仅保留转接入口，不能再
+维护独立并发/超时/缓存规则。用户已经确定的 10 并发、超时计失败、性能关闭缓存优先于旧
+公共示例。共享 runner 若不支持这些契约或原生格式不同，返回 incomplete，不能静默换工具。
+
+旧调用名在调用前明确映射：baseline-sanity → service-sanity，formal-gate → formal-full；
+minimal-regression 由框架定向测试承担，只有提供固定案例集时才调用 hard-case。
+性能 baseline/targeted/checkpoint/formal 是调用方目的，实际操作为 single-scenario 或 full-suite，
+由用户选定范围和场景 manifest 决定，不自动扩大测试范围。
+
 ## 精度评测映射
 
 - 公共方法：`inference-accuracy-evaluation` Skill 包中的
@@ -60,18 +74,21 @@ FlagGems、启动参数和执行模式必须来自当前远端取证以及当前
   少量超时。样本或回执无效、非超时请求/执行错误、结果不完整或任一 metric 未达阈值时
   仍不得通过。
 - 正式结果：runner 生成的 `acceptance-result.json`。通过
-  `./scripts/adapt-model <model> --steps acceptance --acceptance-substeps accuracy --check-only`
+  `./scripts/adapt-model <model> --platform <platform> --framework vllm-plugin-fl --hosts <hosts> --steps acceptance --acceptance-substeps accuracy --check-only --verify-records --artifact-root <Host>=<可读根>`
   执行本项目绑定检查；不得用 Markdown、阶段分数、日志或退出码替代。
 - `hard-case`：当前尚无仓库级固定清单和正式入口；用户未提供并冻结版本化 manifest 时返回
   `incomplete`。
 - `gate-check`：使用
-  `./scripts/adapt-model <model> --steps acceptance --acceptance-substeps performance --check-only`
+  `./scripts/adapt-model <model> --platform <platform> --framework vllm-plugin-fl --hosts <hosts> --steps acceptance --acceptance-substeps performance --check-only --artifact-root <Host>=<可读根>`
   只读核对当前正式精度前置及服务绑定；只要求检查时不得自动重跑精度。
 - 远端配置和包装放 `03-acceptance/`，完整结果放 `04-runs/<run_id>/`，缓存放 `06-cache/`；
   本地平台 `acceptance/` 只保存 Markdown 摘要和准确路径、哈希、身份与结论。
 
 ## 性能评测映射
 
+- 先读取当前 `framework.yml` 引用的 profile；profile 的
+  `acceptance.performance_adapter` 决定可使用的正式 runner。旧直接平台记录按
+  `vllm-plugin-fl` 处理。不得仅因某个 CLI 已安装就跨 profile 选择 runner。
 - 公共方法：`inference-performance-evaluation` Skill 包中的
   `references/performance-method.md`。
 - vLLM runner：`test/perf_test/vllm_perf.py`；SGLang runner：
@@ -86,11 +103,13 @@ FlagGems、启动参数和执行模式必须来自当前远端取证以及当前
   原生报告为 `benchmark-result.json`，使用 `perf_common.validate_report` 完整校验。
 - 正式回执：在完整远端报告旁执行
   `python3 test/perf_test/perf_acceptance.py --report <benchmark-result.json> --runtime-config <runtime.yml> --output <receipt.json> --model <model> --platform <platform> --deployment-fingerprint <sha256> --service-instance-id <id>`。
-  后续工作流通过 `./scripts/adapt-model ... --acceptance-substeps performance --check-only` 核验。
-- 正式性能只使用已通过验收的 graph 服务，并要求当前精度 `gate-check` 已通过。profiler-on
+  后续工作流通过 `./scripts/adapt-model ... --framework vllm-plugin-fl --acceptance-substeps performance --check-only --verify-records --artifact-root <Host>=<可读根>` 核验。
+- 正式性能只使用已通过 profile 执行模式验收的主模式服务（`vllm-plugin-fl` 为 graph），
+  并要求当前精度 `gate-check` 已通过。profiler-on
   轮次和 trace 只属于诊断，不进入正式性能结果。
 - 非性能测试保持前缀缓存开启。所有性能与 Profiling 轮次都必须切换到性能专用服务配置，
-  并在被测服务启动命令中加入 `--no-enable-prefix-caching`，不得将它写入通用 graph 参数。
+  使用 profile 声明的缓存关闭机制；`vllm-plugin-fl` 的准确参数为
+  `--no-enable-prefix-caching`，不得将它写入普通 graph 参数。
   执行前核实本轮服务实例的生效启动配置和启动证据，在 runtime 的
   `service.prefix_caching.performance` 中记录 `enabled: false`、仅含准确参数的
   `launch_args` 和非空 `verification`。正式回执会校验 runtime、
@@ -104,10 +123,14 @@ FlagGems、启动参数和执行模式必须来自当前远端取证以及当前
 - 精度失败记录：当前模型平台的 `adaptation/` 编号问题；复现代码放远端 `02-issues/`、
   `05-tmp/` 或最小算子问题的 `07-bugs/`。
 - Trace 和 profiling 入口、rank 覆盖及产物路径按当前任务远端工作根和项目工具文档映射。
-- 产品修改只进入已核实的 editable-installed Plugin 源码；vLLM 只读。
+- 产品修改只进入当前 profile 声明可写且已核实身份的源码；`vllm-plugin-fl` 仍只修改
+  editable-installed Plugin，vLLM 只读。
 
 ## 产物与生命周期
 
 完整日志、样本、JSON、CSV、Trace 和缓存留在批准的远端工作根。本地仓库只保存精简、可读
 且可复核的 Markdown 记录。服务停止/重启、容器保护、源码边界和需确认操作继续遵守
 `AGENTS.md`；公共 Skill 不扩大授权。
+
+新工作区的绑定及完整原生产物校验见 [框架证据契约](framework-evidence.md)。legacy 快照
+导出器不适用于新目录，禁止为了通过旧工具重新创建本地过程 YAML。

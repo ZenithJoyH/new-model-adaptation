@@ -44,11 +44,19 @@
 
 ## 新模型适配工作区
 
+每次适配都有三个身份维度：**模型、硬件平台、framework profile**。进行框架相关的环境
+变更、代码实现或验收前，必须先从 `framework-profiles/` 选择 active 或 experimental profile。现有直接位于
+`models/<model>/<platform>/` 的记录按历史隐式 `vllm-plugin-fl` profile 解释，不得批量迁移。
+draft/不完整 profile 只允许模型分析和只读调查；experimental 允许声明的适配和基础验证，
+但不能完成正式整体验收或标记 optimized。Profile 可以收紧，
+但不得削弱仓库通用安全与证据要求。
+
 新模型适配工作区明确分为两个相互独立的部分：
 
-1. **远端工作目录**：用户为每台目标主机批准的实际执行区域，供适配容器和远端命令存放
+1. **远端工作目录**：用户为一个准确“模型 × 平台 × framework profile”任务在每台目标
+   主机批准的实际执行区域，供适配容器和远端命令存放
    运行配置、一次性诊断、运行结果、缓存及算子复现；它不是源码 checkout 或仓库镜像。
-2. **本地工作目录**：当前管理仓库，用于保存精简的模型/平台记录、可复用控制工具、模板
+2. **本地工作目录**：当前管理仓库，用于保存精简的模型/平台/框架记录、可复用控制工具、模板
    以及远端证据引用，不作为远端运行产物的镜像。
 
 本地记录必须引用准确的远端路径和 revision；不得把远端原始产物整批复制进本地工作目录，
@@ -64,23 +72,26 @@
   放环境采集和运行配置，`02-issues/` 放一次性诊断，`03-acceptance/`
   放验收工具与配置，`04-runs/` 放每轮输出，`05-tmp/` 和 `06-cache/` 放临时或隐式写入，
   `07-bugs/` 放最小算子复现。不得在该工作根目录创建源码仓库子目录或其他源码副本。
-  产品代码修改应直接发生在适配容器内已有的 editable-install Plugin 源码中；修改前必须
-  核实包元数据、实际 import 路径、Git 根目录、revision、工作区状态和既有改动归属，不得
-  把该源码复制或重新 clone 到远端工作目录。复现用例在 `07-bugs/` 中通过已核实的容器对应路径原地执行，
+  产品代码修改只能发生在选定 profile 明确声明可写的组件和源码树中；修改前必须核实包
+  元数据、实际 import 路径、Git 根目录、revision、工作区状态和既有改动归属，未声明组件
+  默认只读。`vllm-plugin-fl` profile 的可写产品代码仍是现有 editable-install Plugin，vLLM
+  保持只读，FlagGems 同步另行授权。不得把源码复制或重新 clone 到远端工作目录。复现用例在 `07-bugs/` 中通过已核实的容器对应路径原地执行，
   不再复制到 `/bug`；只有必要工具或上游流程明确要求 `/bug` 时，才可将同一个 `07-bugs/`
   目录以已批准且核实的映射暴露为 `/bug`，或使用明确批准的目录外例外。逐个核实参与容器
   的对应映射；工具无法限制在该范围内时暂停并取得授权。
 - 使用旧编号的既有目录只作为历史证据。所有新增写入和新运行计划必须使用上述当前编号；
   未核实准确的宿主机/容器路径、使用中的进程和证据引用，并取得用户明确迁移授权前，不得
   重命名、合并、删除既有远端目录，也不得改写本地记录中的真实历史路径。
-- 适配标记为完成前，必须在每台目标主机已批准的远端工作根目录顶层放置一个最终可执行
+- active profile 的服务适配标记为完成前，必须在每台目标主机已批准的远端工作根目录顶层放置一个最终可执行
   模型启动脚本 `<host_root>/start-model.sh`，并核实容器内对应路径为
-  `<container_root>/start-model.sh`。脚本必须启动最终通过验收的 `graph` 配置，日志/结果写入
+  `<container_root>/start-model.sh`。这里的工作根必须属于当前 framework profile，不能由多个
+  框架共享。脚本必须启动 profile 最终通过验收的主执行模式（`vllm-plugin-fl` 为 `graph`），日志/结果写入
   `04-runs/`，缓存写入 `06-cache/`，不得包含秘密，也不得覆盖无关的运行中服务。必须核验
   并精简启动脚本：删除诊断、profiling、trace、dump、临时路径、过期 workaround、重复的
   默认值、实验性调优项，以及与当前模型或平台无关的设置；只有最终验收配置确实依赖时才
   能保留。必须从通过验收的最小生产启动命令重新整理，不得直接复制最后一次诊断、精度或
-  性能测试命令；尤其不得把仅用于性能测试的 `--no-enable-prefix-caching` 带入最终脚本。
+  性能测试命令；不得把 profile 的性能专用缓存关闭机制带入最终脚本，`vllm-plugin-fl`
+  中尤其不得保留 `--no-enable-prefix-caching`。
   当行为和可复现性不依赖显式固定时，应使用引擎默认值；不得因为某个参数曾出现在历史
   命令中就继续保留。每个显式环境变量和参数都必须记录其正确性、安全性、写入位置或可复现性依据；
   为避免默认值漂移而显式固定参数时，也必须说明理由。核验脚本语法、完整参数、revision、
@@ -88,29 +99,35 @@
   最终适配总结中记录宿主机/容器路径、SHA-256、验证日期和结果；不得把脚本复制到本地模型
   目录。该脚本不得停止、重启或删除适配容器。
 - 每条远端命令显式指定 `cwd`/`workdir`，`cd` 失败立即停止，并核实 symlink、bind mount
-  的真实落盘位置。除已核实的 editable-install Plugin 源码和已明确授权同步的 FlagGems
+  的真实落盘位置。除 profile 声明可写的源码和已明确授权的同步操作
   外，已有权重、数据集、依赖和源码默认只读；不得搬迁、复制或修改挂载，也不得为安排
-  目录而停止或重启适配容器。若 Plugin 不是 editable install，或无法核实其源码身份，
-  应停止并报告阻塞，不得在工作根目录另建替代 checkout。
+  目录而停止或重启适配容器。若 profile 要求的可写组件不符合其声明的安装/源码形式，或
+  无法核实身份，应停止并报告阻塞，不得在工作根目录另建替代 checkout。
 ### 本地工作目录
 
 - 本仓库只记录已明确模型和平台的新模型跑通、平台验证及推理优化。不得记录无关运维、
   普通包安装、聊天、探索性输出或未经验证的结论；未经用户明确要求不得提交或推送。
 - 使用 `./scripts/new-model <model-name>` 创建模型且不得覆盖已有目录。平台名称限定为
   `nvidia`、`ppu`、`metax`、`ascend`、`mthreads` 和 `hygon`。
-- `models/<model>/<platform>/` 根目录只保留 `README.md`、`platform.yml`，以及三个目录：
+- 使用 `./scripts/new-framework <model> <platform> <framework-id>` 创建显式框架工作区；不得
+  手工复制 profile 或复用另一个框架的状态。
+- `models/<model>/<platform>/` 根目录只保留 `README.md`、`platform.yml`、可选的
+  `frameworks/` 以及历史直接记录。新任务放在
+  `models/<model>/<platform>/frameworks/<framework-id>/`，其根目录只保留 `README.md`、
+  `framework.yml`，以及三个目录：
   `environment/` 只放 Markdown 格式的环境/平台分析；
   `adaptation/` 仅作为带编号的 Markdown 问题台账；`acceptance/` 只放 Markdown 格式的
   验收计划、结果报告、总结和复盘。三个本地目录均不得建立子目录，也不得放脚本、
   Playbook、JSON/YAML 配置、原始输出、缓存或临时文件。
   模型级内容放 `architecture-and-inference.md` 与 `_shared/`；公共测试工具保留在 `test/`。
 - `_shared/` 只保留 Markdown 索引和少量合并后的跨平台分析，确保便于阅读。上游原始
-  元数据、复制模板、一次性检查脚本、JSON/YAML 快照和其他采集产物统一放在已批准远端
+  元数据、复制模板、一次性检查脚本、JSON/YAML 快照和其他采集产物统一放在该 framework
+  profile 已批准的远端
   根目录，不得保存在本地模型目录。
 - `adaptation/` 不得放脚本、Playbook、补丁、源码或算子实现、复制测试、原始日志、运行
-  JSON/YAML 或命令输出。容器内已核实的 editable Plugin 源码只放产品必需代码和可维护的
-  局部测试；一次性过程代码
-  放远端 `02-issues/` 或 `05-tmp/`，置于 Plugin、vLLM 和 FlagGems 仓库之外且不得提交。可跨模型
+  JSON/YAML 或命令输出。Profile 声明可写的产品源码只放产品必需代码和可维护的局部测试；
+  一次性过程代码放远端 `02-issues/` 或 `05-tmp/`，置于全部产品、框架和内核源码仓库之外
+  且不得提交。可跨模型
   工具只有经用户批准后才能提升到仓库级 `scripts/`。
 - 可执行的过程产物放在已批准远端根目录：环境采集与运行配置放 `01-environment/`，
   一次性诊断放 `02-issues/` 或 `05-tmp/`，验收包装与配置放 `03-acceptance/`，原始结果
@@ -127,21 +144,24 @@
   不得被丢弃、忽略或用重试掩盖；只要样本仍完整且所有冻结指标达到阈值，允许存在少量
   此类超时。缺失或无效样本、非超时的请求/执行错误、过期证据或任一指标低于阈值，仍按
   项目精度契约判定为失败或证据不完整。
-- 完成前更新平台 `README.md` 中的结果、问题、原因、方案、限制和下一步，并与
-  `platform.yml` 同步，同时核验上述远端根目录顶层 `start-model.sh`；仅有文件不构成完成
+- 完成前更新 framework 工作区 `README.md` 中的结果、问题、原因、方案、限制和下一步，
+  并与 `framework.yml` 同步；历史隐式记录继续更新平台 `README.md` 与 `platform.yml`。
+  同时核验上述远端根目录顶层 `start-model.sh`；仅有文件不构成完成
   证据。最小推理通过后才能标记 `functional`；正确性回归和性能结果记录后
   才能标记 `optimized`。
 - 不得提交权重、密钥、完整日志或大型原始 benchmark。
 
-## Plugin 设计与 PR 质量
+## 框架实现与 PR 质量
 
-- 将插件修改按多模型、多平台框架的可维护贡献来设计。修改前阅读目标 checkout 的设计、
-  贡献和测试规范，并遵守 [Plugin 修改与 PR 标准](docs/plugin-contribution-policy.md)。
+- 将修改按多模型、多平台框架的可维护贡献来设计。修改前阅读选定 profile、其工作流与验收
+  文档，以及目标 checkout 的设计、贡献和测试规范。选择 `vllm-plugin-fl` 时还必须遵守
+  [Plugin 修改与 PR 标准](docs/plugin-contribution-policy.md)。
 - 在平台环境分析或对应的编号适配问题中说明职责归属、现有扩展点、接口契约、替代方案
   和受影响调用方。复用已有 dispatch/注册路径，模型语义放在模型适配层，硬件
   约束放在 vendor/能力路径；不得在公共执行代码散布模型名称或特定机器的例外。
 - 保持作用域外的既有行为。验证适用的已有模型调用方、守卫未命中路径、可选依赖隔离和
-  eager/graph 行为。缺少硬件或未执行测试时明确限制，不能从一个模型跑通推断多平台支持。
+  选定 profile 要求的全部执行模式（`vllm-plugin-fl` 为 eager/graph）。缺少硬件或未执行
+  测试时明确限制，不能从一个模型跑通推断多平台支持。
 - 适配收尾和准备 PR 时审查真实 diff，并把审查结论记录在相关编号问题和最终验收总结中。
   记录已确认的 PR base、当前 HEAD、dirty/新增文件、既有改动、影响矩阵、测试证据、
   workaround 退出条件及剩余风险。实质变更后更新审查；设计阻塞未解决不能标记适配完成。
@@ -179,11 +199,12 @@
 - 执行前读取 `docs/skills-project-contract.md`，把公共方法映射到本仓库的正式 runner、容器、
   路径和原生回执。该契约只承担项目适配；项目规则和用户指定范围可以收紧执行边界，但
   契约与本文件都不得静默替换或削弱 Skill 方法。
-- 模型结构分析、环境分析、适配、执行模式验证、小批量验证、精度测试以及其他非性能环节
-  一律保持前缀缓存开启。本项目仅对性能测试增加一个强制前置条件：任何性能测试或
+- 对具备前缀缓存的框架，模型分析、环境分析、适配、执行模式、小批量与精度等非性能环节
+  保持前缀缓存开启。本项目仅对性能测试增加一个强制前置条件：任何性能测试或
   Profiling 开始前，必须使用性能测试专用的服务启动配置，不得把关闭参数写入通用 graph
-  配置；在本轮被测的准确服务实例启动命令中加入 `--no-enable-prefix-caching`，并从实际生效的启动配置
-  和启动证据核实该准确参数及关闭状态，随后把证据引用绑定到正式性能回执。
+  配置；应使用选定 framework profile 声明的准确缓存关闭机制，并从实际生效的启动配置和
+  启动证据核实其关闭状态，随后把证据引用绑定到正式性能回执。`vllm-plugin-fl` profile
+  中仍必须在本轮被测实例加入准确参数 `--no-enable-prefix-caching`。
   客户端 workload 的随机前缀长度为 0 不能证明服务端前缀缓存已经关闭；无法核实该准确
   参数已生效且缓存处于关闭状态时，不得启动性能测试，也不得把 performance 子步骤标记
   为通过。后续如果继续进行任何非性能测试，必须恢复为开启前缀缓存的普通服务配置。
@@ -191,17 +212,22 @@
 - 用户可以按编号或名称选择任意阶段：`architecture`（1）、`environment`（2）、
   `adaptation`（3）、`acceptance`（4）和 `retrospective`（5）。只执行所选阶段，多个阶段
   始终按 1→5 顺序执行；未选阶段只能作为前置条件检查，不得自动执行或重写。
-- 进入所选阶段前，运行对应的 `./scripts/adapt-model ... --check-only`；步骤 2～5 必须提供
-  准确 Host。前置身份、证据、状态或时效性缺失/冲突时，停止并报告准确阻塞，不得静默
+- 步骤 2～5 必须指定 active 或 experimental framework profile 和准确 Host。新框架工作区使用
+  `./scripts/new-framework` 创建，并用 `./scripts/audit-workspace` 检查本地结构；历史直接平台
+  记录继续使用已有检查。前置身份、证据、状态或时效性缺失/冲突时，停止并报告准确阻塞，不得静默
   补跑其他阶段或只刷新哈希。
-- 验收子步骤可以单独选择，但顺序固定为：`execution-mode` → `sanity` → `accuracy` →
-  `performance` → `evidence` → `summary`。不得执行未选择的子步骤，也不得跳过未完成的
-  前置验收条件。
-- 当前 `adapt-model` 实现仍包含旧版结构化文件门禁。平台步骤 2～5 不得以创建模式运行该
+- 验收子步骤由 profile 的有序 `acceptance.steps` 决定。vllm-plugin-fl 使用
+  execution-mode → sanity → accuracy → performance → evidence → summary；Torch-FL 使用
+  device → operators → model-eager → 可选 wheel → summary。不得混用框架流程或跳过前置。
+- 显式工作区用 `adapt-model --framework <id> --check-only` 核对前置，加 `--verify-records`
+  校验所选步骤的完成证据。按 `docs/framework-evidence.md` 读取批准远端根下的原生回执，
+  无法读取时不得以 Markdown 代替。
+- 未带 `--framework` 的旧 `adapt-model` 实现仍包含结构化文件门禁。平台步骤 2～5 不得以创建模式运行该
   工具，也不得把它所需的旧 YAML/过程文件重新放回精简平台目录；这些阶段直接使用自然
   语言请求 Codex，并用 `audit-workspace` 检查本地布局，等待门禁迁移。步骤 1 的结构分析
   初始化仍可使用。
-- 只有所选工作已经真实验证且证据仍然有效，才能更新 `platform.yml`。按
+- 只有所选工作已经真实验证且证据仍然有效，才能更新当前 `framework.yml`；历史隐式记录
+  继续更新 `platform.yml`。按
   `docs/skills-project-contract.md` 和 `docs/workflow-guide.md` 绑定阶段及验收回执，并在环境
   分析中记录和核实准确 Host 集合。原生回执名称、校验命令和失效规则只在项目契约中维护，
   不在本 AGENTS 文件中重复。
@@ -211,6 +237,7 @@
 ## 详细工作流程（执行前必读）
 
 执行模型分析、环境分析、适配、验收或复盘前，必须读取
+选定 profile 的 workflow 与 acceptance 文档，再读取
 [详细五阶段工作流程](docs/model-adaptation-workflow.zh-CN.md)，并按顺序执行所选阶段。
 详细规则仍是强制要求；拆分文档不削弱任何安全边界或验收条件。
 本地命令和证据绑定方法见 [工作流操作指南](docs/workflow-guide.md)。

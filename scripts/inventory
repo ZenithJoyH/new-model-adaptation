@@ -15,4 +15,5 @@ if (( $# > 0 )); then
   printf 'The read-only inventory wrapper accepts no arguments.\n' >&2
   exit 2
 fi
+"${repo_root}/.venv/bin/python" -B scripts/check_local_operations.py --inventory-only
 exec "${binary}" --graph

@@ -6,6 +6,8 @@ from __future__ import annotations
 import argparse
 import os
 import re
+import glob
+import shlex
 import subprocess
 from pathlib import Path
 
@@ -14,6 +16,49 @@ import yaml
 
 ROOT = Path(__file__).resolve().parents[1]
 SHELL_SHEBANG = re.compile(r"^#!\s*(?:/usr/bin/env\s+(?:-S\s+)?)?(?:[^\s]*/)?(?:bash|sh)\b")
+
+
+def concrete_ssh_aliases(config: Path, *, ssh_directory: Path | None = None, seen=None) -> set[str]:
+    """Read Host aliases (including Include files), never connection credentials."""
+    seen = set() if seen is None else seen
+    config = config.expanduser().resolve()
+    if config in seen:
+        return set()
+    seen.add(config)
+    ssh_directory = config.parent if ssh_directory is None else ssh_directory
+    aliases = set()
+    for line in config.read_text(encoding="utf-8").splitlines():
+        parts = shlex.split(line, comments=True)
+        if not parts:
+            continue
+        if "=" in parts[0]:
+            key, value = parts[0].split("=", 1)
+            parts = [key, value, *parts[1:]]
+        key = parts[0].lower()
+        if key == "host":
+            aliases.update(a for a in parts[1:] if a and not any(c in a for c in "*?!"))
+        elif key == "include":
+            for pattern in parts[1:]:
+                path = Path(pattern).expanduser()
+                if not path.is_absolute():
+                    path = ssh_directory / path
+                for included in sorted(glob.glob(str(path))):
+                    aliases.update(concrete_ssh_aliases(Path(included), ssh_directory=ssh_directory, seen=seen))
+    return aliases
+
+
+def inventory_alias_errors(root: Path, ssh_config: Path) -> list[str]:
+    groups = yaml.safe_load((root / "inventory/hosts.yml").read_text())["all"]["children"]["managed"]["children"]
+    entries = [host for group in groups.values() for host in (group.get("hosts") or {})]
+    aliases = concrete_ssh_aliases(ssh_config)
+    errors = []
+    if len(entries) != len(set(entries)):
+        errors.append("inventory 存在重复平台归属")
+    if set(entries) - aliases:
+        errors.append("inventory 中不存在于 SSH 配置的别名: " + ", ".join(sorted(set(entries)-aliases)))
+    if aliases - set(entries):
+        errors.append("SSH 别名尚未纳入 inventory: " + ", ".join(sorted(aliases-set(entries))))
+    return errors
 
 
 def shell_files(root: Path) -> list[Path]:
@@ -56,15 +101,23 @@ def playbook_files(root: Path) -> list[Path]:
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--repo-root", type=Path, default=ROOT)
+    parser.add_argument("--inventory-only", action="store_true")
+    parser.add_argument("--ssh-config", type=Path, default=Path.home()/".ssh/config")
     args = parser.parse_args()
     root = args.repo_root.resolve()
+    if args.inventory_only:
+        errors = inventory_alias_errors(root, args.ssh_config)
+        if errors:
+            raise SystemExit("\n".join(errors))
+        print("Inventory 与 SSH 具体别名一致。")
+        return
     shells, playbooks = shell_files(root), playbook_files(root)
     environment = dict(os.environ, ANSIBLE_HOME=str(root / ".ansible"))
     for path in shells:
         subprocess.run(["bash", "-n", str(path)], check=True, cwd=root)
     for path in playbooks:
         subprocess.run(
-            [str(root / "scripts" / "playbook"), str(path), "--syntax-check"],
+            ["./scripts/playbook", str(path), "--syntax-check"],
             check=True, cwd=root, env=environment,
         )
     print(f"Local syntax checks passed: {len(shells)} shell entry points, {len(playbooks)} playbooks; no remote tasks executed.")
