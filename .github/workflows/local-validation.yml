@@ -25,4 +25,4 @@ jobs:
       - name: Validate local contracts and operation syntax
         # Only syntax/inventory parsing and synthetic localhost tests. No SSH,
         # hardware access, credentials, service changes, or remote acceptance.
-        run: ./scripts/syntax-check
+        run: ./scripts/syntax-check --offline

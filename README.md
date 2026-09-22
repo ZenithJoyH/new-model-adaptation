@@ -341,6 +341,10 @@ python --version
 ./scripts/syntax-check
 ```
 
+普通本地检查会同时核对 `inventory/hosts.yml` 与操作者的 `~/.ssh/config`。GitHub Actions
+没有操作者 SSH 配置，因此工作流显式使用 `./scripts/syntax-check --offline`，只验证仓库
+inventory 结构、Ansible 解析、测试和审计；`--offline` 不应替代日常本地一致性检查。
+
 执行修改前请遵循 [AGENTS.md](AGENTS.md) 中的安全边界。特别是批量变更、删除、重启、停止服务以及覆盖已有配置。
 
 Torch-FL 当前为 experimental，可以创建工作区并进行 PPU 适配、算子路由和 eager 模型验证；

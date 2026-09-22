@@ -47,13 +47,40 @@ def concrete_ssh_aliases(config: Path, *, ssh_directory: Path | None = None, see
     return aliases
 
 
-def inventory_alias_errors(root: Path, ssh_config: Path) -> list[str]:
-    groups = yaml.safe_load((root / "inventory/hosts.yml").read_text())["all"]["children"]["managed"]["children"]
-    entries = [host for group in groups.values() for host in (group.get("hosts") or {})]
-    aliases = concrete_ssh_aliases(ssh_config)
+def managed_inventory_entries(root: Path) -> list[str]:
+    """Return concrete managed hosts; Ansible performs the full YAML validation."""
+    document = yaml.safe_load((root / "inventory/hosts.yml").read_text(encoding="utf-8"))
+    try:
+        groups = document["all"]["children"]["managed"]["children"]
+    except (KeyError, TypeError) as exc:
+        raise ValueError("inventory/hosts.yml 缺少 all.children.managed.children") from exc
+    if not isinstance(groups, dict):
+        raise ValueError("inventory managed.children 必须是映射")
+    entries: list[str] = []
+    for name, group in groups.items():
+        if not isinstance(name, str) or not isinstance(group, dict):
+            raise ValueError("inventory 平台组必须是映射")
+        hosts = group.get("hosts") or {}
+        if not isinstance(hosts, dict) or not all(isinstance(host, str) and host for host in hosts):
+            raise ValueError(f"inventory 平台组 {name} 的 hosts 必须是 Host 映射")
+        entries.extend(hosts)
+    return entries
+
+
+def inventory_structure_errors(root: Path) -> list[str]:
+    entries = managed_inventory_entries(root)
     errors = []
     if len(entries) != len(set(entries)):
         errors.append("inventory 存在重复平台归属")
+    return errors
+
+
+def inventory_alias_errors(root: Path, ssh_config: Path) -> list[str]:
+    entries = managed_inventory_entries(root)
+    errors = inventory_structure_errors(root)
+    if not ssh_config.expanduser().is_file():
+        return [*errors, f"SSH 配置不存在: {ssh_config.expanduser()}"]
+    aliases = concrete_ssh_aliases(ssh_config)
     if set(entries) - aliases:
         errors.append("inventory 中不存在于 SSH 配置的别名: " + ", ".join(sorted(set(entries)-aliases)))
     if aliases - set(entries):
@@ -101,7 +128,9 @@ def playbook_files(root: Path) -> list[Path]:
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--repo-root", type=Path, default=ROOT)
-    parser.add_argument("--inventory-only", action="store_true")
+    inventory_mode = parser.add_mutually_exclusive_group()
+    inventory_mode.add_argument("--inventory-only", action="store_true")
+    inventory_mode.add_argument("--inventory-structure-only", action="store_true")
     parser.add_argument("--ssh-config", type=Path, default=Path.home()/".ssh/config")
     args = parser.parse_args()
     root = args.repo_root.resolve()
@@ -110,6 +139,12 @@ def main() -> None:
         if errors:
             raise SystemExit("\n".join(errors))
         print("Inventory 与 SSH 具体别名一致。")
+        return
+    if args.inventory_structure_only:
+        errors = inventory_structure_errors(root)
+        if errors:
+            raise SystemExit("\n".join(errors))
+        print("Inventory 仓库结构有效；未读取操作者 SSH 配置。")
         return
     shells, playbooks = shell_files(root), playbook_files(root)
     environment = dict(os.environ, ANSIBLE_HOME=str(root / ".ansible"))

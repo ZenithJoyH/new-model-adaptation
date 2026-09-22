@@ -51,5 +51,30 @@ class DiscoveryTests(unittest.TestCase):
             (root/'more.conf').write_text('Host PPU-02\n')
             errors = checks.inventory_alias_errors(root, root/'config')
             self.assertEqual(len(errors), 2)
+
+    def test_repository_inventory_check_does_not_require_ssh_config(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            (root/'inventory').mkdir()
+            (root/'inventory/hosts.yml').write_text(
+                'all:\n  children:\n    managed:\n      children:\n'
+                '        ppu:\n          hosts: {PPU-01: null}\n',
+                encoding='utf-8',
+            )
+            self.assertEqual(checks.inventory_structure_errors(root), [])
+            errors = checks.inventory_alias_errors(root, root/'missing-ssh-config')
+            self.assertEqual(errors, [f'SSH 配置不存在: {root / "missing-ssh-config"}'])
+
+    def test_repository_inventory_check_rejects_duplicate_platform_membership(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            (root/'inventory').mkdir()
+            (root/'inventory/hosts.yml').write_text(
+                'all:\n  children:\n    managed:\n      children:\n'
+                '        ppu:\n          hosts: {shared: null}\n'
+                '        metax:\n          hosts: {shared: null}\n',
+                encoding='utf-8',
+            )
+            self.assertEqual(checks.inventory_structure_errors(root), ['inventory 存在重复平台归属'])
 if __name__ == "__main__":
     unittest.main()
