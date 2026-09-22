@@ -12,11 +12,16 @@ from unittest.mock import patch
 
 ROOT = Path(__file__).resolve().parents[2]
 SCRIPT = ROOT / 'models/GLM-5.3-Flash-BF16/ppu/acceptance/grade_gpqa.py'
-spec = importlib.util.spec_from_file_location('glm_score_review', SCRIPT)
-grade = importlib.util.module_from_spec(spec)
-spec.loader.exec_module(grade)
+SCRIPT_AVAILABLE = SCRIPT.is_file()
+if SCRIPT_AVAILABLE:
+    spec = importlib.util.spec_from_file_location('glm_score_review', SCRIPT)
+    grade = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(grade)
+else:
+    grade = None
 
 
+@unittest.skipUnless(SCRIPT_AVAILABLE, 'optional legacy GLM score helper is not in this checkout')
 class ModelScoreReviewTests(unittest.TestCase):
     def setUp(self):
         self.cfg = {'tasks': ['example'], 'expected_samples': 2, 'acceptance_metric': 'strict',

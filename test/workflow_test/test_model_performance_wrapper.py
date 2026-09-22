@@ -17,9 +17,14 @@ from unittest.mock import Mock, patch
 ROOT = Path(__file__).resolve().parents[2]
 MODEL_TOOLS = ROOT / 'models/Qwen3.8-Flash-Next/ppu/acceptance'
 PUBLIC_TOOLS = ROOT / 'test/perf_test'
-sys.path.insert(0, str(MODEL_TOOLS))
-import vllm_perf_qwen38 as wrapper
-import finalize_performance as finalizer
+MODEL_TOOL_FILES = [MODEL_TOOLS / 'vllm_perf_qwen38.py', MODEL_TOOLS / 'finalize_performance.py']
+MODEL_TOOLS_AVAILABLE = all(path.is_file() for path in MODEL_TOOL_FILES)
+if MODEL_TOOLS_AVAILABLE:
+    sys.path.insert(0, str(MODEL_TOOLS))
+    import vllm_perf_qwen38 as wrapper
+    import finalize_performance as finalizer
+else:
+    wrapper = finalizer = None
 
 
 def successful_process(command, **kwargs):
@@ -49,6 +54,7 @@ P99 ITL (ms): 3.1
     return subprocess.CompletedProcess(command, 0, output, '')
 
 
+@unittest.skipUnless(MODEL_TOOLS_AVAILABLE, 'optional legacy Qwen model tools are not in this checkout')
 class ModelWrapperTests(unittest.TestCase):
     def test_thin_wrapper_uses_shared_main_and_preserves_exit_code(self):
         main = Mock(return_value=1)
@@ -96,6 +102,7 @@ class ModelWrapperTests(unittest.TestCase):
             self.assertEqual(len(list(root.rglob('benchmark-result.json'))), 0)
 
 
+@unittest.skipUnless(MODEL_TOOLS_AVAILABLE, 'optional legacy Qwen model tools are not in this checkout')
 class ModelFinalizerTests(unittest.TestCase):
     def setUp(self):
         self.temp = tempfile.TemporaryDirectory()
