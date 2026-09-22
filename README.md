@@ -343,7 +343,9 @@ python --version
 
 普通本地检查会同时核对 `inventory/hosts.yml` 与操作者的 `~/.ssh/config`。GitHub Actions
 没有操作者 SSH 配置，因此工作流显式使用 `./scripts/syntax-check --offline`，只验证仓库
-inventory 结构、Ansible 解析、测试和审计；`--offline` 不应替代日常本地一致性检查。
+inventory 结构、Ansible 解析、测试和已纳入 checkout 的记录。整个模型根目录未纳入仓库时，
+CI 不要求其操作者本地链接目标存在；只要模型根目录已纳入 checkout，其内部链接仍严格检查。
+`--offline` 不应替代日常本地一致性检查。
 
 执行修改前请遵循 [AGENTS.md](AGENTS.md) 中的安全边界。特别是批量变更、删除、重启、停止服务以及覆盖已有配置。
 

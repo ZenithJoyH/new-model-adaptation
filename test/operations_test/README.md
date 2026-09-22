@@ -11,8 +11,11 @@ configuration or contact managed hosts. The GitHub workflow runs
 `./scripts/syntax-check --offline` on an ordinary Linux runner. Offline mode
 validates repository inventory structure and Ansible parsing but deliberately
 does not compare it with the operator-only `~/.ssh/config`; the default local
-command retains that comparison. Neither mode executes real-host playbooks or
-substitutes for model acceptance.
+command retains that comparison. Its repository-only audit also permits links
+to a whole model root that is absent from the checkout because model records may
+remain operator-local; every model root that is present is still audited
+strictly. Neither mode executes real-host playbooks or substitutes for model
+acceptance.
 
 `scripts/check_local_operations.py` detects shell scripts by their shebang and
 Ansible playbooks by their top-level play structure. Runtime/model/vendor YAML

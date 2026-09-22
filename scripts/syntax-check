@@ -11,8 +11,10 @@ fi
 
 cd "${repo_root}"
 inventory_args=()
+audit_args=()
 if (( $# == 1 )) && [[ "$1" == "--offline" ]]; then
   inventory_args=(--repository-only)
+  audit_args=(--repository-only)
 elif (( $# > 0 )); then
   printf 'Usage: ./scripts/syntax-check [--offline]\n' >&2
   exit 2
@@ -24,6 +26,6 @@ fi
 
 "${python_bin}" -B scripts/check_local_operations.py
 
-"${repo_root}/scripts/audit-workspace"
+"${repo_root}/scripts/audit-workspace" "${audit_args[@]}"
 
 printf 'Inventory, workflow/acceptance tests, playbooks and structural audit passed; review audit warnings separately.\n'

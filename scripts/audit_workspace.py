@@ -13,7 +13,8 @@ import framework_evidence
 from workflow_state import model_identity
 
 
-def audit(root):
+def audit(root, *, allow_absent_model_roots=False):
+    root = Path(root).resolve()
     findings = []
 
     def add(level, path, message):
@@ -187,6 +188,13 @@ def audit(root):
             # Local history is an intentionally untracked artifact store, not a clone prerequisite.
             if resolved.is_relative_to(root / ".local"):
                 continue
+            if allow_absent_model_roots and resolved.is_relative_to(root / "models"):
+                relative = resolved.relative_to(root / "models")
+                if relative.parts and not (root / "models" / relative.parts[0]).exists():
+                    # Model records may intentionally remain operator-local. CI
+                    # validates links inside every model root present in the
+                    # checkout, but cannot require an absent local-only root.
+                    continue
             if not resolved.exists():
                 add("error", path, f"失效的本地 Markdown 链接: {target}")
     unique = {(f["level"], f["path"], f["message"]): f for f in findings}
@@ -198,8 +206,13 @@ def main():
     parser.add_argument("--repo-root", type=Path, default=Path(__file__).resolve().parents[1])
     parser.add_argument("--json", action="store_true")
     parser.add_argument("--strict", action="store_true", help="历史证据待复核也返回失败")
+    parser.add_argument(
+        "--repository-only",
+        action="store_true",
+        help="允许指向整个未纳入 checkout 的本地模型根目录；已有模型内仍严格检查",
+    )
     args = parser.parse_args()
-    findings = audit(args.repo_root.resolve())
+    findings = audit(args.repo_root.resolve(), allow_absent_model_roots=args.repository_only)
     if args.json:
         print(json.dumps(findings, ensure_ascii=False, indent=2))
     else:

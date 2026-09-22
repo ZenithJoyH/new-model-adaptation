@@ -347,6 +347,19 @@ class EvidenceTests(unittest.TestCase):
         self.assertTrue(any('probe.py' in f['path'] for f in findings))
         self.assertTrue(any('missing.md' in f['message'] for f in findings))
 
+    def test_repository_audit_allows_only_wholly_absent_local_model_roots(self):
+        readme = self.root / 'README.md'
+        readme.write_text(
+            '[operator-local](models/LocalOnly/README.md)\n'
+            '[broken-present-model](models/Example/missing.md)\n',
+            encoding='utf-8',
+        )
+        strict = audit_workspace.audit(self.root)
+        self.assertTrue(any('models/LocalOnly/README.md' in f['message'] for f in strict))
+        repository = audit_workspace.audit(self.root, allow_absent_model_roots=True)
+        self.assertFalse(any('models/LocalOnly/README.md' in f['message'] for f in repository))
+        self.assertTrue(any('models/Example/missing.md' in f['message'] for f in repository))
+
 
 if __name__ == '__main__':
     unittest.main()
