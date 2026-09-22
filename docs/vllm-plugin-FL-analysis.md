@@ -464,11 +464,13 @@ kernel、import-time symbol wrapper、正式 dispatch/OOT 扩展，或升级不�
 ### Graph 与执行链路
 
 - [ ] eager 和 graph 均可启动并完成最小推理；
+- [ ] 先尝试并优先采用覆盖 prefill 与 decode 的 full 全量图；只有留存准确配置、失败签名、
+      定位和阻塞证据后才降级到最低要求 decode-full，不把 decode-full 当默认起点；
 - [ ] graph capture 和至少两次 replay 已验证；
 - [ ] 不存在 capture-time host sync、动态分配或数据依赖主机控制流；
 - [ ] shape、stride、地址、workspace、zero-token 和边界 batch 已覆盖；
 - [ ] TP/PP/DP/EP、KV-cache 和 collective 的 graph 行为已验证；
-- [ ] 后续 10 并发、正式精度和性能验收均使用 graph 服务。
+- [ ] 后续 10 并发、正式精度、性能验收和最终启动脚本均使用逐 Host 已验收的最高 graph 级别。
 
 ### 记录与可复现性
 

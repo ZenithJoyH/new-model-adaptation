@@ -101,6 +101,29 @@ def profile_errors(profile: Any, expected_id: str | None = None) -> list[str]:
             errors.append("execution_modes.required 必须是非空字符串列表")
         elif primary not in required:
             errors.append("execution_modes.acceptance_primary 必须属于 required")
+        if isinstance(required, list) and "graph" in required:
+            graph_policy = modes.get("graph_policy")
+            if not isinstance(graph_policy, dict):
+                errors.append("要求 graph 的 profile 必须声明 execution_modes.graph_policy")
+            else:
+                order = graph_policy.get("preference_order")
+                minimum = graph_policy.get("minimum")
+                level_checks = graph_policy.get("level_checks")
+                if (not isinstance(order, list) or not order
+                        or not all(isinstance(item, str) and item for item in order)
+                        or len(set(order)) != len(order)):
+                    errors.append("graph_policy.preference_order 必须是非空且不重复的字符串列表")
+                elif minimum != order[-1]:
+                    errors.append("graph_policy.minimum 必须是 preference_order 的最后一级")
+                if not isinstance(level_checks, dict):
+                    errors.append("graph_policy.level_checks 必须逐级声明检查项")
+                elif isinstance(order, list) and set(level_checks) != set(order):
+                    errors.append("graph_policy.level_checks 必须覆盖且仅覆盖 preference_order")
+                else:
+                    for level, checks in level_checks.items():
+                        if (not isinstance(checks, list) or not checks
+                                or not all(isinstance(check, str) and check for check in checks)):
+                            errors.append(f"graph_policy.level_checks.{level} 必须是非空字符串列表")
 
     service = profile.get("service")
     if (not isinstance(service, dict) or not isinstance(service.get("protocols"), list)

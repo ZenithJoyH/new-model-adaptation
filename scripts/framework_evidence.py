@@ -211,6 +211,43 @@ def native_performance(reader, native, envelope, cfg):
         sys.path.pop(0)
 
 
+def check_graph_level(reader, report, ref, cfg, profile, stage):
+    """Enforce the profile's graph preference and bind later receipts to it."""
+    policy = profile.get("execution_modes", {}).get("graph_policy")
+    if not policy or report.get("mode") != "graph":
+        return
+    order = policy["preference_order"]
+    level = report.get("graph_level")
+    require(level in order, f"{stage}: graph_level 必须属于 {order}")
+    if stage == "execution-mode":
+        checks = report.get("checks", {})
+        require(all(checks.get(name) is True for name in policy["level_checks"][level]),
+                f"{stage}: graph_level={level} 缺少级别检查 {policy['level_checks'][level]}")
+        if level == order[0]:
+            return
+        fallback = report.get("graph_fallback")
+        require(isinstance(fallback, dict), "graph 降级缺少 graph_fallback 记录")
+        require(fallback.get("attempted_levels") == order[:order.index(level)],
+                "graph 降级必须按 preference_order 逐级尝试")
+        require(fallback.get("selected_level") == level, "graph_fallback 选定级别不匹配")
+        for field in ("attempted_configuration", "failure_signature", "reason",
+                      "limitations", "exit_conditions"):
+            require(isinstance(fallback.get(field), str) and fallback[field].strip(),
+                    f"graph 降级缺少 {field}")
+        evidence = fallback.get("evidence")
+        require(isinstance(evidence, list) and evidence, "graph 降级缺少全量图阻塞证据")
+        for item in evidence:
+            reader.file(item)
+        return
+
+    execution = record_for(cfg, "execution-mode")
+    refs = execution.get("receipts", []) if isinstance(execution, dict) else []
+    matching = [item for item in refs if item.get("host_alias") == ref["host_alias"]]
+    require(len(matching) == 1, f"{stage}: 缺少该 Host 的执行模式回执")
+    selected = reader.json(matching[0]).get("graph_level")
+    require(level == selected, f"{stage}: graph_level 与执行模式验收不一致")
+
+
 def check_receipt(reader, ref, cfg, profile, stage, rec):
     report = reader.json(ref)
     require(report.get("schema_version") == 1 and report.get("kind") == "framework_check"
@@ -232,6 +269,7 @@ def check_receipt(reader, ref, cfg, profile, stage, rec):
         reader.file(item)
     if spec and stage not in {"device", "operators", "wheel"}:
         require(report.get("mode") == profile["execution_modes"]["acceptance_primary"], "验收执行模式不匹配")
+        check_graph_level(reader, report, ref, cfg, profile, stage)
     if spec and spec["validator"] == "flageval":
         require(bool(report.get("service_instance_id")), "缺少精度服务身份")
         native_accuracy(reader, report["native"], report, cfg)

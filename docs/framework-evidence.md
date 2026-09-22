@@ -5,7 +5,7 @@
 
 | Profile | 修改目标 | 验收顺序 | 当前能力 |
 | --- | --- | --- | --- |
-| vllm-plugin-fl | editable Plugin；vLLM 只读 | execution-mode → sanity → accuracy → performance → evidence → summary | active；eager/graph，后续 graph 服务验收 |
+| vllm-plugin-fl | editable Plugin；vLLM 只读 | execution-mode → sanity → accuracy → performance → evidence → summary | active；eager/graph；graph 优先 full，最低 decode-full，后续绑定已验收最高级别 |
 | torch-fl | 已核实 Torch-FL 源码 | device → operators → model-eager → 可选 wheel → summary | experimental；PPU Python API、eager 与可选 wheel 验证 |
 
 `experimental` 允许创建工作区、实施和执行声明的基础验证，避免“必须先验证才能开始验证”
@@ -95,6 +95,14 @@ verification 位于 `workflow.<phase>.verification`；子步骤位于
 
 ## vllm-plugin-fl 原生验收
 
+- execution-mode 回执必须增加 `graph_level`，取值按 profile 当前顺序为 `full` 或
+  `decode-full`。选择 `full` 时 checks 增加 `full_graph: true`。选择 `decode-full` 时 checks
+  增加 `full_graph_attempted`、`full_graph_blocker_verified`、`decode_full_graph`，且均为 true；
+  同时增加 `graph_fallback`，包含 `attempted_levels: [full]`、
+  `selected_level: decode-full`、非空的 `attempted_configuration`、`failure_signature`、
+  `reason`、`limitations`、`exit_conditions`，以及可读取且有 SHA-256 的 `evidence` 列表。
+  这组字段证明降级，不得用一句“不支持全量图”代替。后续 sanity、accuracy、performance、
+  evidence 与 summary 回执均记录 `graph_level`，并与同一 Host 的 execution-mode 回执一致。
 - accuracy 的 `native` 包含 `report`、`config` 两个 `{path, sha256}` 引用，分别指向
   `llmrun.py` 的 `acceptance-result.json` 和实际冻结配置。`acceptance_plan.accuracy_config_sha256`
   在执行模式验收前冻结。重建并逐字段核对 runner 生效配置，包括模型名、endpoint、
@@ -111,7 +119,8 @@ verification 位于 `workflow.<phase>.verification`；子步骤位于
   切换；记录 `accuracy_to_performance_transition` 检查及其准确前后启动/实例证据。
   其他源码、模型、拓扑、推理设置变化须重新执行精度，不能靠这项检查豁免。
 - summary 回执中 `launcher` 为根目录 `start-model.sh` 的 `{path, sha256}`，必须存在且可执行；
-  其 syntax/readiness/minimal/cache checks 由现场实测支持。工具不能代替服务就绪探测。
+  它必须启动该 Host 已验收最高 `graph_level`；其 syntax/readiness/minimal/cache checks 由
+  现场实测支持。工具不能代替服务就绪探测。
 
 ## 旧入口与历史记录
 

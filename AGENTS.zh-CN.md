@@ -85,7 +85,8 @@ draft/不完整 profile 只允许模型分析和只读调查；experimental 允�
 - active profile 的服务适配标记为完成前，必须在每台目标主机已批准的远端工作根目录顶层放置一个最终可执行
   模型启动脚本 `<host_root>/start-model.sh`，并核实容器内对应路径为
   `<container_root>/start-model.sh`。这里的工作根必须属于当前 framework profile，不能由多个
-  框架共享。脚本必须启动 profile 最终通过验收的主执行模式（`vllm-plugin-fl` 为 `graph`），日志/结果写入
+  框架共享。脚本必须启动 profile 最终通过验收的主执行模式及最高已验收图级别
+  （`vllm-plugin-fl` 为 `graph`，逐 Host 使用 `full` 或最低 `decode-full`），日志/结果写入
   `04-runs/`，缓存写入 `06-cache/`，不得包含秘密，也不得覆盖无关的运行中服务。必须核验
   并精简启动脚本：删除诊断、profiling、trace、dump、临时路径、过期 workaround、重复的
   默认值、实验性调优项，以及与当前模型或平台无关的设置；只有最终验收配置确实依赖时才
@@ -137,6 +138,11 @@ draft/不完整 profile 只允许模型分析和只读调查；experimental 允�
 ### 状态与收尾
 
 - 优化前建立正确性和性能基线，每次只改变一个实质变量，并保留对比。
+- `vllm-plugin-fl` 的 graph 适配和验收必须遵循 profile 的图级别优先顺序：先尝试并优先采用
+  同时覆盖 prefill 与 decode 的 `full` 全量图；只有记录准确全量图配置、可复现失败、定位和
+  阻塞证据后，才允许降级为 `decode-full`。`decode-full` 是 graph 通过的最低要求；仅 eager、
+  分段/可断图、非 full decode 或更低覆盖不能通过。后续验收及最终启动脚本必须保持该 Host
+  已验收的最高级别，不得静默降级。
 - 正式全量精度评测只有一个数值通过标准：有效的完整评测回执中，每个在运行前冻结的指标
   都达到其配置阈值，即可把精度子步骤标记为 `passed` 或 `complete`。指标不必达到 `1.0`，
   因而允许存在少量答错的题目；“逐题全部正确”只属于前置小批量 sanity，不得用作正式

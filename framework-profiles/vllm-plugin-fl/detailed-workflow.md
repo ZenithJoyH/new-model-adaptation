@@ -116,8 +116,13 @@ Applies only to this profile. Inherit the [common workflow](../../docs/model-ada
       tests in the plugin repository inside the running adaptation container.
       Keep one-off process code in the approved root's `02-issues/` or `05-tmp/`,
       outside all source repositories. Keep intermediate runtime configuration
-      under the remote root's `01-environment/`. Do not call an intermediate
-      launcher final. After acceptance identifies the final graph configuration,
+      under the remote root's `01-environment/`. Bring up graph execution in
+      profile preference order: first attempt `full` graph over both prefill and
+      decode. Use `decode-full` only when the exact full-graph configuration has
+      a reproducible, diagnosed and evidenced blocker on the current model,
+      platform and revisions. `decode-full` is the minimum passing level; lower
+      graph coverage is diagnostic only. Do not call an intermediate launcher
+      final. After acceptance identifies the highest available graph configuration,
       place its executable entry point at the remote root's `start-model.sh`.
       Build that final script from the smallest accepted launch command. Remove
       diagnostic/profiling/tracing/dump controls, temporary paths, obsolete
@@ -181,8 +186,15 @@ Applies only to this profile. Inherit the [common workflow](../../docs/model-ada
 4. **Accept the adaptation.** Complete all of the following acceptance work:
 
    1. **Execution-mode acceptance.** Run the model successfully in both `eager`
-      mode and `graph` mode. This step verifies only that both execution modes
-      can run successfully. After it passes, perform all remaining acceptance
+      mode and `graph` mode. For graph, first test and prefer `full` coverage of
+      prefill and decode. Falling back to `decode-full` is permitted only after
+      recording the exact full-graph configuration, reproducible failure
+      signature, diagnosis, evidence, reason, limitations and exit criteria.
+      Skipping the full-graph attempt is not permitted. `decode-full` is the
+      minimum passing graph level; eager-only, piecewise/breakable graph,
+      non-full decode, or lower coverage does not pass. Record `graph_level` in
+      the execution-mode receipt and bind all later receipts to the same highest
+      accepted per-Host level. After it passes, perform all remaining acceptance
       work—including the small-batch sanity check, formal accuracy evaluation,
       performance evaluation or profiling, and communication validation when
       applicable—using the accepted `graph`-mode service configuration. Do not
@@ -273,7 +285,7 @@ Applies only to this profile. Inherit the [common workflow](../../docs/model-ada
       verification, encountered problems and solutions, final status, unresolved
       limitations, and next steps. Before marking completion, verify that each
       approved target `host_root` contains executable `start-model.sh`, that its
-      verified container path launches the final accepted graph configuration,
+      verified container path launches the highest accepted graph configuration,
       and that it routes logs/results to `04-runs/` and caches to `06-cache/`
       without affecting an unrelated service or the adaptation container. Record
       both paths, SHA-256, syntax check, launch/readiness result, complete

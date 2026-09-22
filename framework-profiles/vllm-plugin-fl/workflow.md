@@ -15,6 +15,9 @@
 5. Triton 实现必须兼容 graph capture/replay，避免 capture 阶段主机同步、不支持的动态分配、
    依赖数据的主机控制流以及不稳定 shape 或地址，并单独覆盖 eager 与 graph 测试。
 6. 一次性诊断脚本留在远端 `02-issues/` 或 `05-tmp/`；Plugin 只接收必要产品代码和可维护测试。
+7. graph 配置必须按 `full` → `decode-full` 的顺序适配：先尝试覆盖 prefill 与 decode 的全量图；
+   只有核实并记录全量图阻塞后才允许降级到 decode 阶段全图。`decode-full` 是最低验收要求，
+   不能作为默认起点；更低覆盖级别只能用于诊断，不能通过执行模式验收。
 
 具体 Plugin 设计与交付标准见
 [Plugin 修改与 PR 交付标准](../../docs/plugin-contribution-policy.md)；当前源码结构参考见

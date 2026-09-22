@@ -62,6 +62,12 @@ verified prerequisites. Optional steps are explicitly added to the workspace's
 ordered substep map before execution. Never invent a missing runner or interpret
 unavailable capability as a pass.
 
+When a profile declares a graph-level preference, optimization and acceptance
+must start from its most preferred level and may descend only with reproducible
+blocker evidence. For `vllm-plugin-fl`, this means `full` graph across prefill and
+decode first, with `decode-full` as the minimum fallback—not the default. Later
+acceptance and the final launcher stay on the highest accepted per-Host level.
+
 Formal metrics pass at frozen thresholds with complete valid coverage; individual
 wrong answers and retained timeout-as-incorrect samples do not alone fail a valid
 full run. Native result/sample verification is mandatory. A Markdown hash is not

@@ -128,9 +128,11 @@ models/<model>/<platform>/
 
 以下是 **vllm-plugin-fl** 的验收顺序。Torch-FL 使用自己的 device → operators → model-eager → 可选 wheel → summary，详见其 profile；不可套用以下服务评测流程：
 
-1. `execution-mode`：跑通 profile 声明的全部必需执行模式；`vllm-plugin-fl` 为 `eager` 与 `graph`。
+1. `execution-mode`：跑通 profile 声明的全部必需执行模式；`vllm-plugin-fl` 为 `eager` 与
+   `graph`。graph 必须先尝试覆盖 prefill 与 decode 的 `full` 全量图，只有记录可复现的阻塞
+   证据后才可降到最低要求 `decode-full`；回执记录 `graph_level`，不得默认只做 decode-full。
 2. `sanity`：基于 profile 的验收主模式做 10 并发小批量正确性与性能预检；
-   `vllm-plugin-fl` 的主模式为 `graph`。
+   `vllm-plugin-fl` 的主模式为 `graph`，并沿用该 Host 在第 1 项验收的最高图级别。
 3. `accuracy`：预检正常后，在规定 FlagEval 容器中用
    `test/Accuracy_test/llmrun.py` 进行至少 32 并发正式精度评测。有效完整结果中的各项
    冻结指标达到配置阈值即可完成该子步骤；指标无需为 `1.0`，个别题目答错不等于正式

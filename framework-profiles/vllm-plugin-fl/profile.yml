@@ -1,7 +1,7 @@
 schema_version: 1
 id: vllm-plugin-fl
 display_name: vLLM + vllm-plugin-FL + FlagGems
-profile_version: 2
+profile_version: 3
 status: active
 platforms: [nvidia, ppu, metax, ascend, mthreads, hygon]
 
@@ -29,6 +29,18 @@ execution_modes:
     - eager
     - graph
   acceptance_primary: graph
+  graph_policy:
+    preference_order:
+      - full
+      - decode-full
+    minimum: decode-full
+    level_checks:
+      full:
+        - full_graph
+      decode-full:
+        - full_graph_attempted
+        - full_graph_blocker_verified
+        - decode_full_graph
 
 service:
   protocols:

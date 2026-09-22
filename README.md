@@ -146,7 +146,9 @@ FlagEval 镜像内的一个或多个 lm-eval task；GPQA 只是默认示例，�
 配置、采集脚本、验收包装和原始结果保存在用户为该 framework profile 批准的独立远端工作
 根目录，本地模型目录只保留 Markdown 分析、问题记录和验收结论。适配容器保持运行；源码
 修改边界、执行模式、服务协议和验收方式按选定 profile 执行。`vllm-plugin-fl` 仍要求 vLLM
-只读以及 eager/graph 验收。
+只读以及 eager/graph 验收；graph 先尝试并优先采用覆盖 prefill 与 decode 的 `full` 全量图，
+只有具备阻塞证据时才可降级到最低要求 `decode-full`，后续验收和最终启动脚本沿用已验收的
+最高图级别。
 
 只执行模型分析：
 

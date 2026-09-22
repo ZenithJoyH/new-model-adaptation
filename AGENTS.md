@@ -117,7 +117,8 @@ write remotely.
 - Before an active-profile service adaptation can be marked complete, place one final executable model
   launch script at `<host_root>/start-model.sh` for every framework-specific target host root, with
   the verified container path `<container_root>/start-model.sh`. It must launch
-  the profile's final accepted primary execution mode (`graph` for
+  the profile's final accepted primary execution mode and highest accepted
+  graph level (`graph` with per-Host `full` or minimum `decode-full` for
   `vllm-plugin-fl`), keep logs/results under `04-runs/`
   and caches under `06-cache/`, contain no secrets, and refuse to overwrite an
   unrelated running service. Keep the launcher minimal: remove diagnostic,
@@ -193,6 +194,14 @@ write remotely.
 
 - Establish correctness and performance baselines before optimization; change
   one material variable at a time and retain the comparison.
+- For `vllm-plugin-fl`, graph bring-up and acceptance must follow the selected
+  profile's graph-level preference. Attempt and prefer `full` graph coverage of
+  both prefill and decode first. Fall back to `decode-full` only after the exact
+  full-graph configuration, reproducible failure, diagnosis and blocker evidence
+  are recorded. `decode-full` is the minimum passing graph level; eager-only,
+  piecewise/breakable graph, non-full decode, or lower coverage cannot pass. All
+  later acceptance and the final launcher must retain the highest level accepted
+  for that Host; do not silently downgrade it.
 - Mark the formal accuracy substep passed or complete when a valid full-run
   accuracy receipt shows that every metric frozen in the run configuration meets
   its configured minimum threshold. A score below `1.0`, and therefore some
