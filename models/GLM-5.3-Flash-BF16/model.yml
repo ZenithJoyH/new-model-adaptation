@@ -1,0 +1,13 @@
+---
+name: GLM-5.3-Flash-BF16
+source:
+  modelscope_id: zai-org/GLM-5.3-Flash-BF16
+  huggingface_id: zai-org/GLM-5.3-Flash-BF16
+  revision: "本地快照无 Git revision；以 config sha256 33e63ec7fe607658be712bd6dd3c16c6549960d8e7f0483d34b939881b55f943 和 index sha256 e6007bd58fb7e07f9fe69544257ee2713f252ef5855bbf685b48c991d524ef0f 标识"
+architecture: Glm5NextForConditionalGeneration
+parameter_count: "约 321.3B（BF16 权重字节数 642646653816/2；README 称 320B）"
+active_parameter_count: "约 18B（模型 README 声明，尚待端到端 profiler 验证）"
+estimated_weight_size_gb: 598.511336312
+remote_weight_path: /mnt/cpfs/models/GLM-5.3-Flash-BF16
+status: not_started
+notes: "目标平台 ppu，目标主机 PPU-13，适配容器 glm5.3-flash。模型目录无可核实 Git revision，以小文件哈希固定快照身份。"

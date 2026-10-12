@@ -1,0 +1,13 @@
+---
+name: Hy4-preview
+source:
+  modelscope_id: Tencent-Hunyuan/Hy4-preview
+  huggingface_id: ""
+  revision: ada7b1faf9b70585edc90a9ef552d0059fb246e7
+architecture: HYV4ForCausalLM
+parameter_count: "779960992733 including MTP; official backbone approximately 770B"
+active_parameter_count: "official backbone approximately 49B, MTP approximately 0.7B"
+estimated_weight_size_gb: 1559.98380938
+remote_weight_path: ""
+status: not_started
+notes: "2026-08-28: metadata and all 131 safetensors headers inspected. New INT8 artifact not supplied; no new inference acceptance."

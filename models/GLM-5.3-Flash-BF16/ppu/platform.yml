@@ -1,0 +1,90 @@
+---
+platform: ppu
+record_layout: compact
+inventory_group: ppu
+accelerator_query: ppu-smi
+target:
+  hosts:
+    - PPU-13
+  container_name: glm5.3-flash
+  container_image: "hy4-ppu07-snapshot:20260903@sha256:29a6712e24ca8e758ac8b33d3412892f0541bff108e2c057445fa671578237f6"
+workspace:
+  roots:
+    - host_alias: PPU-13
+      host_root: /mnt/nfs/users/jinghao/glm5.3-flash
+      container_root: /mnt/nfs/users/jinghao/glm5.3-flash
+status: functional
+validated_hosts: [PPU-13]
+engine: vllm + vllm-plugin-FL
+engine_version: "0.24.0"
+container_image: "hy4-ppu07-snapshot:20260903 (sha256:29a6712e24ca8e758ac8b33d3412892f0541bff108e2c057445fa671578237f6)"
+last_verified: "2026-09-11"
+blocker: "Adaptation is functional and complete; accuracy remains failed at strict 172/198 (86.87%) with 10 requests capped at 60000 generated tokens, so optimized acceptance is not complete."
+workflow:
+  architecture:
+    verification:
+      run_id: glm53-bf16-architecture-revalidation-20260906
+      last_verified: "2026-09-06"
+      evidence: ../architecture-and-inference.md
+      evidence_sha256: 8c0ca904740b4119ea103de3bbe414684f4535caa9ca070ecf687fde0bfc3125
+      context_sha256: 021be923cd983aa92ef6b82b7b5d52d19e0dd7427c4dec10703a1f941fcae2ed
+    status: complete
+    evidence: ../architecture-and-inference.md
+    last_verified: "2026-09-06"
+    blocker: ""
+  environment:
+    verification:
+      run_id: glm53-compact-environment-revalidation-20260911
+      last_verified: "2026-09-11"
+      evidence: environment/environment-analysis.md
+      evidence_sha256: 84f48db52d1a9380b866f610466e5ad5573edac2829443295d4e48b0305393ab
+      context_sha256: 9ea741a82dd8c693d66f7f675df6cbc886047e0ff54d3ad64d0df9f76f0979a8
+    status: complete
+    evidence: environment/environment-analysis.md
+    last_verified: "2026-09-11"
+    blocker: ""
+  adaptation:
+    verification:
+      run_id: glm53-current-commits-functional-20260911
+      last_verified: "2026-09-11"
+      evidence: adaptation/031-flaggems-day0-diverged-sync-blocker-20260910.md
+      evidence_sha256: c1aa34fbadebc212c23f60b3cd11af05ce8058b2407945fdd248077cd42621e4
+      context_sha256: 1d069052776f3f01e98a3942aa04fb3dbed4b1cf725e6ec50768079402f368bc
+    status: complete
+    evidence: adaptation/031-flaggems-day0-diverged-sync-blocker-20260910.md
+    last_verified: "2026-09-11"
+    blocker: ""
+  acceptance:
+    records:
+      execution-mode:
+        run_id: glm53-current-full-decode-execution-mode-20260911
+        last_verified: "2026-09-11"
+        evidence: acceptance/gpqa-current-commits-20260910.md
+        evidence_sha256: 3d47dcef531632cdb5fc72631af9585d0a84c5fe63b346ad0131c93313dc3eb5
+        context_sha256: 38072ac4169db128bbde1786fe95b3b0caf782a41a6f847628ca11612bae0cb1
+        service_instance_id: PPU-13:bf3487115c28:42996:175243105
+      sanity:
+        run_id: glm53-current-commits-hot-c8-20260910
+        last_verified: "2026-09-11"
+        evidence: acceptance/gpqa-current-commits-20260910.md
+        evidence_sha256: 3d47dcef531632cdb5fc72631af9585d0a84c5fe63b346ad0131c93313dc3eb5
+        context_sha256: 626c2a21e2dbd2c4ad6cb78eb04bebdd72ce28aae96bce551295358b2177aa65
+        service_instance_id: PPU-13:bf3487115c28:42996:175243105
+    verification: {}
+    status: in_progress
+    evidence: acceptance/gpqa-current-commits-20260910.md
+    last_verified: "2026-09-11"
+    blocker: "Accuracy failed: GPQA strict 172/198 (86.87%) is below 88%; 10 responses reached the 60000-token generation cap."
+    substeps:
+      execution-mode: passed
+      sanity: passed
+      accuracy: failed
+      performance: not_started
+      evidence: not_started
+      summary: in_progress
+  retrospective:
+    verification: {}
+    status: not_started
+    evidence: acceptance/adaptation-retrospective.md
+    last_verified: null
+    blocker: ""

@@ -1,0 +1,50 @@
+---
+platform: mthreads
+inventory_group: mthreads
+accelerator_query: mthreads-gmi
+status: not_started
+validated_hosts: []
+engine: ""
+engine_version: ""
+container_image: ""
+last_verified: null
+blocker: ""
+workflow:
+  architecture:
+    verification: {}
+    status: not_started
+    evidence: ../architecture-and-inference.md
+    last_verified: null
+    blocker: ""
+  environment:
+    verification: {}
+    status: not_started
+    evidence: environment/environment-analysis.md
+    last_verified: null
+    blocker: ""
+  adaptation:
+    verification: {}
+    status: not_started
+    evidence: adaptation/README.md
+    last_verified: null
+    blocker: ""
+  acceptance:
+    records: {}
+    verification: {}
+    status: not_started
+    evidence: acceptance/adaptation-summary.md
+    last_verified: null
+    blocker: ""
+    substeps:
+      execution-mode: not_started
+      sanity: not_started
+      accuracy: not_started
+      performance: not_started
+      evidence: not_started
+      summary: not_started
+  retrospective:
+    verification: {}
+    status: not_started
+    evidence: acceptance/adaptation-retrospective.md
+    last_verified: null
+    blocker: ""

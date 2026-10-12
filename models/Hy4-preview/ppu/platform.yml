@@ -1,0 +1,115 @@
+---
+platform: ppu
+record_layout: compact
+inventory_group: ppu
+accelerator_query: ppu-smi
+target:
+  hosts:
+    - PPU-07
+  container_name: hy4
+  container_image: harbor.baai.ac.cn/flagos-inner-models-release/ppu-pp001-gems0.0.0-tree0.6.1-cxnone-plugin0.3.0-vllm0.24.0-cp312-pt210-hggc130-x64-1.3.2-d7f5a2:lingjunbase
+workspace:
+  roots:
+    - host_alias: PPU-07
+      host_root: /mnt/nfs/users/jinghao/hy4-preview
+      container_root: /mnt/nfs/users/jinghao/hy4-preview
+status: functional
+validated_hosts:
+  - PPU-07
+engine: vllm + vllm-plugin-FL
+engine_version: 0.24.0+empty
+container_image: harbor.baai.ac.cn/flagos-inner-models-release/ppu-pp001-gems0.0.0-tree0.6.1-cxnone-plugin0.3.0-vllm0.24.0-cp312-pt210-hggc130-x64-1.3.2-d7f5a2:lingjunbase
+last_verified: '2026-09-14'
+blocker: >-
+  The Plugin 2fa5f18 graph service completed all 198 GPQA requests and remained
+  healthy. The user accepted strict-match 90.91% against the 87% business
+  baseline and marked accuracy passed while acknowledging one unique <TIMEOUT>,
+  runner exit 1, and the missing native passing receipt. The verified root
+  start-model.sh closes adaptation. Formal performance passed the 1K and 4K
+  input scenarios but the 16K, 32K, and 64K scenarios were marked timeout. The
+  user stopped further performance testing, so performance failed and the
+  platform remains functional rather than optimized.
+workflow:
+  architecture:
+    verification:
+      run_id: hy4-architecture-reference-consolidation-20260907
+      last_verified: '2026-09-07'
+      evidence: ../architecture-and-inference.md
+      evidence_sha256: 084ce9ae363f5e454bc557d46f1357a07de908d4927ad57e5d6f833c2a7d2943
+      context_sha256: 84805c75b995521785470f4be339dec364725796e0e78c0df071c2eeef156ac3
+    status: complete
+    evidence: ../architecture-and-inference.md
+    last_verified: '2026-09-07'
+    blocker: ''
+  environment:
+    verification:
+      run_id: hy4-environment-ppu07-current-service-20260907
+      last_verified: '2026-09-07'
+      evidence: environment/environment-analysis.md
+      evidence_sha256: 807ab5f1137454ab8785a8233594e2dcb11c38465c77fea53376efc90fb73368
+      context_sha256: c4b06318fddc5b1676833c2c77d82ab0b9f8e06096397a3ebfecacde368080be
+    status: complete
+    evidence: environment/environment-analysis.md
+    last_verified: '2026-09-07'
+    blocker: ''
+  adaptation:
+    verification:
+      run_id: gpqa-full-graph-c64-high80k-plugin2fa5f18-indexoff-20260910
+      last_verified: '2026-09-11'
+      evidence: adaptation/018-latest-accuracy-eval-failure-20260908.md
+      evidence_sha256: 1f7ed5744efe611eabc4e611b97735965796022caca3a231f17138ac4b5e13b2
+      context_sha256: 5e61776af80c6ae0acf3afc74076e5cd39c35d7c3e6aab688bcd752d8db8cc65
+    status: complete
+    evidence: adaptation/018-latest-accuracy-eval-failure-20260908.md
+    last_verified: '2026-09-11'
+    blocker: ''
+  acceptance:
+    records:
+      execution-mode:
+        run_id: service-plugin-2fa5f18-fgbca-indexoff-20260910
+        last_verified: '2026-09-11'
+        evidence: acceptance/gpqa-plugin-2fa-indexoff-launch-20260910.md
+        evidence_sha256: 4bdbc5755543c7702ef5342b381ee6f93ce21de386a8907c273da7950ce3a971
+        context_sha256: 2101854b1f00d341ce4e2029104d93b9a5eda7b40e26e20cc7d3671bfb8421b4
+      sanity:
+        run_id: gpqa-sanity-c8-plugin2fa5f18-indexoff-20260910
+        last_verified: '2026-09-11'
+        evidence: acceptance/gpqa-plugin-2fa-indexoff-launch-20260910.md
+        evidence_sha256: 4bdbc5755543c7702ef5342b381ee6f93ce21de386a8907c273da7950ce3a971
+        context_sha256: 7b0e2e66c632012d5041ed77b9a841cb760fde32c2577cdaf3b0911eb4bc9fd8
+      accuracy:
+        run_id: gpqa-full-graph-c64-high80k-plugin2fa5f18-indexoff-20260910
+        last_verified: '2026-09-11'
+        evidence: acceptance/gpqa-plugin-2fa-indexoff-launch-20260910.md
+        evidence_sha256: 4bdbc5755543c7702ef5342b381ee6f93ce21de386a8907c273da7950ce3a971
+        context_sha256: f4c829f9759bd7e821fe9b37f0ba018bf8689591c45ebd137e0ffbfca25c21da
+      performance:
+        run_id: perf-full-default5-plugin2fa5f18-indexoff-20260911
+        last_verified: '2026-09-14'
+        evidence: acceptance/performance-plugin-2fa-indexoff-20260911.md
+        evidence_sha256: 67b0ebecae458a40c8fcda0644a69519990d69500a0d35aafa4f985ef5da14a9
+        context_sha256: dc6a3d20454c84a86ae6f14f8883b6cb9c47f6a132a12b0a37be7f12b5f574d5
+    verification: {}
+    status: failed
+    evidence: acceptance/performance-plugin-2fa-indexoff-20260911.md
+    last_verified: '2026-09-14'
+    blocker: >-
+      Accuracy is user-accepted at strict-match 90.91% against the 87% business
+      threshold. One unique <TIMEOUT>, runner exit 1, and no native passing
+      acceptance-result.json remain explicit accepted limitations. Formal
+      performance succeeded only for 1K and 4K input scenarios. The 16K, 32K,
+      and 64K scenarios are marked timeout; the user stopped further testing.
+      No passing performance receipt exists.
+    substeps:
+      execution-mode: passed
+      sanity: passed
+      accuracy: passed
+      performance: failed
+      evidence: not_started
+      summary: not_started
+  retrospective:
+    verification: {}
+    status: not_started
+    evidence: acceptance/adaptation-retrospective.md
+    last_verified: null
+    blocker: ''
