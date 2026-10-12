@@ -1,0 +1,13 @@
+---
+name: "Qwen3.6-27B"
+source:
+  modelscope_id: ""
+  huggingface_id: "Qwen/Qwen3.6-27B（模型目录 README 声明；未独立核验远端 revision）"
+  revision: "本地模型快照无可核实 Git revision；以 config sha256 69db4eb7196bc8190813231b3018ca05d8c2e3abc7b1af19d55c157af44a9d9c 和 index sha256 a8ad2c26fb707ff8c245806315b03e3b4b74595528492423af5dae0ce39b4d9b 标识"
+architecture: "Qwen3_5ForConditionalGeneration（64 层 dense 文本主干，48 GDN + 16 full attention，另含视觉塔）"
+parameter_count: "27B（模型目录 README 声明；未逐张量重算）"
+active_parameter_count: ""
+estimated_weight_size_gb: 55.563
+remote_weight_path: "/public-flash/models/Qwen3.6-27B"
+status: architecture_ready
+notes: "mx-58/qwen3.6-27B 容器内 15 个 BF16 safetensors 分片，总计 55,563,006,400 bytes；服务仅针对当前 MetaX Host 核验。"

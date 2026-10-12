@@ -1,0 +1,80 @@
+platform: ppu
+record_layout: compact
+inventory_group: ppu
+accelerator_query: ppu-smi
+target:
+  hosts:
+  - PPU-07
+  container_name: qwen-image
+  container_image: harbor.baai.ac.cn/flagos-inner-models-release/qwen-image-pp001-gems0.0.0-tree0.6.2-cxnone-pluginnone-vllm0.23.0-cp312-pt210-hggc130-x64-2.1.1-rbd225:202609170906@sha256:aa5dc7bf93655926de00618935813430beca846371b1e3279321e019604ad0a8
+workspace:
+  roots:
+  - host_alias: PPU-07
+    host_root: /mnt/nfs/users/jinghao/qwen-image
+    container_root: /mnt/nfs/users/jinghao/qwen-image
+status: functional
+validated_hosts:
+- PPU-07
+engine: Diffusers + torch-fl
+engine_version: 'diffusers 0.40.0 + Qwen-Image-2.1 compatibility build 1qwen21; peft
+  0.20.0; torch 2.10.0; torch_fl 0.1.0+ppu editable PR #342 head 229386d + local review
+  fixes'
+container_image: harbor.baai.ac.cn/flagos-inner-models-release/qwen-image-pp001-gems0.0.0-tree0.6.2-cxnone-pluginnone-vllm0.23.0-cp312-pt210-hggc130-x64-2.1.1-rbd225:202609170906
+  (sha256:aa5dc7bf93655926de00618935813430beca846371b1e3279321e019604ad0a8)
+last_verified: '2026-09-18'
+blocker: 'Eager full inference and PR #342 functional, paired-accuracy, and benchmark
+  cases pass. Graph and the repository''s formal acceptance phase were not selected.'
+workflow:
+  architecture:
+    status: complete
+    evidence: ../architecture-and-inference.md
+    last_verified: '2026-09-17'
+    blocker: ''
+    verification:
+      run_id: qwen-image-21-architecture-20260917
+      last_verified: '2026-09-17'
+      evidence: ../architecture-and-inference.md
+      evidence_sha256: 432bb1b15b39128f5cea9b30f108e964111e724cb2a316fe775ba629a90692ce
+      context_sha256: 37ca7be2e8ad165d011dc190c87aebb602480d59de398b03f756dc984ab15cb7
+  environment:
+    status: complete
+    evidence: environment/environment-analysis.md
+    last_verified: '2026-09-17'
+    blocker: ''
+    verification:
+      run_id: qwen-image-21-environment-ppu07-20260917
+      last_verified: '2026-09-17'
+      evidence: environment/environment-analysis.md
+      evidence_sha256: 1aeb33bcdae71fe13cc3558bf2f09f87319d0b727d3fb948935e81cd49a93b37
+      context_sha256: 618da0f3ebe64209380caa5ffc35dc0dedc09c45827b79b7ed78d5332d13bca1
+  adaptation:
+    status: in_progress
+    evidence: adaptation/003-pr342-full-case-complex-slice.md
+    last_verified: '2026-09-18'
+    blocker: Functional eager and PR benchmark validation passed; local review fixes
+      remain uncommitted and graph/formal acceptance were not selected.
+    verification: {}
+  acceptance:
+    status: not_started
+    evidence: acceptance/adaptation-summary.md
+    last_verified: null
+    blocker: ''
+    verification: {}
+    records: {}
+    substeps:
+      execution-mode: not_started
+      sanity: not_started
+      accuracy: not_started
+      performance: not_started
+      evidence: not_started
+      summary: not_started
+  retrospective:
+    status: not_started
+    evidence: acceptance/adaptation-retrospective.md
+    last_verified: null
+    blocker: ''
+    verification: {}
+frameworks:
+  torch-fl:
+    workspace: frameworks/torch-fl/framework.yml
+    profile: framework-profiles/torch-fl/profile.yml

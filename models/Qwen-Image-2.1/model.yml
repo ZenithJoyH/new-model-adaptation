@@ -1,0 +1,13 @@
+---
+name: "Qwen-Image-2.1"
+source:
+  modelscope_id: "Qwen/Qwen-Image-2.1"
+  huggingface_id: "Qwen/Qwen-Image-2.1"
+  revision: "master (ModelScope snapshot metadata; immutable repository commit not exposed)"
+architecture: "Qwen3-VL text encoder + block-causal single-stream DiT + causal 3D VAE"
+parameter_count: "16219988836"
+active_parameter_count: "dynamic; text-only inference does not exercise the Qwen3-VL vision tower"
+estimated_weight_size_gb: 30.7
+remote_weight_path: "/mnt/cpfs/models/Qwen-Image-2.1"
+status: not_started
+notes: "Reference Diffusers fork is pinned by ZIP SHA-256 and archive commit in architecture-and-inference.md."

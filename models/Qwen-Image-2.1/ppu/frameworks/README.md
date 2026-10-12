@@ -1,0 +1,7 @@
+# Qwen-Image-2.1 / ppu：framework 索引
+
+| Framework | Profile / 契约 | 当前记录状态 |
+| --- | --- | --- |
+| [torch-fl](torch-fl/README.md) | v3 / evidence v2 | `not_started` |
+
+[状态解释、原始记录与人工接续](../../_shared/local-record-maintenance.md)；不同框架、Host 和容器的结果保持独立。

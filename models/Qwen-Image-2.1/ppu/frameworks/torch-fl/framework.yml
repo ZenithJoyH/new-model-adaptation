@@ -1,0 +1,236 @@
+schema_version: 1
+model: Qwen-Image-2.1
+platform: ppu
+framework: torch-fl
+profile: framework-profiles/torch-fl/profile.yml
+profile_version: 3
+status: not_started
+validated_hosts: []
+container_image: qwen-image-flagos:from-qwen-image-20260920
+last_verified: '2026-09-22'
+blocker: ''
+target:
+  hosts:
+  - PPU-07
+  container_name: qwen-image-flagos
+workspace:
+  roots:
+  - host_alias: PPU-07
+    host_root: /mnt/nfs/users/jinghao/qwen-image
+    container_root: /mnt/nfs/users/jinghao/qwen-image
+deployment:
+  fingerprint: fb643e377b3220d634328c076e1b7d7c86282db2bd24003f679393a43f3f6237
+acceptance_plan: {}
+workflow:
+  architecture:
+    status: not_started
+    evidence: ../../../architecture-and-inference.md
+    last_verified: null
+    blocker: ''
+    verification: {}
+  environment:
+    status: not_started
+    evidence: environment/README.md
+    last_verified: null
+    blocker: ''
+    verification: {}
+  adaptation:
+    status: not_started
+    evidence: adaptation/README.md
+    last_verified: null
+    blocker: ''
+    verification: {}
+  acceptance:
+    status: not_started
+    evidence: acceptance/README.md
+    last_verified: null
+    blocker: ''
+    verification: {}
+    records: {}
+    substeps:
+      device: not_started
+      operators: not_started
+      model-eager: not_started
+      summary: not_started
+  retrospective:
+    status: not_started
+    evidence: acceptance/README.md
+    last_verified: null
+    blocker: ''
+    verification: {}
+control:
+  mode: agent
+  history:
+  - id: a70ba9304e594fbca2b8cb9112d9a720
+    at: '2026-10-12T08:04:34.092437+00:00'
+    operation: handoff
+    actor: agent/local-record-maintenance
+    note: 用户要求按最新流程整理模型记录；仅进行本地目录和契约维护，不操作远端或重启任务。
+  - id: 59a38f12758949f98d3cdeb085fcc2ac
+    at: '2026-10-12T08:04:34.191228+00:00'
+    operation: upgrade
+    actor: agent/local-record-maintenance
+    note: 显式采用当前 v2 契约；旧状态与回执保留在 control.history 和本地完整快照，不据此声明新验收通过。
+    previous_contract:
+      evidence_contract: null
+      profile_version: 2
+      profile_snapshot: null
+      profile_sha256: null
+    revalidate:
+    - architecture
+    - environment
+    - adaptation
+    - device
+    - operators
+    - model-eager
+    - summary
+    - acceptance
+    - retrospective
+    previous_status: not_started
+    retired_records:
+      architecture:
+        status: not_started
+        evidence: ../../../architecture-and-inference.md
+        last_verified: null
+        blocker: ''
+        verification: {}
+      environment:
+        status: not_started
+        evidence: environment/README.md
+        last_verified: null
+        blocker: ''
+        verification: {}
+      adaptation:
+        status: not_started
+        evidence: adaptation/README.md
+        last_verified: null
+        blocker: ''
+        verification: {}
+      device:
+        status: not_started
+        verification: {}
+      operators:
+        status: not_started
+        verification: {}
+      model-eager:
+        status: not_started
+        verification: {}
+      summary:
+        status: not_started
+        verification: {}
+      acceptance:
+        status: not_started
+        evidence: acceptance/README.md
+        last_verified: null
+        blocker: ''
+        verification: {}
+      retrospective:
+        status: not_started
+        evidence: acceptance/README.md
+        last_verified: null
+        blocker: ''
+        verification: {}
+  - id: 84b0f25f38d047b6b194e91423f7060e
+    at: '2026-10-12T08:04:34.298076+00:00'
+    operation: resume
+    actor: agent/local-record-maintenance
+    note: 本地契约整理完成；没有远端变更。未选择新的适配或评测，历史人工完成结论保持有效。
+    changes:
+    - none
+    observed_fields: []
+    changed_files: []
+  operator: agent/local-record-maintenance
+  note: 本地契约整理完成；没有远端变更。未选择新的适配或评测，历史人工完成结论保持有效。
+evidence_contract: 2
+profile_snapshot:
+  schema_version: 1
+  id: torch-fl
+  display_name: Torch-FL on PPU
+  profile_version: 3
+  status: experimental
+  platforms:
+  - ppu
+  components:
+  - role: framework_runtime
+    name: Torch-FL
+    required: true
+    mutation_policy: installed_product_code
+  - role: vendor_torch
+    name: PPU vendor PyTorch and libtorch
+    required: true
+    mutation_policy: read_only
+  - role: reference_torch
+    name: official CPU PyTorch
+    required: true
+    mutation_policy: read_only
+  - role: platform_runtime
+    name: PPU SDK, Driver and Runtime
+    required: true
+    mutation_policy: read_only
+  - role: model_implementation
+    name: model implementation and weights
+    required: true
+    mutation_policy: read_only
+  source_policy:
+    default: read_only
+    writable_roles:
+    - framework_runtime
+  execution_modes:
+    required:
+    - eager
+    acceptance_primary: eager
+  service:
+    protocols:
+    - python-api
+  acceptance:
+    steps:
+      device:
+        validator: checks
+        checks:
+        - flagos_available
+        - allocation
+        - cpu_transfer
+      operators:
+        validator: checks
+        checks:
+        - reference_numerics
+        - dispatch_route
+        - fallback_review
+      model-eager:
+        validator: checks
+        checks:
+        - model_inference
+        - reference_numerics
+      wheel:
+        validator: checks
+        optional: true
+        checks:
+        - wheel_contents
+        - abi
+        - rpath
+        - clean_environment
+        - library_resolution
+        - model_inference
+      summary:
+        validator: checks
+        checks:
+        - source_review
+        - limitations_recorded
+    accuracy_adapter: null
+    performance_adapter: null
+    prefix_caching:
+      non_performance: not_applicable
+      performance: unavailable
+      disable_mechanism: null
+  documents:
+    workflow: workflow.md
+    acceptance: acceptance.md
+profile_sha256: f07b500706567edc74170f84a295ff8a55e6fb843352382e36a27810d07de90d
+record_maintenance:
+  date: '2026-10-12'
+  scope: local-layout-and-contract-only
+  remote_verified: false
+  historical_snapshot: .local/adaptation-history/20261012-model-layout-080344/snapshot/models/Qwen-Image-2.1/ppu/frameworks/torch-fl/framework.yml
+  previous_status: not_started
+  project_completion_preserved: false
+  note: 当前阶段状态仅表示 v2 回执尚未重新建立；历史结果、失败与用户完成确认均保留。本次不安排远端复验。

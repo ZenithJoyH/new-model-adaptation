@@ -1,0 +1,13 @@
+---
+name: Qwen3.6-35B
+source:
+  modelscope_id: ""
+  huggingface_id: ""
+  revision: local-config-sha256:93a4693fa9d8392fbfccd4b3c9873f4bfdcb14fdede978b123d07d19675efe99
+architecture: Qwen3_5MoeForConditionalGeneration
+parameter_count: "35B（目录命名；尚未由权重张量逐项重算）"
+active_parameter_count: "3B（目录命名；尚未由权重张量逐项重算）"
+estimated_weight_size_gb: 71.903776768
+remote_weight_path: /data/Qwen3.6-35B-A3B-nomtp
+status: in_progress
+notes: "mx-104 本地快照；21 个 BF16 分片共 71903776768 bytes，模型上游 revision 未随目录提供。"

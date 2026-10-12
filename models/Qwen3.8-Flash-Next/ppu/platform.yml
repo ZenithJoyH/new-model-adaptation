@@ -1,0 +1,96 @@
+platform: ppu
+record_layout: compact
+inventory_group: ppu
+accelerator_query: ppu-smi
+target:
+  hosts:
+  - PPU-01
+  container_name: qwen3.8-flash
+  container_image: glm5.3-flash-ppu13-snapshot:20260904-215131@sha256:7755ef5656bd33703eb7c3c81fb6b2099b154284ba582488861f5ec99e3f7b30
+status: functional
+validated_hosts:
+- PPU-01
+engine: vllm
+engine_version: 0.24.0+empty
+container_image: glm5.3-flash-ppu13-snapshot:20260904-215131@sha256:7755ef5656bd33703eb7c3c81fb6b2099b154284ba582488861f5ec99e3f7b30
+last_verified: '2026-09-18'
+blocker: ''
+workspace:
+  roots:
+  - host_alias: PPU-01
+    host_root: /mnt/nfs/users/jinghao/qwen3.8-flash
+    container_root: /mnt/nfs/users/jinghao/qwen3.8-flash
+workflow:
+  architecture:
+    verification:
+      run_id: architecture-review-20260906-maxlen65536
+      last_verified: '2026-09-06'
+      evidence: ../architecture-and-inference.md
+      evidence_sha256: a2a4a85b46e119a97c90d2dfb0c704186394336cd9fdd765aca02ec58ddcc6c0
+      context_sha256: ec23db60e35c7a531a7d9ef8180ebb57062b21e6fa4fd63bc8aa702dd38782cc
+    status: complete
+    evidence: ../architecture-and-inference.md
+    last_verified: '2026-09-04'
+    blocker: ''
+  environment:
+    verification:
+      run_id: environment-revalidation-20260910-day0
+      last_verified: '2026-09-10'
+      evidence: environment/environment-analysis.md
+      evidence_sha256: 92e099ac3bcea20d34406134d81703bc6221710c6f49678c89d4724fa306ea28
+      context_sha256: a55c406cec3749c5773b4b48abf8b9a303a6ba55721988b4dea022b143b522b1
+    status: complete
+    evidence: environment/environment-analysis.md
+    last_verified: '2026-09-10'
+    blocker: ''
+  adaptation:
+    verification:
+      run_id: adaptation-7ba32ded-ppu-regression-20260911
+      last_verified: '2026-09-11'
+      evidence: adaptation/006-flaggems-qwen38-operator-ownership.md
+      evidence_sha256: b63a16664abe92a25ad0095dd1b34259493b0c4b333ce2bb4b710ca8f70d6057
+      context_sha256: c64d516fb81506f1782b028cceb0fd2427defe9022eb7a47a163447a65da6d73
+    status: complete
+    evidence: adaptation/006-flaggems-qwen38-operator-ownership.md
+    last_verified: '2026-09-11'
+    blocker: ''
+  acceptance:
+    records:
+      execution-mode:
+        run_id: execution-mode-graph-7ba32ded-20260911
+        last_verified: '2026-09-11'
+        evidence: acceptance/execution-mode.md
+        evidence_sha256: 98cf4561c3417d062bd8c053570e6ce83c26290896cfe0862c20fc4b33cdf279
+        context_sha256: 18679ec9bbe641a0f3cc72b879e05149e123dc750568744e06dfacb2c7c90e03
+        service_instance_id: PPU-01:806fa222e7bf:1675285:181054759
+      sanity:
+        run_id: sanity-graph-c8-7ba32ded-20260911
+        last_verified: '2026-09-11'
+        evidence: acceptance/sanity.md
+        evidence_sha256: fdc2d658b1a3f6c99b56a272a65a4073024b92d78e8f84837c89b8b55f55aa25
+        context_sha256: 79a05e751bb9ccb38e267f4cba1db67703c2750041938100a12c85d26b0cbbfc
+        service_instance_id: PPU-01:806fa222e7bf:1675285:181054759
+      accuracy:
+        run_id: gpqa-full-c64-maxgen60000-index-put-int64-auto-capture-dual-20260918-v1
+        last_verified: '2026-09-18'
+        evidence: acceptance/gpqa-c64-auto-capture-dual-20260918.md
+        evidence_sha256: 5e50262d4e57c4ff646d9ed7e504ac8433e9d57c1d787b01987e6a3baf9a255a
+        context_sha256: 1e5c8d98934fe67efc023e8f40365712f138e8918fd190f578d9f449e7300a34
+    verification: {}
+    status: in_progress
+    evidence: acceptance/adaptation-summary.md
+    last_verified: '2026-09-18'
+    blocker: 'Accuracy failed: GPQA strict 170/198 (85.86%) is below 88%; 7 complete HTTP 200 responses reached the 60000-token generation cap and remain incorrect.'
+    substeps:
+      execution-mode: passed
+      sanity: passed
+      accuracy: failed
+      performance: not_started
+      evidence: not_started
+      summary: not_started
+  retrospective:
+    verification: {}
+    status: not_started
+    evidence: acceptance/adaptation-retrospective.md
+    last_verified: null
+    blocker: ''

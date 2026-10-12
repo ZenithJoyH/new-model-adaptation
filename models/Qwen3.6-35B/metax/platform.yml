@@ -1,0 +1,75 @@
+platform: metax
+record_layout: compact
+inventory_group: metax
+accelerator_query: mx-smi
+target:
+  hosts:
+  - mx-104
+  container_name: qwen3.6-35B
+  container_image: harbor.baai.ac.cn/flagrelease-public/qwen36-35b-a3b-metax001-gems5.0.2-tree0.5.1-cxnone-plugin0.2.0-vllm0.20.2-cp312-pt28-maca37-x64-3.8.1:202607280210@sha256:26050e208e6b5ca684a9e9daee9f0b41f6730a8df44438a133b492b75f84b0a8
+status: environment_ready
+validated_hosts:
+- mx-104
+engine: vllm
+engine_version: 0.20.2+empty
+container_image: harbor.baai.ac.cn/flagrelease-public/qwen36-35b-a3b-metax001-gems5.0.2-tree0.5.1-cxnone-plugin0.2.0-vllm0.20.2-cp312-pt28-maca37-x64-3.8.1:202607280210@sha256:26050e208e6b5ca684a9e9daee9f0b41f6730a8df44438a133b492b75f84b0a8
+last_verified: '2026-09-17'
+blocker: ''
+workspace:
+  roots:
+  - host_alias: mx-104
+    host_root: /data/jinghao/qwen3.6
+    container_root: /data/jinghao/qwen3.6
+workflow:
+  architecture:
+    status: complete
+    evidence: ../architecture-and-inference.md
+    last_verified: '2026-09-16'
+    blocker: ''
+    verification:
+      run_id: architecture-qwen36-local-config-20260916
+      last_verified: '2026-09-16'
+      evidence: ../architecture-and-inference.md
+      evidence_sha256: f8c2c661acbf1751581b93d3146ca988ced603f1852b17a549fe71e20b82682b
+      context_sha256: 55d8aec5e756cabe56ec1b20795389262a1274f133a7484a95ab885a3ab78afd
+  environment:
+    status: complete
+    evidence: environment/environment-analysis.md
+    last_verified: '2026-09-16'
+    blocker: ''
+    verification:
+      run_id: environment-mx104-qwen36-20260917
+      last_verified: '2026-09-17'
+      evidence: environment/environment-analysis.md
+      evidence_sha256: 2702efdf07afe9bbc4c32215cad3176c0ea8df7c31bb312b2ea4a19ab77ed7b0
+      context_sha256: f817b7790543df136ed815cd1a0c3d0a0805f3b5cb8461d8b2b9dd65b98bd553
+  adaptation:
+    status: in_progress
+    evidence: adaptation/001-flaggems-vllm-gdn-fused-moe.md
+    last_verified: '2026-09-17'
+    blocker: 整模 eager/graph 尚未执行；FlagGems-vLLM fast-forward 同步受网络错误阻断
+    verification: {}
+  acceptance:
+    status: not_started
+    evidence: acceptance/adaptation-summary.md
+    last_verified: null
+    blocker: ''
+    verification: {}
+    records: {}
+    substeps:
+      execution-mode: not_started
+      sanity: not_started
+      accuracy: not_started
+      performance: not_started
+      evidence: not_started
+      summary: not_started
+  retrospective:
+    status: not_started
+    evidence: acceptance/adaptation-retrospective.md
+    last_verified: null
+    blocker: ''
+    verification: {}
+frameworks:
+  vllm-plugin-fl:
+    workspace: frameworks/vllm-plugin-fl/framework.yml
+    profile: framework-profiles/vllm-plugin-fl/profile.yml
