@@ -1,0 +1,295 @@
+schema_version: 1
+model: DeepSeek-V4.1-Flash
+platform: nvidia
+framework: vllm-plugin-fl
+profile: framework-profiles/vllm-plugin-fl/profile.yml
+profile_version: 7
+status: blocked
+validated_hosts: []
+container_image: sha256:956bf9360f00d835c0b054c50ffc7f455f72972ccb7302f7c952afb3274385b7
+last_verified: '2026-09-24'
+blocker: '人工变更后待复核: architecture, environment, adaptation, execution-mode, sanity,
+  accuracy, performance, evidence, summary, acceptance, retrospective'
+target:
+  hosts:
+  - H100-149
+  container_name: deepseek-v41-plugin-adapt-20260923
+workspace:
+  roots:
+  - host_alias: H100-149
+    host_root: /public/flagos/jinghao/deepseekV4.1
+    container_root: /public/flagos/jinghao/deepseekV4.1
+deployment:
+  fingerprint: 4735a45242e9e7fa9d4da70717aaabb8fbc5faf90da8d920f824b59efb83db2e
+acceptance_plan: {}
+workflow:
+  architecture:
+    status: not_started
+    evidence: ../../../architecture-and-inference.md
+    last_verified: null
+    blocker: '人工变更后待复核: 35cc592e7457403b9cb9508884c5c94a'
+    verification: {}
+  environment:
+    status: not_started
+    evidence: environment/README.md
+    last_verified: null
+    blocker: '人工变更后待复核: 35cc592e7457403b9cb9508884c5c94a'
+    verification: {}
+  adaptation:
+    status: not_started
+    evidence: adaptation/README.md
+    last_verified: null
+    blocker: '人工变更后待复核: 35cc592e7457403b9cb9508884c5c94a'
+    verification: {}
+  acceptance:
+    status: not_started
+    evidence: acceptance/README.md
+    last_verified: null
+    blocker: '人工变更后待复核: 35cc592e7457403b9cb9508884c5c94a'
+    verification: {}
+    records: {}
+    substeps:
+      execution-mode: not_started
+      sanity: not_started
+      accuracy: not_started
+      performance: not_started
+      evidence: not_started
+      summary: not_started
+  retrospective:
+    status: not_started
+    evidence: acceptance/README.md
+    last_verified: null
+    blocker: '人工变更后待复核: 35cc592e7457403b9cb9508884c5c94a'
+    verification: {}
+control:
+  mode: agent
+  history:
+  - id: a6f11cf00c904fa4adee141971e0cda0
+    at: '2026-10-12T08:04:30.620819+00:00'
+    operation: handoff
+    actor: agent/local-record-maintenance
+    note: 用户要求按最新流程整理模型记录；仅进行本地目录和契约维护，不操作远端或重启任务。
+  - id: 35cc592e7457403b9cb9508884c5c94a
+    at: '2026-10-12T08:04:30.715870+00:00'
+    operation: upgrade
+    actor: agent/local-record-maintenance
+    note: 显式采用当前 v2 契约；旧状态与回执保留在 control.history 和本地完整快照，不据此声明新验收通过。
+    previous_contract:
+      evidence_contract: null
+      profile_version: 4
+      profile_snapshot: null
+      profile_sha256: null
+    revalidate:
+    - architecture
+    - environment
+    - adaptation
+    - execution-mode
+    - sanity
+    - accuracy
+    - performance
+    - evidence
+    - summary
+    - acceptance
+    - retrospective
+    previous_status: model_loading
+    retired_records:
+      architecture:
+        status: passed
+        evidence: ../../../architecture-and-inference.md
+        last_verified: '2026-09-24'
+        blocker: ''
+        verification:
+          run_id: arch-h100149-v41-qnorm-20260924
+          last_verified: '2026-09-24'
+          evidence: ../../../architecture-and-inference.md
+          evidence_sha256: 57f867c381cb01775406464dc9b4a71205c1dc90930795a236e44c785a33de3a
+          context_sha256: 96f83f7de4dffb30287a077b6f91479c76c04af0b616df363b89fbf0b50d7815
+      environment:
+        status: passed
+        evidence: environment/README.md
+        last_verified: '2026-09-24'
+        blocker: ''
+        verification:
+          run_id: env-h100149-plugin-20260924-r2
+          last_verified: '2026-09-24'
+          evidence: environment/README.md
+          evidence_sha256: b35dd03a8580ddbfb2e725e649d1aa4a640408dcb190f3574f5025d6edb200c3
+          context_sha256: 93817c7e83f6ae990cc48939b25d819b8e7047056c5d3415aa19d04c7316a5ee
+          receipts:
+          - host_alias: H100-149
+            path: 04-runs/env-h100149-plugin-20260924-r2/framework-check.json
+            sha256: d42d28f77084d14feb3e6277d7abb117b3d478a70932ad0b0a4b24cc1b39dc40
+      adaptation:
+        status: in_progress
+        evidence: adaptation/README.md
+        last_verified: null
+        blocker: The verified H100/FP8 SWA Q normalization mismatch is fixed in Plugin.
+          Eight 2048-token and eight 18K TP8 eager prompts pass, along with one 17,037-token
+          varied prompt. Requested FULL graph is downgraded by the locked indexer
+          backend; a fresh 18K FULL_DECODE_ONLY service is loading after the previous
+          2048-token service captured decode FULL graphs but left no inference receipt.
+          Vision and concurrency remain unverified. See adaptation issues 012, 026,
+          027, 028 and 029.
+        verification: {}
+      execution-mode:
+        status: not_started
+        verification: {}
+      sanity:
+        status: not_started
+        verification: {}
+      accuracy:
+        status: not_started
+        verification: {}
+      performance:
+        status: not_started
+        verification: {}
+      evidence:
+        status: not_started
+        verification: {}
+      summary:
+        status: not_started
+        verification: {}
+      acceptance:
+        status: not_started
+        evidence: acceptance/README.md
+        last_verified: null
+        blocker: ''
+        verification: {}
+      retrospective:
+        status: not_started
+        evidence: acceptance/README.md
+        last_verified: null
+        blocker: ''
+        verification: {}
+  - id: fe2f01ba53134b2a8762e9b709235ac0
+    at: '2026-10-12T08:04:30.870393+00:00'
+    operation: resume
+    actor: agent/local-record-maintenance
+    note: 本地契约整理完成；没有远端变更。未选择新的适配或评测，历史人工完成结论保持有效。
+    changes:
+    - none
+    observed_fields: []
+    changed_files: []
+  operator: agent/local-record-maintenance
+  note: 本地契约整理完成；没有远端变更。未选择新的适配或评测，历史人工完成结论保持有效。
+evidence_contract: 2
+profile_snapshot:
+  schema_version: 1
+  id: vllm-plugin-fl
+  display_name: vLLM + vllm-plugin-FL + FlagGems
+  profile_version: 7
+  status: active
+  platforms:
+  - nvidia
+  - ppu
+  - metax
+  - ascend
+  - mthreads
+  - hygon
+  components:
+  - role: inference_engine
+    name: vllm
+    required: true
+    mutation_policy: read_only
+  - role: platform_adapter
+    name: vllm-plugin-FL
+    required: true
+    mutation_policy: installed_product_code
+  - role: kernel_library
+    name: FlagGems
+    required: true
+    mutation_policy: installed_product_code
+  - role: vllm_kernel_library
+    name: FlagGems-vllm
+    required: false
+    mutation_policy: installed_product_code
+  source_policy:
+    default: read_only
+    writable_roles:
+    - platform_adapter
+    - kernel_library
+    - vllm_kernel_library
+  execution_modes:
+    required:
+    - eager
+    - graph
+    acceptance_primary: graph
+    graph_policy:
+      preference_order:
+      - full
+      - full-and-piecewise
+      - decode-full
+      - piecewise
+      minimum: piecewise
+      level_checks:
+        full:
+        - full_graph
+        full-and-piecewise:
+        - full_and_piecewise_graph
+        decode-full:
+        - decode_full_graph
+        piecewise:
+        - piecewise_graph
+  service:
+    protocols:
+    - openai-chat
+    - openai-completions
+  acceptance:
+    steps:
+      execution-mode:
+        validator: checks
+        checks:
+        - eager
+        - graph
+        - model_inference
+      sanity:
+        validator: checks
+        checks:
+        - reference_consistency
+        - output_health
+        - performance_sanity
+      accuracy:
+        validator: flageval
+        checks:
+        - service_identity
+        - dataset_provenance
+      performance:
+        validator: vllm-performance
+        checks:
+        - service_identity
+        - accuracy_to_performance_transition
+      evidence:
+        validator: checks
+        checks:
+        - source_review
+        - vllm_unchanged
+        - artifacts_complete
+      summary:
+        validator: checks
+        checks:
+        - launcher_syntax
+        - launcher_readiness
+        - launcher_minimal
+        - launcher_self_contained
+        - installed_component_imports
+        - normal_cache_restored
+    accuracy_adapter: flageval-openai
+    performance_adapter: vllm-bench-serve
+    prefix_caching:
+      non_performance: enabled
+      performance: disabled
+      disable_mechanism: --no-enable-prefix-caching
+  documents:
+    workflow: workflow.md
+    acceptance: acceptance.md
+    detailed_workflow: detailed-workflow.md
+    detailed_workflow_zh: detailed-workflow.zh-CN.md
+profile_sha256: a3795bad2fda5fe53c0e684f7b0d4c88acc78b268ebabad59123d6e3db3e650c
+record_maintenance:
+  date: '2026-10-12'
+  scope: local-layout-and-contract-only
+  remote_verified: false
+  historical_snapshot: .local/adaptation-history/20261012-model-layout-080344/snapshot/models/DeepSeek-V4.1-Flash/nvidia/frameworks/vllm-plugin-fl/framework.yml
+  previous_status: model_loading
+  project_completion_preserved: false
+  note: 当前阶段状态仅表示 v2 回执尚未重新建立；历史结果、失败与用户完成确认均保留。本次不安排远端复验。

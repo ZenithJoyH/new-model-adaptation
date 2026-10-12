@@ -1,0 +1,13 @@
+---
+name: "DeepSeek-V4-Flash"
+source:
+  modelscope_id: ""
+  huggingface_id: ""
+  revision: "config.json SHA-256 50807d6ad0bb7f21bd203f6c6e9b7fffc865d2b9a82e9e60042f4e61f249a966；未声明上游权重 Git revision"
+architecture: "DeepseekV4ForCausalLM"
+parameter_count: ""
+active_parameter_count: ""
+estimated_weight_size_gb: null
+remote_weight_path: "/public-flash/models/DeepSeek-V4-Flash-Quant-W-INT8-PerChannel-A-INT8-PerToken"
+status: in_progress
+notes: "2026-09-22 mx-59/deepseek 的 PR 427 适配已通过 eager 与 decode FULL graph 最小真实请求；标准 torch.compile 仍有语义错误，使用 mode=NONE 的受控规避。目标是 V4 而非 V4.1；不声明正式架构、精度、性能或完整验收完成。"

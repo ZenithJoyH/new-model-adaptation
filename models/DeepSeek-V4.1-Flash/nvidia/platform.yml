@@ -1,0 +1,72 @@
+platform: nvidia
+record_layout: compact
+inventory_group: nvidia
+accelerator_query: nvidia-smi
+target:
+  hosts:
+  - H100-149
+  container_name: deepseekV4.1-flash-native-driverfix
+  container_image: sha256:7d0be028059e116ba2f0d00425d45f96e268f4c6f9faaa5c2879f52a6cedbfed
+workspace:
+  roots:
+  - host_alias: H100-149
+    host_root: /public/flagos/jinghao/deepseekV4.1
+    container_root: /public/flagos/jinghao/deepseekV4.1
+status: functional
+validated_hosts:
+- H100-149
+engine: vLLM
+engine_version: 0.1.dev20904+g179dd0fa9.cu129
+container_image: sha256:7d0be028059e116ba2f0d00425d45f96e268f4c6f9faaa5c2879f52a6cedbfed
+last_verified: '2026-09-23'
+blocker: GPQA accuracy passed at 176/198 (88.89%) against the frozen 88% threshold;
+  execution-mode and sanity receipts are not bound, and performance/full acceptance
+  remain incomplete.
+workflow:
+  architecture:
+    status: not_started
+    evidence: ../architecture-and-inference.md
+    last_verified: null
+    blocker: ''
+    verification: {}
+  environment:
+    status: not_started
+    evidence: environment/environment-analysis.md
+    last_verified: null
+    blocker: ''
+    verification: {}
+  adaptation:
+    status: in_progress
+    evidence: adaptation/README.md
+    last_verified: '2026-09-23'
+    blocker: The source issue and minimal inference are resolved, but the legacy platform
+      workflow cannot pass adaptation until architecture and environment prerequisites
+      are formally completed and bound.
+    verification: {}
+  acceptance:
+    status: in_progress
+    evidence: acceptance/gpqa-c64-20260923.md
+    last_verified: '2026-09-23'
+    blocker: GPQA Diamond c64 with model-reference sampling and max_gen_toks=45000
+      passed at 176/198 (88.89%) against 88%; 6 truncated samples remain counted as
+      incorrect. The legacy compact workspace still lacks bound execution-mode and
+      sanity prerequisites, so full acceptance is incomplete.
+    verification: {}
+    records: {}
+    substeps:
+      execution-mode: not_started
+      sanity: not_started
+      accuracy: passed
+      performance: not_started
+      evidence: not_started
+      summary: not_started
+  retrospective:
+    status: not_started
+    evidence: acceptance/adaptation-retrospective.md
+    last_verified: null
+    blocker: ''
+    verification: {}
+frameworks:
+  vllm-plugin-fl:
+    workspace: frameworks/vllm-plugin-fl/framework.yml
+    profile: framework-profiles/vllm-plugin-fl/profile.yml

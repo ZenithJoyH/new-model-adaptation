@@ -1,0 +1,13 @@
+---
+name: "DeepSeek-V4.1-Flash"
+source:
+  modelscope_id: ""
+  huggingface_id: "deepseek-ai/DeepSeek-V4.1-Flash"
+  revision: "远端目录无可核实 Git revision；以 config sha256 8be45ce0476004a3f529fd896115a4a2e800a129ad2d3ec05b16050f52e21879 和 index sha256 74b0686a3d2891980d5e303251b075a3bccae2c2ff650747db2620a649b98fa8 标识"
+architecture: "DeepseekV41ForCausalLM（CED + CSA2 + MoE + mHC + Engram + DSpark + DeepSeek-ViT）"
+parameter_count: "约 763.205B 全部逻辑参数；其中约 552B 主干、196.929B Engram、14.225B DSpark/MTP、0.485B 视觉与对齐组件"
+active_parameter_count: "prefill 约 8B/token，decode 约 16B/token（官方声明；尚未在 H100-145 运行时验证）"
+estimated_weight_size_gb: 475.251
+remote_weight_path: "/public/models/DeepSeek-V4.1-Flash"
+status: in_progress
+notes: "2026-09-15 仅完成 H100-145 上远端快照的只读静态架构分析；未启动模型、未验证 vLLM 兼容性、eager/graph、精度或性能。"

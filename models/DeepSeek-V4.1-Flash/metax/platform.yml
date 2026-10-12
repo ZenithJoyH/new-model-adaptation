@@ -1,0 +1,56 @@
+---
+platform: metax
+inventory_group: metax
+accelerator_query: mx-smi
+target:
+  hosts: []
+  container_name: ""
+  container_image: ""
+workspace:
+  roots: []
+status: not_started
+validated_hosts: []
+engine: ""
+engine_version: ""
+container_image: ""
+last_verified: null
+blocker: "历史 MetaX 问题 001—004 实为 V4，非 V4.1；目标映射已更正至 DeepSeek-V4-Flash/metax/frameworks/vllm-plugin-fl，本模型未验证。"
+workflow:
+  architecture:
+    status: not_started
+    evidence: ../architecture-and-inference.md
+    last_verified: null
+    blocker: ""
+    verification: {}
+  environment:
+    status: not_started
+    evidence: environment/environment-analysis.md
+    last_verified: null
+    blocker: ""
+    verification: {}
+  adaptation:
+    status: not_started
+    evidence: adaptation/README.md
+    last_verified: null
+    blocker: ""
+    verification: {}
+  acceptance:
+    status: not_started
+    evidence: acceptance/adaptation-summary.md
+    last_verified: null
+    blocker: ""
+    verification: {}
+    records: {}
+    substeps:
+      execution-mode: not_started
+      sanity: not_started
+      accuracy: not_started
+      performance: not_started
+      evidence: not_started
+      summary: not_started
+  retrospective:
+    status: not_started
+    evidence: acceptance/adaptation-retrospective.md
+    last_verified: null
+    blocker: ""
+    verification: {}
