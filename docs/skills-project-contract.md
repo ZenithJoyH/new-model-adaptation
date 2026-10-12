@@ -38,7 +38,7 @@ FlagGems、启动参数和执行模式必须来自当前远端取证以及当前
 先读取 profile：以下服务精度/性能映射适用于 vllm-plugin-fl，Torch-FL experimental 使用
 device/operators/model-eager/可选 wheel，不要求 FlagEval、graph 或并发请求。
 
-调用方明确选择操作并冻结完整 Skill bundle 哈希及所用配置。项目的 10 并发、超时计失败、
+调用方明确选择操作并冻结完整 Skill bundle 哈希及所用配置。项目的容量验证、超时计失败、
 性能关闭缓存和原生证据规则由本契约及 runner 维护，不因 Hub 同名能力更新而改变。
 入口路径沿用现有目录；机器调用用项目能力 ID，不能以目录同名推断接口兼容。
 恢复与执行前后校验见 [执行记录](agent-execution.md)。
@@ -51,19 +51,21 @@ minimal-regression 由框架定向测试承担，只有提供固定案例集时�
 ## 精度评测映射
 
 - 方法：本节、项目本地精度入口及 `test/Accuracy_test/` 的原生执行/验证工具。
-- `service-sanity`：在已经通过执行模式验收的最终选定 graph 服务上使用 10 个固定 GPQA 类问题，
-  并发 10；逐题正确性、输出健康和明显性能异常按本节项目规则检查。固定题目 manifest、请求脚本
-  和原始结果放在远端 `<host_root>/03-acceptance/` 与 `<host_root>/04-runs/<run_id>/`。
-  当前仓库没有独立维护的通用 sanity runner；未提供已核实 manifest 和入口时返回
-  `incomplete`，不得临时在本地模型目录造脚本。
+- `service-sanity`：在已通过执行模式验收的最终 graph 服务上，冻结符合模型能力的代表性请求、
+  参考输出和经容量验证的正整数并发。v2 使用 `test/Accuracy_test/sanity.py`，默认只离线
+  校验，显式 `--run` 才发送请求；当前支持文本/多模态 chat 请求的完整文本对比。
+  原生 manifest、结果与服务绑定见 [v2 契约](evidence-contract-v2.md)。原始结果放在
+  远端 `<host_root>/04-runs/<run_id>/`；未提供已核实参考或不适用该 runner 时为
+  `incomplete`。历史 v1 的十并发规则保持原记录，不套用于新 v2 工作区。
 - `formal-full` evaluator：目标机器上基于
   `harbor.baai.ac.cn/flageval/flageval-llmeval:v1` 或已核实的适用 arm64 镜像的评测容器。
 - `formal-full` runner：`test/Accuracy_test/llmrun.py`。在容器内保持该文件与
   `acceptance_contract.py`、`score_progress.py` 同目录，先执行
   `python3 llmrun.py <frozen-config> --preflight-only`，再使用同一配置执行
   `python3 llmrun.py <frozen-config>`。
-- 正式配置映射：使用 execution-mode 回执绑定的最终 graph 模式、`limit=0`、并发至少 32、
-  `allow_timeouts=true`，每个任务的
+- 正式配置映射：使用 execution-mode 回执绑定的最终 graph 模式、`limit=0`、
+  `allow_timeouts=true`。v2 指定 `formal_contract_version: 2`、正整数并发、
+  `concurrency_reason` 和 `service_binding`，按实际容量选择并发；历史 v1 仍要求至少 32。每个任务的
   metric/minimum 和完整样本数在运行前冻结。单 task 的 `expected_samples` 可为正整数；多
   task 必须为键集合与 `tasks` 完全一致的正整数映射。可用 `datasets` 为每个 task 配置
   `path`/`name`/`split` 并在 FlagEval 容器内预检；FlagEval 自带或 `include_path` 提供的 task
@@ -88,7 +90,7 @@ minimal-regression 由框架定向测试承担，只有提供固定案例集时�
 
 ## 性能评测映射
 
-- 先读取当前 `framework.yml` 引用的 profile；profile 的
+- 先读取当前 `framework.yml` 的固定 profile 快照（v1 使用引用文件）；profile 的
   `acceptance.performance_adapter` 决定可使用的正式 runner。旧直接平台记录按
   `vllm-plugin-fl` 处理。不得仅因某个 CLI 已安装就跨 profile 选择 runner。
 - 方法：本节、项目本地性能入口及 `test/perf_test/` 的原生执行/验证工具。
@@ -100,6 +102,9 @@ minimal-regression 由框架定向测试承担，只有提供固定案例集时�
 - `full-suite`：把版本化完整场景 manifest 中每项映射为重复的 `--case`；不得静默遗漏。
   `--model`、`--tokenizer`、`--max-model-len`、Host、端口和 endpoint 来自当前服务取证，且
   每个 `INPUT+OUTPUT` 不超过当前上下文预算。
+- v2 在运行前冻结 `acceptance_plan.performance_targets`，逐场景声明延迟/吞吐等目标；
+  相对目标必须提供完整可核验 baseline。报告有效且全部目标达标才通过，不能只凭正常退出
+  标记 `optimized`。具体格式见 [v2 契约](evidence-contract-v2.md)。
 - 测量与验证：按冻结配置及原生 runner 执行显式预热、多轮无 profiler 测量、请求/token/指标校验；项目
   原生报告为 `benchmark-result.json`，使用 `perf_common.validate_report` 完整校验。
 - 正式回执：在完整远端报告旁执行
@@ -131,8 +136,9 @@ minimal-regression 由框架定向测试承担，只有提供固定案例集时�
 
 ## 产物与生命周期
 
-完整日志、样本、JSON、CSV、Trace 和缓存留在批准的远端工作根。本地仓库只保存精简、可读
-且可复核的 Markdown 记录。服务停止/重启、容器保护、源码边界和需确认操作继续遵守
+完整日志、样本、结果 JSON/CSV、Trace 和缓存留在批准的远端工作根。本地模型目录只保存
+精简、可读且可复核的 Markdown 记录。经脱敏且可复用的小型交付配置、补丁及恢复说明可放在
+独立 `deliveries/`，按 [v2 交付契约](evidence-contract-v2.md) 管理。服务停止/重启、容器保护、源码边界和需确认操作继续遵守
 `AGENTS.md`；公共 Skill 不扩大授权。
 
 新工作区的绑定及完整原生产物校验见 [框架证据契约](framework-evidence.md)。legacy 快照

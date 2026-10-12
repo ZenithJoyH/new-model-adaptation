@@ -4,7 +4,7 @@
     {
       "id": "formal_accuracy_gate",
       "prompt": "对 Hy4-preview 在 PPU-07 上已经跑通的 graph 服务做正式全量精度验收。",
-      "expected_behavior": "Select formal-full, require execution-mode and 10-concurrency sanity evidence, use the canonical FlagEval llmrun.py flow at concurrency >=32, and refuse a formal claim without a valid acceptance-result.json bound to the current service."
+      "expected_behavior": "Select formal-full, require execution-mode and model-appropriate frozen sanity evidence, and use canonical FlagEval llmrun.py. For v2 require capacity-based positive concurrency, concurrency_reason and native service_binding; retain >=32 for historical v1. Refuse a formal claim without complete valid acceptance-result.json and current-service evidence."
     },
     {
       "id": "minimal_dispatch_regression",

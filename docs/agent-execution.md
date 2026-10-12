@@ -21,9 +21,9 @@
 
 调用方准备 JSON spec，下方给出本项目示例。所有路径必须换成已核实且批准的绝对路径；
 不要把示例路径直接作为生产目标。`context_files` 只列本轮冻结输入，不列会持续增长的日志。
-工具另外冻结自身、校验器源码及相关项目规则，包括 `AGENTS.md`、拆分后的英文
-`docs/adaptation-policy.md`、`docs/remote-operations.md` 和项目内远程操作 Skill。
-Skill/规则/配置/校验代码发生变化后返回复查要求，
+工具另外冻结自身、参与验证的控制代码、精度/性能实现以及所选 Skill bundle。
+文档措辞和未选 profile 不参与新 journal 的源码指纹；结构化 profile 和运行计划单独绑定。
+所选 Skill、配置或校验代码发生变化后返回复查要求，
 不能通过改写旧哈希继续声称是同一轮。
 
 ```sh
@@ -75,8 +75,10 @@ legacy 直接平台布局、sanity/hard-case、Torch-FL 实验子步骤尚未接
 继续使用原工作流，不能用其他阶段的通过来代替。框架不支持该子步骤时由原生检查拒绝。
 
 本轮工作完成后，调用方按既有规则先完成真实业务记录及 receipt 绑定，再调用 `finish` 复核；
-journal 自己不写 `framework.yml`。不要把该可变文件放在 begin 的 context_files：finish 时会冻结
-它作为完成记录，之后该文件任何改动都会让旧 journal 需要复查。冻结的运行配置和请求 manifest
+journal 自己不写 `framework.yml`。不要把该可变文件放在 begin 的 context_files：finish 仅冻结
+本轮阶段的状态、verification 和实际回执；后续正常推进其他阶段不使旧 journal 失效。
+人工接管时 begin/check/finish 暂停推进；交回后重新核对，操作见[人工协作](human-collaboration.md)。
+冻结的运行配置和请求 manifest
 放 context_files；精度必须包含回执实际引用的 config；性能必须包含实际 runtime 和
 与 `acceptance_plan.performance_request_sha256` 一致的完整 request manifest。`begin` 另外冻结
 当时的 profile、target、workspace、deployment 和 acceptance plan，但允许后续正常写入工作流状态与回执。`finish`

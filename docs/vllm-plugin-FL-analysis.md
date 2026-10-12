@@ -343,7 +343,7 @@ debug 模式会校验 replay 时输入地址是否与 capture 一致。代码位
 5. 最小模型 eager 与 graph 跑通；
 6. 使用模型真实最大上下文规则生成服务配置：模型支持长度大于 50000 时先用 50000，
    否则使用模型最大支持长度；
-7. graph 模式 10 并发小批量精度与性能预检；
+7. graph 模式按冻结并发做小批量精度与性能预检；
 8. graph 模式正式精度评测；
 9. 精度通过后进行 graph 模式正式性能验收。
 
@@ -471,7 +471,7 @@ kernel、import-time symbol wrapper、正式 dispatch/OOT 扩展，或升级不�
 - [ ] 不存在 capture-time host sync、动态分配或数据依赖主机控制流；
 - [ ] shape、stride、地址、workspace、zero-token 和边界 batch 已覆盖；
 - [ ] TP/PP/DP/EP、KV-cache 和 collective 的 graph 行为已验证；
-- [ ] 后续 10 并发、正式精度、性能验收和最终启动脚本均绑定逐 Host 最终验证的 graph 模式。
+- [ ] 后续小批量预检、正式精度、性能验收和最终启动脚本均绑定逐 Host 最终验证的 graph 模式。
 
 ### 记录与可复现性
 

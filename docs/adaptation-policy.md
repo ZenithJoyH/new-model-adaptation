@@ -74,6 +74,26 @@ write remotely.
   inputs, date, purpose, and verified result. Preserve the minimum needed evidence
   before remote temporary cleanup.
 
+### Contract versions, handoff and reproducible delivery
+
+New workspaces pin a profile snapshot under [evidence contract v2](evidence-contract-v2.md).
+Changes to prose or the current profile file do not silently upgrade an existing workspace.
+Use explicit `workspace-control upgrade` while under human control; retain old receipts
+and revalidate affected stages. Legacy phase 2–5 creation is disabled; read-only
+legacy checks remain available.
+
+[Human collaboration](human-collaboration.md) applies at every phase. Handoff records
+ownership, identity and current processes without stopping them. On return, verify the
+change description and original evidence, adopt valid new human receipts using the same
+validators, and invalidate only affected stages and their dependencies.
+
+A small, sanitized reproducible delivery may be versioned separately under
+`deliveries/<model>/<platform>/<framework>/`: launcher, configuration, source patch or
+source reference, dependency lock and restoration instructions. This exception does
+not permit weights, credentials, raw logs, results or process scratch files in the
+repository. Record file hashes and actual image validation state. A pending image
+check is not a packaging pass. Commit/push still requires a user request.
+
 ### Status and completion
 
 - Establish correctness and performance baselines before optimization; change

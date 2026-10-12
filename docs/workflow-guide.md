@@ -135,10 +135,10 @@ models/<model>/<platform>/
 1. `execution-mode`：跑通 profile 声明的全部必需执行模式；`vllm-plugin-fl` 为 `eager` 与
    `graph`。按 `full` → `full-and-piecewise` → `decode-full` → `piecewise` 尝试，每级记录
    定位/修复尝试及未解决阻塞后才回退一级；回执记录实际 `graph_level` 和逐级证据。
-2. `sanity`：基于 profile 的验收主模式做 10 并发小批量正确性与性能预检；
+2. `sanity`：基于 profile 的验收主模式按冻结案例与容量选择并发，做小批量正确性与性能预检；
    `vllm-plugin-fl` 的主模式为 `graph`，并沿用该 Host 在第 1 项验收的最终图模式。
 3. `accuracy`：预检正常后，在规定 FlagEval 容器中用
-   `test/Accuracy_test/llmrun.py` 进行至少 32 并发正式精度评测。有效完整结果中的各项
+   `test/Accuracy_test/llmrun.py` 进行正式精度评测（v2 冻结容量依据和并发；历史 v1 至少 32）。有效完整结果中的各项
    冻结指标达到配置阈值即可完成该子步骤；指标无需为 `1.0`，个别题目答错不等于正式
    精度失败。支持一个或多个 FlagEval/lm-eval task；每个 task 都要冻结样本数、指标键和
    阈值，多 task 使用 task 级映射。逐题全部正确只用于前置 `sanity`。最终超时请求保留为错误样本并计入指标

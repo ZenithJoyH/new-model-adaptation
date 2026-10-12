@@ -31,6 +31,10 @@ agents; [AGENTS.zh-CN.md](AGENTS.zh-CN.md) is the human-readable Chinese version
   approvals and host-key verification; never bypass execution restrictions.
 - Report only verified results for the exact scope. Missing, stale or inaccessible
   evidence cannot support a pass. Preserve failures and untested limitations.
+- Respect `framework.yml control.mode`. Record human takeover and stop subsequent
+  Agent mutations for that workspace. Inspect existing processes before resuming,
+  retain human changes and accept their evidence through the same validators.
+  Follow [human collaboration](docs/human-collaboration.md).
 
 ## Required reading by task
 
@@ -76,3 +80,6 @@ installation is required. A local-only task does not activate remote checks.
 - Verify work before updating `framework.yml` (or legacy `platform.yml`).
   Use `./scripts/audit-workspace` for local layout checks; its warnings do not
   prove remote success. Read the adaptation policy before using legacy gates.
+- New workspaces pin the [v2 evidence contract](docs/evidence-contract-v2.md).
+  Upgrade existing contracts explicitly and preserve historical results.
+  `optimized` requires frozen performance targets as well as valid measurements.

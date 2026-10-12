@@ -81,13 +81,15 @@ python3 llmrun.py <模型专用配置路径>
 | formal_acceptance | true |
 | service_mode | graph |
 | limit | 0，全量 |
-| num_concurrent | 至少 32 |
+| num_concurrent | v2：按容量选择正整数；历史 v1：至少 32 |
 | expected_samples | 单 task 为正整数；多 task 为键集合完全一致的正整数映射 |
 | allow_timeouts | true（最终超时样本按错误答案计入分母） |
 | acceptance_criteria | 每个 task 都有 metric、minimum |
 | datasets | 可选；提供时必须为每个 task 配置 path/name/split |
 
-十并发只用于前置 sanity，不用于正式全量精度验收。
+v2 还需 `formal_contract_version: 2`、`concurrency_reason` 和 `service_binding`；
+小集合使用同目录 `sanity.py` 的冻结参考案例与并发。它默认只做离线检查，显式 `--run` 才发请求。
+服务绑定、清单和使用限制见 [v2 契约](../../docs/evidence-contract-v2.md)。
 正式精度按 `acceptance_criteria` 中每个 task 的 `metric`/`minimum` 判定：有效完整结果的
 指标达到阈值即可标记该精度测试通过或完成，指标不要求等于 1.0，也不要求每道题全部
 答对。前置 sanity 的逐题正确要求不得替代这里的阈值判定。错误答案会体现在精度指标中；

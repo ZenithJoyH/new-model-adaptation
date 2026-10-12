@@ -218,10 +218,11 @@ Applies only to this profile. Inherit the [common workflow](../../docs/model-ada
       performance evaluation or profiling, and communication validation when
       applicable—using the accepted `graph`-mode service configuration. Do not
       require duplicate accuracy or performance acceptance in `eager` mode.
-   2. **Ten-concurrency accuracy and performance sanity check.** Before the
+   2. **Small-set accuracy and performance sanity check.** Before the
       formal accuracy evaluation, send a small, fixed set of simple requests with
-      request concurrency set to 10 against the accepted `graph`-mode service
-      configuration. Check every response against its expected result and record
+      a frozen, capacity-validated concurrency against the accepted `graph` service.
+      Contract v2 uses the project sanity runner with model-appropriate reference
+      outputs; retain the ten-concurrency requirement only for historical v1 runs. Check every response against its expected result and record
       errors, timeouts, latency, throughput, accelerator utilization, and memory
       usage sufficient to spot an obvious performance regression. If any response
       is incorrect, return to adaptation and fix correctness first. If responses
@@ -242,14 +243,11 @@ Applies only to this profile. Inherit the [common workflow](../../docs/model-ada
       sample counts and optional task-keyed dataset descriptors. GPQA is one
       supported configuration, not a required or exclusive dataset. Tasks that
       need different generation parameters or chat templates must use separate
-      frozen configurations and runs. Formal full accuracy evaluation must
-      use request concurrency of at least 32; the concurrency of 10 applies only
-      to the preceding small-batch sanity check. Start at 32 or a higher verified
-      safe concurrency and increase it as resources and service stability allow
-      to minimize evaluation time. Do not sacrifice valid results, complete
-      sample coverage, or service stability for speed. If concurrency 32 cannot
-      run reliably, diagnose and resolve the blocker rather than silently running
-      formal acceptance below 32. Record the configured and observed effective
+      frozen configurations and runs. Contract v2 requires explicit
+      `formal_contract_version: 2`, `service_binding`, positive concurrency and
+      a capacity-based `concurrency_reason`; historical v1 still requires at least
+      32 concurrent requests. Do not sacrifice valid results, complete sample
+      coverage or service stability for speed. Record the configured and observed effective
       concurrency, tuning rationale, throughput, elapsed time, errors, and
       timeouts under `acceptance/`. Verify the expected sample count,
       process completion, final result and sample files, accuracy metrics,
