@@ -14,6 +14,7 @@ FRAMEWORK_ID_RE = re.compile(r"^[a-z0-9][a-z0-9._-]*$")
 MUTATION_POLICIES = {
     "read_only",
     "editable_product_code",
+    "installed_product_code",
     "authorized_sync_and_reproducer_only",
 }
 WORKSPACE_SECTIONS = ("environment", "adaptation", "acceptance")
@@ -84,10 +85,11 @@ def profile_errors(profile: Any, expected_id: str | None = None) -> list[str]:
             elif not set(writable).issubset(roles):
                 errors.append("source_policy.writable_roles 包含未声明组件 role")
             else:
-                editable = {c.get("role") for c in components if isinstance(c, dict)
-                            and c.get("mutation_policy") == "editable_product_code"}
-                if set(writable) != editable:
-                    errors.append("writable_roles 必须与 editable_product_code 组件完全一致")
+                writable_components = {c.get("role") for c in components if isinstance(c, dict)
+                                       and c.get("mutation_policy") in
+                                       {"editable_product_code", "installed_product_code"}}
+                if set(writable) != writable_components:
+                    errors.append("writable_roles 必须与 editable_product_code/installed_product_code 组件完全一致")
             if source_policy.get("default") != "read_only":
                 errors.append("source_policy.default 必须为 read_only")
 

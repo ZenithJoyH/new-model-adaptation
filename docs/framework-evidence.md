@@ -5,8 +5,8 @@
 
 | Profile | 修改目标 | 验收顺序 | 当前能力 |
 | --- | --- | --- | --- |
-| vllm-plugin-fl | editable Plugin；vLLM 只读 | execution-mode → sanity → accuracy → performance → evidence → summary | active；eager/graph；graph 优先 full，最低 decode-full，后续绑定已验收最高级别 |
-| torch-fl | 已核实 Torch-FL 源码 | device → operators → model-eager → 可选 wheel → summary | experimental；PPU Python API、eager 与可选 wheel 验证 |
+| vllm-plugin-fl | 容器实际安装的 Plugin、FlagGems、适用时 FlagGems-vllm；vLLM 只读 | execution-mode → sanity → accuracy → performance → evidence → summary | active；eager/graph；full → full-and-piecewise → decode-full → piecewise 逐级尝试，后续绑定最终验证模式 |
+| torch-fl | 容器实际安装的 Torch-FL 及核实的构建源码 | device → operators → model-eager → 可选 wheel → summary | experimental；PPU Python API、eager 与可选 wheel 验证 |
 
 `experimental` 允许创建工作区、实施和执行声明的基础验证，避免“必须先验证才能开始验证”
 的循环。基础推理通过可标 `functional`；正式整体验收、精度/性能和 `optimized` 尚不可用。
@@ -95,13 +95,23 @@ verification 位于 `workflow.<phase>.verification`；子步骤位于
 
 ## vllm-plugin-fl 原生验收
 
-- execution-mode 回执必须增加 `graph_level`，取值按 profile 当前顺序为 `full` 或
-  `decode-full`。选择 `full` 时 checks 增加 `full_graph: true`。选择 `decode-full` 时 checks
-  增加 `full_graph_attempted`、`full_graph_blocker_verified`、`decode_full_graph`，且均为 true；
-  同时增加 `graph_fallback`，包含 `attempted_levels: [full]`、
-  `selected_level: decode-full`、非空的 `attempted_configuration`、`failure_signature`、
-  `reason`、`limitations`、`exit_conditions`，以及可读取且有 SHA-256 的 `evidence` 列表。
-  这组字段证明降级，不得用一句“不支持全量图”代替。后续 sanity、accuracy、performance、
+- vLLM 两个 profile 的 execution-mode 回执必须记录实际生效的 `graph_level`：
+  `full`、`full-and-piecewise`、`decode-full` 或 `piecewise`。对应 checks 分别必须含
+  `full_graph`、`full_and_piecewise_graph`、`decode_full_graph` 或 `piecewise_graph: true`，
+  并提供实际配置、capture/replay 及后端自动降级检查的现场证据。
+  选择非首级模式时，`graph_fallback` 必须包含：
+
+  - `attempted_levels`：profile 中所有更高优先级模式，严格按顺序排列。
+  - `selected_level`：与本轮 `graph_level` 相同。
+  - `attempts`：逐级对象列表，`level` 顺序必须与 `attempted_levels` 完全一致，不能跳过或重复。
+    每项包含非空的 `attempted_configuration`、`failure_signature`、`reason`、
+    `remediation_attempts`、`limitations`、`exit_conditions`，以及可读取且有 SHA-256 的
+    `evidence` 列表。每级须独立说明配置、定位、修复尝试与仍无法解决的阻塞。
+
+  例如选择 `decode-full`，必须依次提供 `full` 和 `full-and-piecewise` 的记录；选
+  `piecewise` 还需 `decode-full` 的记录。确证不支持的模式也要留下版本/backend 证据。
+  单份全量图失败记录不能解释跳过中间级别，旧版聚合 `graph_fallback` 不能直接复用。
+  后续 sanity、accuracy、performance、
   evidence 与 summary 回执均记录 `graph_level`，并与同一 Host 的 execution-mode 回执一致。
 - accuracy 的 `native` 包含 `report`、`config` 两个 `{path, sha256}` 引用，分别指向
   `llmrun.py` 的 `acceptance-result.json` 和实际冻结配置。`acceptance_plan.accuracy_config_sha256`
@@ -119,8 +129,12 @@ verification 位于 `workflow.<phase>.verification`；子步骤位于
   切换；记录 `accuracy_to_performance_transition` 检查及其准确前后启动/实例证据。
   其他源码、模型、拓扑、推理设置变化须重新执行精度，不能靠这项检查豁免。
 - summary 回执中 `launcher` 为根目录 `start-model.sh` 的 `{path, sha256}`，必须存在且可执行；
-  它必须启动该 Host 已验收最高 `graph_level`；其 syntax/readiness/minimal/cache checks 由
+  它必须启动该 Host 最终选定且已验收的 `graph_level`；其 syntax/readiness/minimal/cache checks 由
   现场实测支持。工具不能代替服务就绪探测。
+  `vllm-plugin-fl` 从 v5 起还要求 `installed_component_imports`（无 PYTHONPATH/导入覆盖的实际
+  安装路径与版本/文件哈希）和 `launcher_self_contained`（必需文件的镜像归属、容器路径、
+  挂载/符号链接排查及交付启动验证）证据。打包后新容器验证另行记录实际镜像身份与结果；
+  未打包不得伪造通过。Profile 更新后旧回执需复核，不得仅刷新哈希继续宣称完成。
 
 ## 旧入口与历史记录
 

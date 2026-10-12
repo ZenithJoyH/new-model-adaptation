@@ -23,9 +23,15 @@ Applies only to this profile. Inherit the [common workflow](../../docs/model-ada
    2. **Capture the baseline and enforce modification boundaries.** Inside the
       running adaptation container, record the repository path, revision, branch,
       and working-tree status for the plugin, vLLM, and FlagGems before editing.
-      Verify that the installed Plugin resolves to the identified editable source
-      tree, then make required product changes directly in that tree; do not make
-      or use a second checkout under the remote work root. The vLLM source tree
+      Verify the service interpreter, package metadata and actual imported files
+      for Plugin, FlagGems and installed FlagGems-vllm. Make necessary changes in
+      those installed components directly, whether ordinary site-packages or
+      editable sources. Without Git metadata, record package versions and
+      before/after installed-file hashes instead of inventing a revision.
+      Do not use `PYTHONPATH`, `sys.path` or an equivalent override to select a
+      second copy/version. Rebuild and install native changes using the component's
+      own build process into the same environment, then verify actual loading.
+      Do not make a second checkout under the remote work root. The vLLM source tree
       must remain read-only and unchanged throughout the
       adaptation. Do not stop,
       restart, or remove the adaptation container. Preserve before-and-after
@@ -34,7 +40,7 @@ Applies only to this profile. Inherit the [common workflow](../../docs/model-ada
       mismatch, or modification-boundary violation becomes an adaptation issue,
       create a numbered Markdown issue record under `adaptation/`.
    3. **Synchronize FlagGems before operator integration.** Before checking or
-      integrating any FlagGems operator, update the FlagGems repository inside
+      integrating any FlagGems operator from an existing editable Git installation, update its repository inside
       the running adaptation container to the latest commit of its intended
       tracked branch. First verify that writing this checkout is authorized under
       the remote workspace prerequisite. Without authorization or a verified
@@ -49,6 +55,12 @@ Applies only to this profile. Inherit the [common workflow](../../docs/model-ada
       complete, report the exact blocker, create a numbered issue record under
       `adaptation/`, and do not continue operator selection against a stale
       revision.
+      For ordinary installed distributions without a Git checkout, record the
+      installed version/file identity and upstream operator comparison; direct
+      fixes to that installation are allowed. If a version update is needed,
+      preserve local fixes and update the same installed environment through its
+      supported installation process. Do not create a replacement checkout or
+      use an import-path override to satisfy synchronization.
    4. **Integrate operators already available in FlagGems.** For each operator
       the plugin does not invoke or support, inspect the plugin's
       dispatch/backend design and the synchronized FlagGems revision. When
@@ -117,14 +129,21 @@ Applies only to this profile. Inherit the [common workflow](../../docs/model-ada
       Keep one-off process code in the approved root's `02-issues/` or `05-tmp/`,
       outside all source repositories. Keep intermediate runtime configuration
       under the remote root's `01-environment/`. Bring up graph execution in
-      profile preference order: first attempt `full` graph over both prefill and
-      decode. Use `decode-full` only when the exact full-graph configuration has
-      a reproducible, diagnosed and evidenced blocker on the current model,
-      platform and revisions. `decode-full` is the minimum passing level; lower
-      graph coverage is diagnostic only. Do not call an intermediate launcher
-      final. After acceptance identifies the highest available graph configuration,
+      profile preference order: `full` → `full-and-piecewise` → `decode-full` →
+      `piecewise`. Diagnose and attempt remedies at each level before descending;
+      retain exact configuration and unresolved-blocker evidence for every higher
+      level. Follow the common workflow's effective-mode and measured-performance
+      checks. Piecewise may pass with the complete fallback chain; eager-only may
+      not. Do not call an intermediate launcher final. After acceptance selects
+      the final verified graph configuration,
       place its executable entry point at the remote root's `start-model.sh`.
       Build that final script from the smallest accepted launch command. Remove
+      package installation, Git updates, patch application, cleanup, diagnostic
+      probes, evaluation, polling and report-generation commands. Perform those
+      as separate adaptation/acceptance actions. Follow the remote operations
+      policy's image-delivery rules: keep necessary files inside the image,
+      resolve mount/symlink provenance and verify ordinary installed imports
+      without `PYTHONPATH`. Then remove
       diagnostic/profiling/tracing/dump controls, temporary paths, obsolete
       workarounds, duplicated defaults, experimental tuning, and unrelated
       model/platform settings unless controlled acceptance proves they are still
@@ -186,15 +205,15 @@ Applies only to this profile. Inherit the [common workflow](../../docs/model-ada
 4. **Accept the adaptation.** Complete all of the following acceptance work:
 
    1. **Execution-mode acceptance.** Run the model successfully in both `eager`
-      mode and `graph` mode. For graph, first test and prefer `full` coverage of
-      prefill and decode. Falling back to `decode-full` is permitted only after
-      recording the exact full-graph configuration, reproducible failure
-      signature, diagnosis, evidence, reason, limitations and exit criteria.
-      Skipping the full-graph attempt is not permitted. `decode-full` is the
-      minimum passing graph level; eager-only, piecewise/breakable graph,
-      non-full decode, or lower coverage does not pass. Record `graph_level` in
-      the execution-mode receipt and bind all later receipts to the same highest
-      accepted per-Host level. After it passes, perform all remaining acceptance
+      and `graph`. Attempt `full` → `full-and-piecewise` → `decode-full` →
+      `piecewise`, descending only with per-level diagnosis, attempted remedies
+      and unresolved-blocker evidence. Never skip a level; verified lack of
+      backend/version support must also be documented. Record the effective
+      `graph_level` and ordered `graph_fallback.attempts` per the evidence contract.
+      Verify capture/replay and performance under the common workflow; no mode's
+      name proves speed or actual runtime coverage. Piecewise can pass with
+      complete fallback evidence; eager/NONE alone cannot. Bind later receipts
+      to the final verified per-Host mode. After it passes, perform all remaining acceptance
       work—including the small-batch sanity check, formal accuracy evaluation,
       performance evaluation or profiling, and communication validation when
       applicable—using the accepted `graph`-mode service configuration. Do not
@@ -285,7 +304,7 @@ Applies only to this profile. Inherit the [common workflow](../../docs/model-ada
       verification, encountered problems and solutions, final status, unresolved
       limitations, and next steps. Before marking completion, verify that each
       approved target `host_root` contains executable `start-model.sh`, that its
-      verified container path launches the highest accepted graph configuration,
+      verified container path launches the final accepted graph configuration,
       and that it routes logs/results to `04-runs/` and caches to `06-cache/`
       without affecting an unrelated service or the adaptation container. Record
       both paths, SHA-256, syntax check, launch/readiness result, complete
@@ -294,3 +313,8 @@ Applies only to this profile. Inherit the [common workflow](../../docs/model-ada
       every retained explicit setting, revisions, and verification date. Do not mark the adaptation
       complete until every acceptance item and this launcher verification have
       passed and the summary reflects the verified outcome.
+      Include `installed_component_imports` and `launcher_self_contained` evidence:
+      actual installed paths and hashes, required delivery files and their image
+      ownership, declared external deployment inputs and a clean launch check.
+      Record fresh-image validation when packaging is performed; otherwise mark
+      that image-specific check pending, not passed.

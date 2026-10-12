@@ -69,6 +69,10 @@ class NativeAdapterTests(unittest.TestCase):
     def test_native_validator_sources_are_frozen(self):
         paths = {str(path.relative_to(ROOT)) for path in gates.source_files(ROOT)}
         self.assertTrue({
+            'AGENTS.md',
+            'docs/adaptation-policy.md',
+            'docs/remote-operations.md',
+            'skills/remote-operations/SKILL.md',
             'test/Accuracy_test/llmrun.py',
             'test/Accuracy_test/acceptance_contract.py',
             'test/perf_test/perf_common.py',

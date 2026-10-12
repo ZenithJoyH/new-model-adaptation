@@ -1,7 +1,7 @@
 schema_version: 1
 id: torch-fl
 display_name: Torch-FL on PPU
-profile_version: 2
+profile_version: 3
 status: experimental
 platforms: [ppu]
 
@@ -9,7 +9,7 @@ components:
   - role: framework_runtime
     name: Torch-FL
     required: true
-    mutation_policy: editable_product_code
+    mutation_policy: installed_product_code
   - role: vendor_torch
     name: PPU vendor PyTorch and libtorch
     required: true

@@ -20,6 +20,11 @@ Profile 只能收紧仓库通用安全边界，不能授权停止适配容器、
 证据要求。draft 仅支持分析和只读调查；experimental 允许已声明的适配和验证能力，
 但不能通过完整正式验收；active 才具备完整验收契约。
 
+`installed_product_code` 允许修改容器中实际安装且正常导入的组件，支持普通安装目录与
+editable 源码；禁止通过 `PYTHONPATH` 选择另一份代码。`editable_product_code` 保留给明确
+要求源码构建的 profile。两类组件都必须精确列入 `source_policy.writable_roles`；未声明组件
+保持只读。二进制修改按组件自身构建/安装流程进行，并验证服务实际加载的新产物。
+
 现有直接位于 `models/<model>/<platform>/` 的历史记录按隐式 `vllm-plugin-fl` profile 解释；
 不应为了目录一致性批量搬迁。新工作区使用：
 
@@ -32,6 +37,8 @@ Profile 只能收紧仓库通用安全边界，不能授权停止适配容器、
 | ID | 状态 | 适用范围 |
 | --- | --- | --- |
 | `vllm-plugin-fl` | `active` | vLLM 服务、vllm-plugin-FL 与 FlagGems 模型适配 |
+| `vllm-native` | `active` | NVIDIA 原生 vLLM 源码树中的模型适配 |
+| `vllm-ppu` | `experimental` | 平头哥原生 vLLM 安装中的模型适配与 eager/graph 定向验证 |
 | `torch-fl` | `experimental` | PPU 直接集成、算子路由、eager 模型验证，以及可选自包含 wheel |
 
 `new-framework` 接受 active 和 experimental，按 profile 生成各自验收步骤；Torch-FL 不生成

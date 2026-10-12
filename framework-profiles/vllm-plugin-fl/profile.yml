@@ -1,7 +1,7 @@
 schema_version: 1
 id: vllm-plugin-fl
 display_name: vLLM + vllm-plugin-FL + FlagGems
-profile_version: 3
+profile_version: 6
 status: active
 platforms: [nvidia, ppu, metax, ascend, mthreads, hygon]
 
@@ -13,16 +13,22 @@ components:
   - role: platform_adapter
     name: vllm-plugin-FL
     required: true
-    mutation_policy: editable_product_code
+    mutation_policy: installed_product_code
   - role: kernel_library
     name: FlagGems
     required: true
-    mutation_policy: authorized_sync_and_reproducer_only
+    mutation_policy: installed_product_code
+  - role: vllm_kernel_library
+    name: FlagGems-vllm
+    required: false
+    mutation_policy: installed_product_code
 
 source_policy:
   default: read_only
   writable_roles:
     - platform_adapter
+    - kernel_library
+    - vllm_kernel_library
 
 execution_modes:
   required:
@@ -32,15 +38,19 @@ execution_modes:
   graph_policy:
     preference_order:
       - full
+      - full-and-piecewise
       - decode-full
-    minimum: decode-full
+      - piecewise
+    minimum: piecewise
     level_checks:
       full:
         - full_graph
+      full-and-piecewise:
+        - full_and_piecewise_graph
       decode-full:
-        - full_graph_attempted
-        - full_graph_blocker_verified
         - decode_full_graph
+      piecewise:
+        - piecewise_graph
 
 service:
   protocols:
@@ -66,7 +76,7 @@ acceptance:
       checks: [source_review, vllm_unchanged, artifacts_complete]
     summary:
       validator: checks
-      checks: [launcher_syntax, launcher_readiness, launcher_minimal, normal_cache_restored]
+      checks: [launcher_syntax, launcher_readiness, launcher_minimal, launcher_self_contained, installed_component_imports, normal_cache_restored]
   accuracy_adapter: flageval-openai
   performance_adapter: vllm-bench-serve
   prefix_caching:

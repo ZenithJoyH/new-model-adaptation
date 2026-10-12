@@ -29,6 +29,10 @@ class FrameworkWorkspaceTests(unittest.TestCase):
         shutil.copytree(ROOT / "framework-profiles", root / "framework-profiles")
         shutil.copytree(ROOT / "templates" / "framework-workspace", root / "templates" / "framework-workspace")
         shutil.copytree(ROOT / "docs", root / "docs", ignore=shutil.ignore_patterns("legacy-entrypoints.md", "troubleshooting"))
+        # Policies link back to the root instructions and repository-local Skills.
+        for name in ("AGENTS.md", "AGENTS.zh-CN.md"):
+            shutil.copy2(ROOT / name, root / name)
+        shutil.copytree(ROOT / "skills", root / "skills")
         shutil.copytree(ROOT / "inventory", root / "inventory")
         platform = root / "models" / "Example" / "ppu"
         platform.mkdir(parents=True)
@@ -41,14 +45,17 @@ class FrameworkWorkspaceTests(unittest.TestCase):
     def test_vllm_profile_is_complete(self):
         path, profile = framework_workspace.resolved_profile(ROOT, "vllm-plugin-fl")
         self.assertEqual(path.parent.name, "vllm-plugin-fl")
-        self.assertEqual(profile["profile_version"], 3)
+        self.assertEqual(profile["profile_version"], 6)
         self.assertEqual(profile["execution_modes"]["required"], ["eager", "graph"])
         self.assertEqual(
             profile["execution_modes"]["graph_policy"]["preference_order"],
-            ["full", "decode-full"],
+            ["full", "full-and-piecewise", "decode-full", "piecewise"],
         )
-        self.assertEqual(profile["execution_modes"]["graph_policy"]["minimum"], "decode-full")
-        self.assertEqual(profile["source_policy"]["writable_roles"], ["platform_adapter"])
+        self.assertEqual(profile["execution_modes"]["graph_policy"]["minimum"], "piecewise")
+        self.assertEqual(
+            profile["source_policy"]["writable_roles"],
+            ["platform_adapter", "kernel_library", "vllm_kernel_library"],
+        )
 
     def test_torch_fl_experimental_profile_allows_declared_checks_only(self):
         path = ROOT / "framework-profiles" / "torch-fl" / "profile.yml"
@@ -60,6 +67,19 @@ class FrameworkWorkspaceTests(unittest.TestCase):
         framework_workspace.resolved_profile(ROOT, "torch-fl")
         self.assertNotIn("accuracy", profile["acceptance"]["steps"])
         self.assertNotIn("execution-mode", profile["acceptance"]["steps"])
+
+    def test_installed_component_policy_keeps_writable_roles_explicit(self):
+        _, original = framework_workspace.resolved_profile(ROOT, "vllm-plugin-fl")
+        for policy in ("installed_product_code", "editable_product_code"):
+            with self.subTest(policy=policy):
+                cfg = copy.deepcopy(original)
+                cfg["components"][1]["mutation_policy"] = policy
+                self.assertEqual(framework_workspace.profile_errors(cfg), [])
+                cfg["source_policy"]["writable_roles"].remove("platform_adapter")
+                self.assertTrue(framework_workspace.profile_errors(cfg))
+        cfg = copy.deepcopy(original)
+        cfg["components"][0]["mutation_policy"] = "installed_product_code"
+        self.assertTrue(framework_workspace.profile_errors(cfg))
 
     def test_profile_rejects_missing_contract_and_conflicting_mutation_policy(self):
         _, original = framework_workspace.resolved_profile(ROOT, "vllm-plugin-fl")
@@ -237,43 +257,79 @@ class FrameworkGateTests(unittest.TestCase):
             with self.assertRaises(ValueError):
                 reader.file({'path': path, 'sha256': gate.digest(outside)})
 
-    def test_graph_level_prefers_full_and_requires_evidence_for_decode_fallback(self):
+    def test_graph_fallback_requires_every_prior_level_and_its_evidence(self):
+        reader = gate.Artifacts(self.cfg, 'PPU-01', self.mounts)
+        ref = {'host_alias': 'PPU-01'}
+        for profile_id in ('vllm-plugin-fl', 'vllm-native'):
+            _, profile = framework_workspace.resolved_profile(self.root, profile_id)
+            policy = profile['execution_modes']['graph_policy']
+            order = policy['preference_order']
+            for index, level in enumerate(order):
+                with self.subTest(profile=profile_id, level=level):
+                    report = {'mode': 'graph', 'graph_level': level,
+                              'checks': {name: True for name in policy['level_checks'][level]}}
+                    if index == 0:
+                        gate.check_graph_level(reader, report, ref, self.cfg, profile, 'execution-mode')
+                        continue
+                    with self.assertRaisesRegex(ValueError, 'graph_fallback'):
+                        gate.check_graph_level(reader, report, ref, self.cfg, profile, 'execution-mode')
+                    attempts = []
+                    for prior in order[:index]:
+                        blocker = self.remote / (prior + '-blocker.txt')
+                        blocker.write_text('verified unresolved blocker for ' + prior)
+                        attempts.append({
+                            'level': prior,
+                            'attempted_configuration': 'exact configuration for ' + prior,
+                            'failure_signature': 'capture failure at operator example',
+                            'reason': 'backend constraint verified at current revision',
+                            'remediation_attempts': 'tested supported capture-safe implementation; still fails',
+                            'limitations': 'capture path remains unavailable',
+                            'exit_conditions': 'retry when backend supports this path',
+                            'evidence': [{'path': blocker.name, 'sha256': gate.digest(blocker)}],
+                        })
+                    report['graph_fallback'] = {
+                        'attempted_levels': order[:index], 'selected_level': level, 'attempts': attempts,
+                    }
+                    gate.check_graph_level(reader, report, ref, self.cfg, profile, 'execution-mode')
+                    mutations = [
+                        lambda r: r['graph_fallback'].update(attempted_levels=[]),
+                        lambda r: r['graph_fallback'].update(selected_level='full'),
+                        lambda r: r['graph_fallback'].pop('attempts'),
+                        lambda r: r['graph_fallback']['attempts'].pop(),
+                        lambda r: r['graph_fallback']['attempts'].append(attempts[0]),
+                        lambda r: r['graph_fallback']['attempts'][0].pop('remediation_attempts'),
+                        lambda r: r['graph_fallback']['attempts'][0].update(evidence=[]),
+                        lambda r: r['graph_fallback']['attempts'][0]['evidence'][0].update(sha256='0' * 64),
+                        lambda r: r.update(checks={}),
+                    ]
+                    if index > 1:
+                        mutations.append(lambda r: r['graph_fallback']['attempts'].reverse())
+                    for mutate in mutations:
+                        bad = copy.deepcopy(report)
+                        mutate(bad)
+                        with self.assertRaises(ValueError):
+                            gate.check_graph_level(reader, bad, ref, self.cfg, profile, 'execution-mode')
+            for invalid in ('none', 'eager', 'unknown'):
+                with self.assertRaises(ValueError):
+                    gate.check_graph_level(reader, {'mode': 'graph', 'graph_level': invalid},
+                                           ref, self.cfg, profile, 'execution-mode')
+
+    def test_later_receipts_cannot_silently_change_graph_mode(self):
         _, profile = framework_workspace.resolved_profile(self.root, 'vllm-plugin-fl')
         reader = gate.Artifacts(self.cfg, 'PPU-01', self.mounts)
         ref = {'host_alias': 'PPU-01'}
-        full = {'mode': 'graph', 'graph_level': 'full', 'checks': {'full_graph': True}}
-        gate.check_graph_level(reader, full, ref, self.cfg, profile, 'execution-mode')
-
-        decode = {'mode': 'graph', 'graph_level': 'decode-full', 'checks': {
-            'full_graph_attempted': True,
-            'full_graph_blocker_verified': True,
-            'decode_full_graph': True,
-        }}
-        with self.assertRaisesRegex(ValueError, 'graph_fallback'):
-            gate.check_graph_level(reader, decode, ref, self.cfg, profile, 'execution-mode')
-
-        blocker = self.remote/'full-graph-blocker.txt'; blocker.write_text('reproducible failure')
-        decode['graph_fallback'] = {
-            'attempted_levels': ['full'],
-            'selected_level': 'decode-full',
-            'attempted_configuration': 'full graph with prefill and decode capture',
-            'failure_signature': 'capture fails at operator example',
-            'reason': 'operator example is not graph safe at this revision',
-            'limitations': 'prefill remains outside the full graph',
-            'exit_conditions': 'retest after the operator implementation is graph safe',
-            'evidence': [{'path': blocker.name, 'sha256': gate.digest(blocker)}],
-        }
-        gate.check_graph_level(reader, decode, ref, self.cfg, profile, 'execution-mode')
-
-        execution_receipt = self.remote/'execution-mode-vllm.json'
-        execution_receipt.write_text(json.dumps({'graph_level': 'full'}))
+        execution_receipt = self.remote / 'execution-mode-vllm.json'
+        execution_receipt.write_text(json.dumps({'graph_level': 'full-and-piecewise'}))
         self.cfg['workflow']['acceptance'].setdefault('records', {})['execution-mode'] = {
             'receipts': [{'host_alias': 'PPU-01', 'path': execution_receipt.name,
                           'sha256': gate.digest(execution_receipt)}]
         }
-        with self.assertRaisesRegex(ValueError, '与执行模式验收不一致'):
-            gate.check_graph_level(reader, {'mode': 'graph', 'graph_level': 'decode-full'},
-                                   ref, self.cfg, profile, 'sanity')
+        for stage in ('sanity', 'accuracy', 'performance', 'evidence', 'summary'):
+            gate.check_graph_level(reader, {'mode': 'graph', 'graph_level': 'full-and-piecewise'},
+                                   ref, self.cfg, profile, stage)
+            with self.assertRaisesRegex(ValueError, '与执行模式验收不一致'):
+                gate.check_graph_level(reader, {'mode': 'graph', 'graph_level': 'decode-full'},
+                                       ref, self.cfg, profile, stage)
 
     def test_whole_acceptance_verifies_parent_before_retrospective(self):
         args = Namespace(check_only=True, platform='ppu', repo_root=self.root, framework='torch-fl',

@@ -230,14 +230,22 @@ def check_graph_level(reader, report, ref, cfg, profile, stage):
         require(fallback.get("attempted_levels") == order[:order.index(level)],
                 "graph 降级必须按 preference_order 逐级尝试")
         require(fallback.get("selected_level") == level, "graph_fallback 选定级别不匹配")
-        for field in ("attempted_configuration", "failure_signature", "reason",
-                      "limitations", "exit_conditions"):
-            require(isinstance(fallback.get(field), str) and fallback[field].strip(),
-                    f"graph 降级缺少 {field}")
-        evidence = fallback.get("evidence")
-        require(isinstance(evidence, list) and evidence, "graph 降级缺少全量图阻塞证据")
-        for item in evidence:
-            reader.file(item)
+        attempts = fallback.get("attempts")
+        require(isinstance(attempts, list)
+                and all(isinstance(item, dict) for item in attempts),
+                "graph 降级缺少逐级 attempts 记录")
+        require([item.get("level") for item in attempts] == order[:order.index(level)],
+                "graph attempts 必须逐级覆盖全部更高优先级模式，不得跳级或重复")
+        for attempt in attempts:
+            for field in ("attempted_configuration", "failure_signature", "reason",
+                          "remediation_attempts", "limitations", "exit_conditions"):
+                require(isinstance(attempt.get(field), str) and attempt[field].strip(),
+                        f"graph {attempt['level']} 降级缺少 {field}")
+            evidence = attempt.get("evidence")
+            require(isinstance(evidence, list) and evidence,
+                    f"graph {attempt['level']} 降级缺少阻塞证据")
+            for item in evidence:
+                reader.file(item)
         return
 
     execution = record_for(cfg, "execution-mode")

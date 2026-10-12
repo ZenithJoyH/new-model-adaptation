@@ -48,7 +48,9 @@ def source_files(root):
         + list((root / 'framework-profiles').rglob('*.md'))
         + list((root / 'test/Accuracy_test').glob('*.py'))
         + list((root / 'test/perf_test').glob('*.py')) + [root / p for p in
-        ('AGENTS.md', 'docs/skills-project-contract.md', 'docs/framework-evidence.md')])
+        ('AGENTS.md', 'docs/adaptation-policy.md', 'docs/remote-operations.md',
+         'skills/remote-operations/SKILL.md',
+         'docs/skills-project-contract.md', 'docs/framework-evidence.md')])
 
 
 def validate_plan(spec):

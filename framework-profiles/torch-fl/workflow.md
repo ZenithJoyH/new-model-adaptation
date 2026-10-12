@@ -6,8 +6,11 @@
 
 ## 适配边界
 
-- 允许修改且仅允许修改已核实 Git 根、revision、工作树归属和 editable/build source 身份的
-  Torch-FL 源码。厂商 PyTorch/libtorch、官方 CPU PyTorch、PPU SDK/Driver/Runtime、模型源码
+- 直接修改容器实际安装的 Torch-FL，先核实解释器、包元数据和正常导入路径；有 Git 时
+  记录 revision/diff，否则记录版本及安装文件哈希。普通安装与 editable 安装均可，不得用
+  `PYTHONPATH` 选择另一份源码。涉及原生扩展时，核实对应构建源码并通过项目构建/安装
+  流程更新当前环境，不能仅改 Python 文件就声称原生修改生效。
+  厂商 PyTorch/libtorch、官方 CPU PyTorch、PPU SDK/Driver/Runtime、模型源码
   和权重默认只读。
 - 优先使用 Torch-FL 现有 `PrivateUse1`、`flagos`、dispatch、backend 配置和项目构建入口接入；
   不得通过修改厂商库、全局 `LD_LIBRARY_PATH` 或复制未知动态库掩盖版本与符号问题。
