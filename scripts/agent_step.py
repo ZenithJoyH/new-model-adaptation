@@ -14,7 +14,7 @@ import time
 from skill_bundle import inspect_bundle, validate_selection, verify_bundle
 from project_gates import (acceptance_binding, interface_requirements, native_input_files,
                            output_files, run_check, source_files, validate_check,
-                           validate_frozen_inputs, validate_plan)
+                           validate_frozen_inputs, validate_plan, require_agent_available, completion_binding)
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -46,12 +46,15 @@ def absolute_file(value):
 
 
 def verify_context(record):
+    require_agent_available(ROOT, record['spec'])
     for path, expected in {**record['context'], **record.get('completed_evidence', {})}.items():
         if sha(path) != expected:
             raise ValueError(f'context changed; revalidate, do not refresh hashes: {path}')
     verify_bundle(record['skill_dir'], record['bundle'])
     if acceptance_binding(ROOT, record['spec']) != record['acceptance_binding']:
         raise ValueError('deployment or acceptance plan changed after begin')
+    if record.get('completion_binding') and completion_binding(ROOT, record['spec']) != record['completion_binding']:
+        raise ValueError('selected completion records changed after finish')
 
 
 def checks(spec, phase):
@@ -113,7 +116,7 @@ def begin(spec_path, directory):
                   [Path(__file__).resolve(), Path(__file__).with_name('project_gates.py').resolve(),
                    Path(__file__).with_name('skill_bundle.py').resolve()]}}
     record['context'].update(record['implementation'])
-    record['context'].update({str(p.resolve()): sha(p) for p in source_files(ROOT)})
+    record['context'].update({str(p.resolve()): sha(p) for p in source_files(ROOT, spec)})
     write(directory / 'run.json', record)
     try:
         record['before_results'] = checks(spec, 'before')
@@ -193,6 +196,7 @@ def update(directory, operation, *, evidence=None, completed=None, error=None, n
                 raise
             verify_context(record)
             record.update(state='verified', finished_at=time.time(), completed_evidence=outputs)
+            record['completion_binding'] = completion_binding(ROOT, record['spec'])
         else:
             raise ValueError('unsupported operation')
     write(path, record)

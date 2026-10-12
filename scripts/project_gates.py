@@ -42,7 +42,17 @@ def validate_check(check):
             raise ValueError('artifact_roots require exact Host and absolute readable path')
 
 
-def source_files(root):
+def source_files(root, spec=None):
+    # Preserve the old public inventory; new journals freeze only their selected
+    # profile's implementation, not unrelated profiles or editorial prose.
+    if spec is not None:
+        scripts = ('agent_step.py', 'project_gates.py', 'skill_bundle.py', 'framework_evidence.py',
+                   'framework_workspace.py', 'evidence_contract.py', 'adapt_model.py',
+                   'workflow_state.py', 'service_observation.py')
+        files = [root / 'scripts' / name for name in scripts]
+        files += list((root / 'test/Accuracy_test').glob('*.py'))
+        files += list((root / 'test/perf_test').glob('*.py'))
+        return [p for p in files if p.is_file()]
     return (list((root / 'scripts').glob('*.py'))
         + list((root / 'framework-profiles').rglob('*.yml'))
         + list((root / 'framework-profiles').rglob('*.md'))
@@ -99,9 +109,38 @@ def run_check(root, check, scope, expected_run_id=None):
 
 
 def output_files(root, spec):
-    # The workflow record binds the original native receipts and their hashes.
-    return [root / 'models' / c['model'] / c['platform'] / 'frameworks' / c['framework'] / 'framework.yml'
-            for c in spec['after']]
+    from framework_evidence import Artifacts, record_for
+    from framework_workspace import load_yaml
+    result = []
+    for c in spec['after']:
+        directory = root / 'models' / c['model'] / c['platform'] / 'frameworks' / c['framework']
+        cfg = load_yaml(directory / 'framework.yml')
+        for stage in c.get('acceptance_substeps') or c['steps']:
+            rec = record_for(cfg, stage)
+            result.append((directory / rec['evidence']).resolve())
+            for ref in rec['receipts']:
+                result.append(Artifacts(cfg, ref['host_alias'], c['artifact_roots']).file(ref))
+    return result
+
+
+def require_agent_available(root, spec):
+    from framework_workspace import load_yaml, require_agent_control
+    for check in spec['before']:
+        if check.get('kind') == 'framework':
+            path = root / 'models' / check['model'] / check['platform'] / 'frameworks' / check['framework'] / 'framework.yml'
+            require_agent_control(load_yaml(path))
+
+
+def completion_binding(root, spec):
+    from framework_evidence import canonical, record_for, state
+    from framework_workspace import load_yaml
+    values = []
+    for c in spec['after']:
+        if c.get('kind') == 'framework':
+            cfg = load_yaml(root / 'models' / c['model'] / c['platform'] / 'frameworks' / c['framework'] / 'framework.yml')
+            values.append({s: {'state': state(cfg, s), 'record': record_for(cfg, s)}
+                           for s in c.get('acceptance_substeps') or c['steps']})
+    return canonical(values)
 
 
 def acceptance_binding(root, spec):
@@ -111,9 +150,13 @@ def acceptance_binding(root, spec):
     for check in spec['before']:
         path = root / 'models' / check['model'] / check['platform'] / 'frameworks' / check['framework'] / 'framework.yml'
         config = load_yaml(path)
-        values.append({key: config.get(key) for key in
-                       ('model', 'platform', 'framework', 'profile', 'profile_version',
-                        'target', 'workspace', 'deployment', 'acceptance_plan')})
+        binding = {key: config.get(key) for key in
+                       ('model', 'platform', 'framework', 'profile', 'profile_version', 'evidence_contract', 'profile_sha256',
+                        'target', 'workspace', 'deployment', 'acceptance_plan')}
+        if config.get('evidence_contract') == 2 and check.get('acceptance_substeps') == ['accuracy']:
+            binding['acceptance_plan'] = {k: config.get('acceptance_plan', {}).get(k)
+                for k in ('execution', 'sanity_manifest_sha256', 'accuracy_config_sha256')}
+        values.append(binding)
     return hashlib.sha256(json.dumps(values, sort_keys=True, ensure_ascii=False,
                         separators=(',', ':'), allow_nan=False).encode()).hexdigest()
 
@@ -141,6 +184,9 @@ def validate_frozen_inputs(root, spec, context):
                     continue
                 request = value.get('request') if isinstance(value, dict) and 'request' in value else value
                 if expected and canonical(request) == expected:
+                    if config.get('evidence_contract') == 2:
+                        from evidence_contract import validate_performance_plan
+                        validate_performance_plan(plan, request['cases'])
                     matched = True
                     break
             if not matched:
