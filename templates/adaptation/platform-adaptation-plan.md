@@ -11,14 +11,15 @@
 
 ## 修改边界
 
-- 只允许修改适配容器中已核实的 editable-install Plugin 源码；不得在远端工作根目录
-  创建第二份 checkout。
+- 直接修改适配容器中已核实且 profile 声明可写的安装组件（Plugin、FlagGems、适用时
+  FlagGems-vllm）；支持普通安装与 editable 源码，不得通过 PYTHONPATH 选择另一份版本，
+  不得在远端工作根目录创建第二份 checkout。
 - vLLM 源码必须保持不变并保留前后状态证据。
 - 适配容器不得停止、重启或删除。
 - 服务和当前适配相关进程可以按需停止或重启，但必须记录并核对目标。
 - 使用用户指定并已核实的远端工作目录；逐 Host 的 `host_root/container_root` 记录在
-  `runtime-config.yml.workspace.roots`。除上述 Plugin 源码和已授权同步的现有 FlagGems
-  checkout 外，目录外默认只读；必要写入须精确记录并单独取得授权。
+  `runtime-config.yml.workspace.roots`。除上述已安装可写组件及明确的镜像交付文件外，
+  目录外默认只读；必要写入须精确记录并取得授权。
 - Plugin 仓库只接收必要的产品实现和可长期维护的回归测试。
 - 一次性诊断、部署、日志分析、探针、试验脚本和代码放在已指定容器工作根目录内、
   各源码仓库之外的 `05-tmp/<issue-or-run-id>/`，不得提交，也不得复制到 `adaptation/`。

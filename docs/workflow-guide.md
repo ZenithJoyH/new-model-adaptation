@@ -84,8 +84,9 @@ models/<model>/<platform>/
 
 远端工作根目录不存放源码，不创建源码仓库子目录或其他仓库副本。适配代码只修改 profile
 声明可写且已经核实身份的源码；应记录包元数据、import 路径、Git 根目录、revision 和工作
-区状态。`vllm-plugin-fl` 中仍只修改 editable-install Plugin，vLLM 始终只读，FlagGems
-使用容器内已核实且获准同步的现有 checkout。
+区状态；普通安装无 Git 时记录版本和安装文件哈希。`vllm-plugin-fl` 可直接修改容器实际
+安装的 Plugin、FlagGems 及已安装 FlagGems-vllm；vLLM 始终只读。不得用 `PYTHONPATH`
+选择另一版本，涉及同步或原生构建时按组件自身流程更新当前安装环境。
 
 当前编号对应精度后台运行计划 `schema_version=5`；旧版 schema 4 计划不会自动迁移或继续
 执行。既有旧编号目录及本地引用保留为历史事实，只有实际完成远端迁移并重新核验后才能
@@ -100,6 +101,9 @@ models/<model>/<platform>/
 `--no-enable-prefix-caching`。可依赖稳定引擎默认值的参数不再显式传入，并为每个最终保留
 的显式项记录依据。本地平台 README 和最终总结
 只记录其准确路径、SHA-256、参数审查、revision、日期及就绪结果。
+脚本中的安装、更新、补丁、清理、诊断和评测等指令一并移除。镜像交付前按
+[远程操作细则](remote-operations.zh-CN.md)核实必需文件进入容器镜像文件系统，
+排除临时挂载与导入覆盖依赖，并记录镜像验证的实际状态。
 
 ## 4. 阶段文档
 
@@ -129,10 +133,10 @@ models/<model>/<platform>/
 以下是 **vllm-plugin-fl** 的验收顺序。Torch-FL 使用自己的 device → operators → model-eager → 可选 wheel → summary，详见其 profile；不可套用以下服务评测流程：
 
 1. `execution-mode`：跑通 profile 声明的全部必需执行模式；`vllm-plugin-fl` 为 `eager` 与
-   `graph`。graph 必须先尝试覆盖 prefill 与 decode 的 `full` 全量图，只有记录可复现的阻塞
-   证据后才可降到最低要求 `decode-full`；回执记录 `graph_level`，不得默认只做 decode-full。
+   `graph`。按 `full` → `full-and-piecewise` → `decode-full` → `piecewise` 尝试，每级记录
+   定位/修复尝试及未解决阻塞后才回退一级；回执记录实际 `graph_level` 和逐级证据。
 2. `sanity`：基于 profile 的验收主模式做 10 并发小批量正确性与性能预检；
-   `vllm-plugin-fl` 的主模式为 `graph`，并沿用该 Host 在第 1 项验收的最高图级别。
+   `vllm-plugin-fl` 的主模式为 `graph`，并沿用该 Host 在第 1 项验收的最终图模式。
 3. `accuracy`：预检正常后，在规定 FlagEval 容器中用
    `test/Accuracy_test/llmrun.py` 进行至少 32 并发正式精度评测。有效完整结果中的各项
    冻结指标达到配置阈值即可完成该子步骤；指标无需为 `1.0`，个别题目答错不等于正式

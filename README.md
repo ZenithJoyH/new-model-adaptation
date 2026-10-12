@@ -1,6 +1,33 @@
-# 新模型适配：远程运维控制仓库
+# 新模型适配工作区
 
-这个仓库把 Codex 所在的本机作为控制端，通过现有 SSH 别名管理远程服务器。远程服务器不需要安装 Codex CLI。
+这个仓库用于不同硬件平台和推理框架上的模型跑通、精度验收与性能优化。需要远端执行时，
+以 Codex 所在本机为控制端，通过已有 SSH 别名操作指定服务器；远端无需安装 Codex CLI。
+
+## Agent 规则与按需调用
+
+[AGENTS.md](AGENTS.md) 保留任务范围、安全边界和必读入口，
+[AGENTS.zh-CN.md](AGENTS.zh-CN.md) 是对应中文版。详细要求按任务加载：
+
+- 本地文档、代码审查和工具维护：读取相关文件及测试，不自动连接服务器。
+- 模型适配：读取[适配细则](docs/adaptation-policy.zh-CN.md)及所选框架的工作流与验收要求。
+- 远端检查、变更或机器清单维护：读取项目内
+  [remote-operations Skill](skills/remote-operations/SKILL.md)，遵循
+  [远程操作细则](docs/remote-operations.zh-CN.md)。只读检查优先使用受限入口；通用 Ansible
+  入口保留逐次审批。
+- 精度与性能评测：继续使用[项目内评测 Skills](skills/README.md)和原生证据契约。
+
+自然语言调用即可，例如：
+
+> 只整理当前模型的结构分析文档，本轮不执行远端操作。
+
+> 使用项目内 remote-operations，只检查 PPU-01 的连接和加速卡状态。
+
+> 对指定模型在 PPU-01 上执行阶段 2，使用 vllm-plugin-fl profile。
+
+Agent 通过根规则读取仓库内 Skill，无需安装全局同名包；该入口并未注册为全局命令。
+主机属于 inventory 不代表本次任务可以操作全部主机。拆分只调整读取时机，原有授权、
+目录边界和验收条件继续生效。也可按任务组织独立对话，例如将本地分析与远端执行分开，
+在后续对话中明确模型、平台、框架、Host 和所选阶段。
 
 ## 模型适配工作区
 
@@ -15,14 +42,22 @@
   传入，每个最终保留的显式项都要有可追溯的必要性依据。
 - **容器内源码**：远端工作目录不创建源码仓库子目录或源码副本。允许修改的组件和位置由
   当前 [framework profile](framework-profiles/README.md) 明确声明，未声明组件默认只读。
-  `vllm-plugin-fl` profile 仍要求修改 editable-install Plugin、保持 vLLM 只读，并只使用
-  容器内已核实且获准同步的 FlagGems checkout。
+  直接修改容器实际安装的 FlagOS 组件，支持普通安装与 editable 源码；禁止用 `PYTHONPATH`
+  指向另一份版本。`vllm-plugin-fl` 允许修改 Plugin、FlagGems 及已安装 FlagGems-vllm，
+  vLLM 保持只读；Torch-FL 按自己的组件边界和构建流程执行。
 - **本地工作目录**：当前 Git 仓库，保存 `models/` 下精简、可追溯的模型/平台/框架记录，以及
   `scripts/`、`test/`、`templates/` 和 `docs/` 中的通用工具与规范。本地只记录准确远端路径、
   revision、命令和结论，不复制完整远端日志、缓存或临时文件。
 
 新编号从新写入和新运行计划开始生效。既有适配记录中的旧编号路径仍表示真实历史位置，
 不会在远端目录尚未迁移和复核时仅为统一文本而改写。
+
+最终服务脚本只保留启动必需指令和参数，安装、更新、应用补丁、清理、诊断、评测及
+生成报告在适配/验收时单独完成。因为适配容器需要打包，必需脚本、配置、修改后的组件
+与运行库须实际进入镜像；容器能访问的 bind mount/volume 并不会自动包含在镜像里。
+服务使用容器路径，确需外置的权重等输入须明确约定部署挂载。交付前检查正常安装导入
+不依赖 `PYTHONPATH`；打包后用新容器验证，未执行时不得声称镜像验证完成。完整要求见
+[远程操作细则](docs/remote-operations.zh-CN.md)。
 
 本地模型记录统一放在 `models/<model-name>/<platform>/`；同一模型和平台存在多套推理框架
 时，使用 `frameworks/<framework-id>/` 隔离。现有直接位于平台根目录的历史记录按隐式
@@ -32,6 +67,7 @@
 - [Hy4-preview](models/Hy4-preview/README.md)
 - [Qwen3.8-Flash-Next](models/Qwen3.8-Flash-Next/README.md)
 - [XingChen4-29B-A4B](models/XingChen4-29B-A4B/README.md)
+- [MiniMax-M3.1](models/MiniMax-M3.1/README.md)（PPU-07：已完成，2026-10-08 用户验收确认）
 
 目录示例：
 
@@ -146,9 +182,13 @@ FlagEval 镜像内的一个或多个 lm-eval task；GPQA 只是默认示例，�
 配置、采集脚本、验收包装和原始结果保存在用户为该 framework profile 批准的独立远端工作
 根目录，本地模型目录只保留 Markdown 分析、问题记录和验收结论。适配容器保持运行；源码
 修改边界、执行模式、服务协议和验收方式按选定 profile 执行。`vllm-plugin-fl` 仍要求 vLLM
-只读以及 eager/graph 验收；graph 先尝试并优先采用覆盖 prefill 与 decode 的 `full` 全量图，
-只有具备阻塞证据时才可降级到最低要求 `decode-full`，后续验收和最终启动脚本沿用已验收的
-最高图级别。
+只读以及 eager/graph 验收。vLLM 的图模式按
+`FULL → FULL_AND_PIECEWISE → FULL_DECODE_ONLY → PIECEWISE` 逐级尝试；每一级定位和
+尝试修复后仍有无法解决的阻塞，才允许回退一级，不能直接跳到 decode-only 或分段图。
+目标是实测性能，记录同条件吞吐、时延和显存，不假定图越完整必然越快。核实实际生效模式，
+避免把框架自动降级误记为全图成功；后续验收和启动脚本绑定最终验证模式。全部图模式失败
+时，eager 仅用于诊断，不能算 graph 验收完成。模式映射及证据要求见
+[通用工作流](docs/model-adaptation-workflow.zh-CN.md)。
 
 只执行模型分析：
 

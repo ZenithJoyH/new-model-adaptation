@@ -38,7 +38,8 @@
 - 驱动、runtime 和编译工具链：
 - Python、PyTorch、Triton/flagtree：
 - vLLM 路径、revision、分支和工作树状态：
-- Plugin editable-install 证据（包元数据、import 路径、Git 根目录）：
+- 容器安装组件证据（服务解释器、包元数据、不依赖 PYTHONPATH 的 import 路径；Git revision/diff 或安装文件哈希）：
+- 镜像交付所需脚本/配置/运行库的容器内路径、挂载来源及需固化的文件：
 - Plugin 路径、revision、分支和工作树状态：
 - FlagGems 路径、revision、分支、upstream 和工作树状态：
 

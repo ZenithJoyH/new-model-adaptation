@@ -51,7 +51,7 @@ minimal-regression 由框架定向测试承担，只有提供固定案例集时�
 ## 精度评测映射
 
 - 方法：本节、项目本地精度入口及 `test/Accuracy_test/` 的原生执行/验证工具。
-- `service-sanity`：在已经通过执行模式验收的最高可用 graph 服务上使用 10 个固定 GPQA 类问题，
+- `service-sanity`：在已经通过执行模式验收的最终选定 graph 服务上使用 10 个固定 GPQA 类问题，
   并发 10；逐题正确性、输出健康和明显性能异常按本节项目规则检查。固定题目 manifest、请求脚本
   和原始结果放在远端 `<host_root>/03-acceptance/` 与 `<host_root>/04-runs/<run_id>/`。
   当前仓库没有独立维护的通用 sanity runner；未提供已核实 manifest 和入口时返回
@@ -62,7 +62,7 @@ minimal-regression 由框架定向测试承担，只有提供固定案例集时�
   `acceptance_contract.py`、`score_progress.py` 同目录，先执行
   `python3 llmrun.py <frozen-config> --preflight-only`，再使用同一配置执行
   `python3 llmrun.py <frozen-config>`。
-- 正式配置映射：使用 execution-mode 回执绑定的最高 graph 级别、`limit=0`、并发至少 32、
+- 正式配置映射：使用 execution-mode 回执绑定的最终 graph 模式、`limit=0`、并发至少 32、
   `allow_timeouts=true`，每个任务的
   metric/minimum 和完整样本数在运行前冻结。单 task 的 `expected_samples` 可为正整数；多
   task 必须为键集合与 `tasks` 完全一致的正整数映射。可用 `datasets` 为每个 task 配置
@@ -105,8 +105,8 @@ minimal-regression 由框架定向测试承担，只有提供固定案例集时�
 - 正式回执：在完整远端报告旁执行
   `python3 test/perf_test/perf_acceptance.py --report <benchmark-result.json> --runtime-config <runtime.yml> --output <receipt.json> --model <model> --platform <platform> --deployment-fingerprint <sha256> --service-instance-id <id>`。
   后续工作流通过 `./scripts/adapt-model ... --framework vllm-plugin-fl --acceptance-substeps performance --check-only --verify-records --artifact-root <Host>=<可读根>` 核验。
-- 正式性能只使用已通过 profile 执行模式验收的主模式及最高已验收图级别服务
-  （`vllm-plugin-fl` 为 graph，并按 Host 绑定 `full` 或最低 `decode-full`），
+- 正式性能只使用已通过 profile 执行模式验收的主模式及最终选定图模式服务
+  （vLLM 按 Host 绑定有逐级回退证据的 `full`、`full-and-piecewise`、`decode-full` 或 `piecewise`），
   并要求当前精度 `gate-check` 已通过。profiler-on
   轮次和 trace 只属于诊断，不进入正式性能结果。
 - 非性能测试保持前缀缓存开启。所有性能与 Profiling 轮次都必须切换到性能专用服务配置，
@@ -125,8 +125,9 @@ minimal-regression 由框架定向测试承担，只有提供固定案例集时�
 - 精度失败记录：当前模型平台的 `adaptation/` 编号问题；复现代码放远端 `02-issues/`、
   `05-tmp/` 或最小算子问题的 `07-bugs/`。
 - Trace 和 profiling 入口、rank 覆盖及产物路径按当前任务远端工作根和项目工具文档映射。
-- 产品修改只进入当前 profile 声明可写且已核实身份的源码；`vllm-plugin-fl` 仍只修改
-  editable-installed Plugin，vLLM 只读。
+- 产品修改只进入当前 profile 声明可写且已核实的容器安装组件；`vllm-plugin-fl` 允许
+  修改 Plugin、FlagGems 及已安装 FlagGems-vllm，vLLM 只读。不得用 `PYTHONPATH`
+  覆盖实际安装版本，普通安装用文件哈希记录修改身份。
 
 ## 产物与生命周期
 

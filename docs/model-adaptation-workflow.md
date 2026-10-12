@@ -19,10 +19,13 @@ verify every evaluation-container mapping separately. Set explicit workdir and
 stop on failed cd. Resolve symlinks and implicit writes. Use `01-environment/`,
 `02-issues/`, `03-acceptance/`, `04-runs/`, `05-tmp/`, `06-cache/`,
 `07-bugs/`; never mirror source repositories or raw remote data locally.
-Product changes belong only in verified profile-declared source trees. Preserve
+Product changes belong in verified profile-declared installed components/source
+trees. Modify the container's actual FlagOS installation directly, without
+`PYTHONPATH` or other import overrides selecting a different version. Record
+package/import identity and Git diff or installed-file hashes. Preserve
 unrelated work. The adaptation container must remain running. Only current-task
 services/processes may be restarted after their identities are resolved.
-Existing external dependencies, weights and datasets are read-only; source sync
+External dependencies outside that writable scope, weights and datasets are read-only; source sync
 requires its existing authorization. Existing remote paths must not be migrated
 without checking users/evidence and the user's migration authorization.
 A reproducer in `07-bugs/` runs in place; `/bug` may only expose that same approved
@@ -62,11 +65,37 @@ verified prerequisites. Optional steps are explicitly added to the workspace's
 ordered substep map before execution. Never invent a missing runner or interpret
 unavailable capability as a pass.
 
-When a profile declares a graph-level preference, optimization and acceptance
-must start from its most preferred level and may descend only with reproducible
-blocker evidence. For `vllm-plugin-fl`, this means `full` graph across prefill and
-decode first, with `decode-full` as the minimum fallback—not the default. Later
-acceptance and the final launcher stay on the highest accepted per-Host level.
+When a profile declares a graph preference, attempt each level in order. The two
+vLLM profiles use this project-defined sequence (not a guaranteed speed ranking):
+
+| Record value | vLLM mode | Coverage |
+| --- | --- | --- |
+| `full` | `FULL` | Full graphs for prefill/mixed and compatible decode batches. |
+| `full-and-piecewise` | `FULL_AND_PIECEWISE` | Full decode and piecewise prefill/mixed graphs. |
+| `decode-full` | `FULL_DECODE_ONLY` | Full decode graphs; prefill/mixed outside graphs. |
+| `piecewise` | `PIECEWISE` | Piecewise graphs with unsupported operations outside graphs. |
+
+Mode semantics follow [vLLM's graph documentation](https://docs.vllm.ai/en/latest/design/cuda_graphs/);
+verify the installed revision's names, backend and compilation requirements.
+Other frameworks declare their own supported sequence; do not invent vLLM modes
+for Torch-FL. Before descending one level, diagnose and attempt to fix the current
+level, then record the exact configuration, reproducible failure, remedies,
+unresolved blocker, limitations, evidence and conditions for retrying. A proven
+unsupported mode may be documented with version/backend evidence instead of
+repeated futile launches, but still needs an entry in the fallback chain.
+
+The goal is reliable performance. Record comparable throughput, TTFT/inter-token
+latency and memory for runnable candidates using the same workload, topology,
+context length and cache state. Higher graph coverage is not proof of higher
+speed; performance blockers also require controlled evidence and optimization
+attempts, not assumptions. Keep the accuracy-before-formal-performance gate.
+Inspect effective startup configuration and capture/replay evidence: automatic
+backend fallback is not success at the requested higher mode. `piecewise` may
+pass once every preceding level has a documented blocker. If all graph modes
+fail, eager/NONE is diagnostic only; leave graph acceptance incomplete.
+Bind all later receipts and the launcher to the final verified per-Host mode.
+Changing it invalidates affected receipts and requires revalidation, including
+accuracy before final performance; never silently downgrade a running service.
 
 Formal metrics pass at frozen thresholds with complete valid coverage; individual
 wrong answers and retained timeout-as-incorrect samples do not alone fail a valid
@@ -79,6 +108,11 @@ against the final accepted primary mode, runtime identity, executable permission
 syntax, actual readiness, minimal required settings, normal cache behavior and
 root mappings. Logs/results stay in `04-runs/`, caches in `06-cache/`. Reference
 its exact paths, SHA-256 and verification date locally. Never stop the container.
+Keep only necessary startup commands/settings in the launcher. Follow the
+[image-delivery rules](remote-operations.md): required files must survive in the
+image at container paths, with no incidental host mounts or import overrides.
+Perform diagnostics/readiness checks separately; record actual image validation
+only when packaging and fresh-container testing have been performed.
 Experimental Torch-FL bring-up can pass its individual checks and reach
 `functional`; it cannot claim full accuracy, performance, `optimized` or complete
 formal acceptance.
