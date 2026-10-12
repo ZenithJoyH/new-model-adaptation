@@ -1,265 +1,62 @@
-# 远程操作说明
+# 新模型适配说明
 
-## 管理范围
+本仓库用于指定模型、硬件平台与 framework profile 的模型跑通和推理优化。
+[AGENTS.md](AGENTS.md) 是供 Agent 使用的英文规则，本文是面向人的中文版。
 
-- 本仓库通过 `inventory/hosts.yml` 管理操作者 SSH 配置中的所有具体主机别名。SSH别名新增或删除时，必须同步更新 `managed` 组。
-- 对可重复操作或多主机变更使用 Ansible。仅针对明确目标开展只读诊断时，可以直接使用 SSH。
-- Codex 调用 Ansible 时，必须把工作目录设为仓库根目录，并使用准确的相对入口：
-  `./scripts/ansible`、`./scripts/playbook`、`./scripts/connectivity-check`、
-  `./scripts/accelerator-check`、`./scripts/health-check` 或 `./scripts/inventory`。
-  项目规则会让四个已经收紧参数的只读包装脚本自动在沙箱外执行；两个通用入口因参数可能
-  产生任意远端变更，仍需逐次审批。不得改用 `.venv/bin/*`、`bash`/`sh` 包装、绝对路径或
-  复合命令绕过规则。
-- 不得硬编码 IP 地址、SSH 用户、堡垒机信息、密码、令牌或私钥路径。SSH 连接信息应保存在操作者的 `~/.ssh/config` 中。
+## 任务范围与基本边界
 
-## 安全要求
+- 只执行用户要求的任务。本地文档、代码审查和仓库维护不自动启动远端操作或新一轮适配；
+  机器出现在 inventory 中不代表已授权操作全部机器。
+- 模型记录只保存已验证的适配内容。保留无关改动，不在模型目录加入聊天、无关运维、
+  原始日志、缓存或一次性脚本；提交、推送和创建 PR 仍需用户明确要求。
+- 远端写入前明确准确主机和已批准的绝对工作根，逐个核实容器映射。产品修改只进入所选
+  profile 声明且已核实的可写源码树；未声明的源码只读，`vllm-plugin-fl` 下 vLLM 保持只读。
+- 直接修改容器实际安装的 FlagOS 组件，包括普通安装目录和 editable 源码；不得用
+  `PYTHONPATH` 指向另一份代码或版本，仍按 profile 的可写组件清单执行。
+- 最终服务脚本只保留必要启动指令与设置。必需代码、配置和脚本须在镜像打包后仍位于
+  容器内路径；宿主机 bind mount 可访问不等于内容已进入镜像。
+- 适配容器必须持续运行。适配期间只允许按需停启当前任务负责的推理服务或相关进程。
+  删除数据、替换仓库外已有配置、重启主机和停止无关服务仍需用户明确确认。
+- 连接信息保存在操作者的 SSH 配置中。不得提交密钥、权重、完整日志或大型原始测试产物；
+  保留命令审批和主机密钥校验，不得绕过执行限制。
+- 只报告准确范围内已验证的结果。缺失、过期或不可访问的证据不能作为通过依据；
+  如实保留失败和未测试范围。
 
-- 状态检查、日志查看、inventory 列举、磁盘检查、进程查看和版本查询均视为只读操作。
-- 修改服务器前，先检查当前状态并明确目标主机。
-- 会产生变更的 playbook 必须先在一台主机上执行，验证成功后才能扩展到主机组。
-  对任何硬件组执行变更时使用 `serial: 1`。
-- 相关模块支持检查模式时，使用 `--check --diff`。
-- 不得使用范围过大的破坏性命令、关闭 SSH 主机密钥检查、覆盖非预期文件或掩盖验证
-  失败。
-- 删除数据、替换本仓库之外已有配置、重启机器，或停止当前模型适配范围之外的服务前，
-  必须取得用户明确确认。在正在进行的模型适配中，对于由 Agent 为当前任务启动，或由
-  用户明确纳入本次适配范围的推理服务或相关进程，Agent 可以按需停止或重启，无需每次
-  重复请求确认。适配容器本身必须保持运行，禁止停止、重启或删除。操作前必须准确确认
-  服务或进程，不得影响共享或无关负载，并记录原因、命令和验证结果。
-- 优先使用具备幂等性的 Ansible 模块，而不是 shell 命令。确需使用命令时，应有意识
-  地定义 `changed_when` 和 `failed_when`。
+## 按任务读取规则
 
-## 加速卡查询
+执行前读取匹配的入口。链接细则在对应范围内仍为强制要求，拆分不降低原有要求。
+只有用户扩展任务时才加载无关工作流。
 
-- 不得假设所有主机都使用 NVIDIA 工具。应使用平台组变量和
-  `./scripts/accelerator-check`。
-- NVIDIA：`nvidia-smi`。
-- 华为昇腾：`npu-smi info`。
-- 平头哥 PPU：`ppu-smi`。
-- 沐曦：`mx-smi`。
-- 海光：`hy-smi`；查看进程详情时使用 `hy-smi --showpids`。`htop` 仅用于交互式
-  SSH 会话。
-- 摩尔线程：`mthreads-gmi`。
-- 如果配置的命令不存在，应明确报告，不得静默改用其他厂商的命令。
+| 当前任务 | 必须读取的入口 |
+| --- | --- |
+| 本地文档、代码审查或控制工具维护 | 相关文件及其测试/契约；只有涉及下列范围时才追加对应规则。 |
+| 远端检查/变更，或 inventory、组变量、Ansible 入口、playbook 维护 | [远程操作 Skill](skills/remote-operations/SKILL.md) 及其引用细则；中文版为[远程操作细则](docs/remote-operations.zh-CN.md)。 |
+| 任一选定模型适配阶段 | [适配细则](docs/adaptation-policy.zh-CN.md)、所选 profile 的 workflow/acceptance 文档，再读[详细五阶段流程](docs/model-adaptation-workflow.zh-CN.md)。 |
+| 适配中涉及远端操作 | 首次远端操作前追加读取远程操作 Skill。 |
+| 精度或性能评测 | 追加读取[项目契约](docs/skills-project-contract.md)及其仓库内 Skill，明确选择操作。 |
+| 需要恢复记录的长任务 | 追加读取[执行记录](docs/agent-execution.md)。 |
+| 框架代码实现或 PR 审查 | 追加读取目标源码规范；`vllm-plugin-fl` 还需读取[Plugin 贡献标准](docs/plugin-contribution-policy.md)。 |
 
-## 新模型适配工作区
+远程 Skill 是按路径读取的项目内入口。用自然语言说明主机与操作即可使用，
+无需安装全局 Skill；纯本地任务不会自动启动远端检查。
 
-每次适配都有三个身份维度：**模型、硬件平台、framework profile**。进行框架相关的环境
-变更、代码实现或验收前，必须先从 `framework-profiles/` 选择 active 或 experimental profile。现有直接位于
-`models/<model>/<platform>/` 的记录按历史隐式 `vllm-plugin-fl` profile 解释，不得批量迁移。
-draft/不完整 profile 只允许模型分析和只读调查；experimental 允许声明的适配和基础验证，
-但不能完成正式整体验收或标记 optimized。Profile 可以收紧，
-但不得削弱仓库通用安全与证据要求。
+## 适配核心要求
 
-新模型适配工作区明确分为两个相互独立的部分：
-
-1. **远端工作目录**：用户为一个准确“模型 × 平台 × framework profile”任务在每台目标
-   主机批准的实际执行区域，供适配容器和远端命令存放
-   运行配置、一次性诊断、运行结果、缓存及算子复现；它不是源码 checkout 或仓库镜像。
-2. **本地工作目录**：当前管理仓库，用于保存精简的模型/平台/框架记录、可复用控制工具、模板
-   以及远端证据引用，不作为远端运行产物的镜像。
-
-本地记录必须引用准确的远端路径和 revision；不得把远端原始产物整批复制进本地工作目录，
-也不得把本地已有记录视为远端写入授权。
-
-### 远端工作目录
-
-- 任何远端写入前，取得准确的 SSH Host 别名和绝对 `host_root`；涉及容器时再核实绝对
-  `container_root` 及映射。确认前仅做只读检查。`workspace.roots` 必须为
-  `target.hosts` 中每台主机记录一项 `{host_alias, host_root, container_root}`；映射只对
-  指定容器有效，配置声明本身不等于已经核实。
-- 所有新增远端过程产物统一放在已批准根目录，并使用带序号的目录名：`01-environment/`
-  放环境采集和运行配置，`02-issues/` 放一次性诊断，`03-acceptance/`
-  放验收工具与配置，`04-runs/` 放每轮输出，`05-tmp/` 和 `06-cache/` 放临时或隐式写入，
-  `07-bugs/` 放最小算子复现。不得在该工作根目录创建源码仓库子目录或其他源码副本。
-  产品代码修改只能发生在选定 profile 明确声明可写的组件和源码树中；修改前必须核实包
-  元数据、实际 import 路径、Git 根目录、revision、工作区状态和既有改动归属，未声明组件
-  默认只读。`vllm-plugin-fl` profile 的可写产品代码仍是现有 editable-install Plugin，vLLM
-  保持只读，FlagGems 同步另行授权。不得把源码复制或重新 clone 到远端工作目录。复现用例在 `07-bugs/` 中通过已核实的容器对应路径原地执行，
-  不再复制到 `/bug`；只有必要工具或上游流程明确要求 `/bug` 时，才可将同一个 `07-bugs/`
-  目录以已批准且核实的映射暴露为 `/bug`，或使用明确批准的目录外例外。逐个核实参与容器
-  的对应映射；工具无法限制在该范围内时暂停并取得授权。
-- 使用旧编号的既有目录只作为历史证据。所有新增写入和新运行计划必须使用上述当前编号；
-  未核实准确的宿主机/容器路径、使用中的进程和证据引用，并取得用户明确迁移授权前，不得
-  重命名、合并、删除既有远端目录，也不得改写本地记录中的真实历史路径。
-- active profile 的服务适配标记为完成前，必须在每台目标主机已批准的远端工作根目录顶层放置一个最终可执行
-  模型启动脚本 `<host_root>/start-model.sh`，并核实容器内对应路径为
-  `<container_root>/start-model.sh`。这里的工作根必须属于当前 framework profile，不能由多个
-  框架共享。脚本必须启动 profile 最终通过验收的主执行模式及最高已验收图级别
-  （`vllm-plugin-fl` 为 `graph`，逐 Host 使用 `full` 或最低 `decode-full`），日志/结果写入
-  `04-runs/`，缓存写入 `06-cache/`，不得包含秘密，也不得覆盖无关的运行中服务。必须核验
-  并精简启动脚本：删除诊断、profiling、trace、dump、临时路径、过期 workaround、重复的
-  默认值、实验性调优项，以及与当前模型或平台无关的设置；只有最终验收配置确实依赖时才
-  能保留。必须从通过验收的最小生产启动命令重新整理，不得直接复制最后一次诊断、精度或
-  性能测试命令；不得把 profile 的性能专用缓存关闭机制带入最终脚本，`vllm-plugin-fl`
-  中尤其不得保留 `--no-enable-prefix-caching`。
-  当行为和可复现性不依赖显式固定时，应使用引擎默认值；不得因为某个参数曾出现在历史
-  命令中就继续保留。每个显式环境变量和参数都必须记录其正确性、安全性、写入位置或可复现性依据；
-  为避免默认值漂移而显式固定参数时，也必须说明理由。核验脚本语法、完整参数、revision、
-  设备分配、服务就绪状态及容器映射，并在平台 README 和
-  最终适配总结中记录宿主机/容器路径、SHA-256、验证日期和结果；不得把脚本复制到本地模型
-  目录。该脚本不得停止、重启或删除适配容器。
-- 每条远端命令显式指定 `cwd`/`workdir`，`cd` 失败立即停止，并核实 symlink、bind mount
-  的真实落盘位置。除 profile 声明可写的源码和已明确授权的同步操作
-  外，已有权重、数据集、依赖和源码默认只读；不得搬迁、复制或修改挂载，也不得为安排
-  目录而停止或重启适配容器。若 profile 要求的可写组件不符合其声明的安装/源码形式，或
-  无法核实身份，应停止并报告阻塞，不得在工作根目录另建替代 checkout。
-### 本地工作目录
-
-- 本仓库只记录已明确模型和平台的新模型跑通、平台验证及推理优化。不得记录无关运维、
-  普通包安装、聊天、探索性输出或未经验证的结论；未经用户明确要求不得提交或推送。
-- 使用 `./scripts/new-model <model-name>` 创建模型且不得覆盖已有目录。平台名称限定为
-  `nvidia`、`ppu`、`metax`、`ascend`、`mthreads` 和 `hygon`。
-- 使用 `./scripts/new-framework <model> <platform> <framework-id>` 创建显式框架工作区；不得
-  手工复制 profile 或复用另一个框架的状态。
-- `models/<model>/<platform>/` 根目录只保留 `README.md`、`platform.yml`、可选的
-  `frameworks/` 以及历史直接记录。新任务放在
-  `models/<model>/<platform>/frameworks/<framework-id>/`，其根目录只保留 `README.md`、
-  `framework.yml`，以及三个目录：
-  `environment/` 只放 Markdown 格式的环境/平台分析；
-  `adaptation/` 仅作为带编号的 Markdown 问题台账；`acceptance/` 只放 Markdown 格式的
-  验收计划、结果报告、总结和复盘。三个本地目录均不得建立子目录，也不得放脚本、
-  Playbook、JSON/YAML 配置、原始输出、缓存或临时文件。
-  模型级内容放 `architecture-and-inference.md` 与 `_shared/`；公共测试工具保留在 `test/`。
-- `_shared/` 只保留 Markdown 索引和少量合并后的跨平台分析，确保便于阅读。上游原始
-  元数据、复制模板、一次性检查脚本、JSON/YAML 快照和其他采集产物统一放在该 framework
-  profile 已批准的远端
-  根目录，不得保存在本地模型目录。
-- `adaptation/` 不得放脚本、Playbook、补丁、源码或算子实现、复制测试、原始日志、运行
-  JSON/YAML 或命令输出。Profile 声明可写的产品源码只放产品必需代码和可维护的局部测试；
-  一次性过程代码放远端 `02-issues/` 或 `05-tmp/`，置于全部产品、框架和内核源码仓库之外
-  且不得提交。可跨模型
-  工具只有经用户批准后才能提升到仓库级 `scripts/`。
-- 可执行的过程产物放在已批准远端根目录：环境采集与运行配置放 `01-environment/`，
-  一次性诊断放 `02-issues/` 或 `05-tmp/`，验收包装与配置放 `03-acceptance/`，原始结果
-  放 `04-runs/`。本地 Markdown 只总结可重复命令并记录准确 Host、远端路径、revision、
-  引擎、镜像、参数、输入、日期、用途和验证结果；清理远端临时文件前保留最小必要证据。
-
-### 状态与收尾
-
-- 优化前建立正确性和性能基线，每次只改变一个实质变量，并保留对比。
-- `vllm-plugin-fl` 的 graph 适配和验收必须遵循 profile 的图级别优先顺序：先尝试并优先采用
-  同时覆盖 prefill 与 decode 的 `full` 全量图；只有记录准确全量图配置、可复现失败、定位和
-  阻塞证据后，才允许降级为 `decode-full`。`decode-full` 是 graph 通过的最低要求；仅 eager、
-  分段/可断图、非 full decode 或更低覆盖不能通过。后续验收及最终启动脚本必须保持该 Host
-  已验收的最高级别，不得静默降级。
-- 正式全量精度评测只有一个数值通过标准：有效的完整评测回执中，每个在运行前冻结的指标
-  都达到其配置阈值，即可把精度子步骤标记为 `passed` 或 `complete`。指标不必达到 `1.0`，
-  因而允许存在少量答错的题目；“逐题全部正确”只属于前置小批量 sanity，不得用作正式
-  精度完成条件。最终超时的请求必须保留为失败/错误样本，计入完整样本总数和指标分母，
-  不得被丢弃、忽略或用重试掩盖；只要样本仍完整且所有冻结指标达到阈值，允许存在少量
-  此类超时。缺失或无效样本、非超时的请求/执行错误、过期证据或任一指标低于阈值，仍按
-  项目精度契约判定为失败或证据不完整。
-- 完成前更新 framework 工作区 `README.md` 中的结果、问题、原因、方案、限制和下一步，
-  并与 `framework.yml` 同步；历史隐式记录继续更新平台 `README.md` 与 `platform.yml`。
-  同时核验上述远端根目录顶层 `start-model.sh`；仅有文件不构成完成
-  证据。最小推理通过后才能标记 `functional`；正确性回归和性能结果记录后
-  才能标记 `optimized`。
-- 不得提交权重、密钥、完整日志或大型原始 benchmark。
-
-## 框架实现与 PR 质量
-
-- 将修改按多模型、多平台框架的可维护贡献来设计。修改前阅读选定 profile、其工作流与验收
-  文档，以及目标 checkout 的设计、贡献和测试规范。选择 `vllm-plugin-fl` 时还必须遵守
-  [Plugin 修改与 PR 标准](docs/plugin-contribution-policy.md)。
-- 在平台环境分析或对应的编号适配问题中说明职责归属、现有扩展点、接口契约、替代方案
-  和受影响调用方。复用已有 dispatch/注册路径，模型语义放在模型适配层，硬件
-  约束放在 vendor/能力路径；不得在公共执行代码散布模型名称或特定机器的例外。
-- 保持作用域外的既有行为。验证适用的已有模型调用方、守卫未命中路径、可选依赖隔离和
-  选定 profile 要求的全部执行模式（`vllm-plugin-fl` 为 eager/graph）。缺少硬件或未执行
-  测试时明确限制，不能从一个模型跑通推断多平台支持。
-- 适配收尾和准备 PR 时审查真实 diff，并把审查结论记录在相关编号问题和最终验收总结中。
-  记录已确认的 PR base、当前 HEAD、dirty/新增文件、既有改动、影响矩阵、测试证据、
-  workaround 退出条件及剩余风险。实质变更后更新审查；设计阻塞未解决不能标记适配完成。
-  设计审查与完整验收分别记录。
-- 修改保持主题集中、面向产品实现；不夹带无关重构，不用宽泛 fallback 隐藏失败。
-  不得仅为完成审查而提交、推送或创建 PR；这些动作仍需用户明确要求。
-
-## 适配经验积累与复用
-
-- 环境变更、适配实现或验收前，先检索 `docs/troubleshooting/`、相关复盘及相近模型/平台的
-  问题记录。已有经验只作为候选假设，不自动证明根因，也不扩大操作授权。
-- 按完整故障特征和上下文匹配：症状顺序、最先失败的 rank/组件、模型结构、平台、软件
-  revision、dtype/shape、并行拓扑、负载及 `eager`/`graph` 模式。仅关键词相同不算匹配。
-- 每个新的实质问题都使用 `templates/adaptation/issue-record.md` 记录到当前平台带编号的
-  `adaptation/` 台账。在受控对比验证前保持 `hypothesis`；每次只改变一个实质变量，保留
-  前后证据，并区分诊断、临时规避、缓解措施和根因修复。
-- 只有可复用且已经验证的结论才提升到 `docs/troubleshooting/`。知识条目必须包含故障签名、
-  适用范围和可信度、revision、诊断顺序、安全动作、停止/回退条件、验证结果、性能影响、
-  `eager`/`graph` 覆盖及来源记录；不得包含密钥、权重、完整日志或无证据结论。复盘时明确
-  标记候选经验为已提升、拒绝、已替代或待验证。
-- 复用条目时，在当前编号问题中引用它，记录本次与原场景的相同点和差异，并在当前软件栈
-  重新验证。补充复验结果和日期；出现反例时缩小适用范围、降低可信度或标记废弃。
-- 已知例：仅当故障完整表现为“`sample_tokens` 超过 300 秒、各 rank work 序号随后分叉、
-  EngineCore 最终因 RPC 超时退出”时，参考
-  `docs/troubleshooting/distributed-sample-tokens-timeout.md`。只有 worker 仍存活并持续推进时，
-  才可把调大 `VLLM_EXECUTE_MODEL_TIMEOUT_SECONDS` 作为受控诊断或缓解；出现 rank 异常、
-  OOM、集合通信分叉或死锁时应停止加时，转而定位最早失败的 rank。
-
-## 工作流调用与阶段隔离
-
-- 精度与性能工作使用本仓库入口，能力 ID 为 `adaptation/accuracy`、
-  `adaptation/performance`，要求调用方显式传入操作。Hub 或全局同名 Skill 不代表
-  相同的原生证据生产者。
-- 执行前读取 `docs/skills-project-contract.md` 中的项目方法及原生 runner 映射，
-  不动态读取旁边可变的 Hub 工作区。切换实现必须显式比较接口与证据协议。
-- 长任务需要恢复记录时遵循 `docs/agent-execution.md`：冻结 Skill 与输入身份，
-  执行原生前后检查，重试前先检查既有 run。记录器不扩大远程权限，不替代框架业务状态；
-  后续动作由调用方 Agent 决定。
-- 对具备前缀缓存的框架，模型分析、环境分析、适配、执行模式、小批量与精度等非性能环节
-  保持前缀缓存开启。本项目仅对性能测试增加一个强制前置条件：任何性能测试或
-  Profiling 开始前，必须使用性能测试专用的服务启动配置，不得把关闭参数写入通用 graph
-  配置；应使用选定 framework profile 声明的准确缓存关闭机制，并从实际生效的启动配置和
-  启动证据核实其关闭状态，随后把证据引用绑定到正式性能回执。`vllm-plugin-fl` profile
-  中仍必须在本轮被测实例加入准确参数 `--no-enable-prefix-caching`。
-  客户端 workload 的随机前缀长度为 0 不能证明服务端前缀缓存已经关闭；无法核实该准确
-  参数已生效且缓存处于关闭状态时，不得启动性能测试，也不得把 performance 子步骤标记
-  为通过。后续如果继续进行任何非性能测试，必须恢复为开启前缀缓存的普通服务配置。
-
-- 用户可以按编号或名称选择任意阶段：`architecture`（1）、`environment`（2）、
-  `adaptation`（3）、`acceptance`（4）和 `retrospective`（5）。只执行所选阶段，多个阶段
-  始终按 1→5 顺序执行；未选阶段只能作为前置条件检查，不得自动执行或重写。
-- 步骤 2～5 必须指定 active 或 experimental framework profile 和准确 Host。新框架工作区使用
-  `./scripts/new-framework` 创建，并用 `./scripts/audit-workspace` 检查本地结构；历史直接平台
-  记录继续使用已有检查。前置身份、证据、状态或时效性缺失/冲突时，停止并报告准确阻塞，不得静默
-  补跑其他阶段或只刷新哈希。
-- 验收子步骤由 profile 的有序 `acceptance.steps` 决定。vllm-plugin-fl 使用
-  execution-mode → sanity → accuracy → performance → evidence → summary；Torch-FL 使用
-  device → operators → model-eager → 可选 wheel → summary。不得混用框架流程或跳过前置。
-- 显式工作区用 `adapt-model --framework <id> --check-only` 核对前置，加 `--verify-records`
-  校验所选步骤的完成证据。按 `docs/framework-evidence.md` 读取批准远端根下的原生回执，
-  无法读取时不得以 Markdown 代替。
-- 未带 `--framework` 的旧 `adapt-model` 实现仍包含结构化文件门禁。平台步骤 2～5 不得以创建模式运行该
-  工具，也不得把它所需的旧 YAML/过程文件重新放回精简平台目录；这些阶段直接使用自然
-  语言请求 Codex，并用 `audit-workspace` 检查本地布局，等待门禁迁移。步骤 1 的结构分析
-  初始化仍可使用。
-- 只有所选工作已经真实验证且证据仍然有效，才能更新当前 `framework.yml`；历史隐式记录
-  继续更新 `platform.yml`。按
-  `docs/skills-project-contract.md` 和 `docs/workflow-guide.md` 绑定阶段及验收回执，并在环境
-  分析中记录和核实准确 Host 集合。原生回执名称、校验命令和失效规则只在项目契约中维护，
-  不在本 AGENTS 文件中重复。
-- 使用 `./scripts/audit-workspace` 检查本地结构和历史状态；warning 需要人工复核，不能作为
-  远端成功证据。
-
-## 详细工作流程（执行前必读）
-
-执行模型分析、环境分析、适配、验收或复盘前，必须读取
-选定 profile 的 workflow 与 acceptance 文档，再读取
-[详细五阶段工作流程](docs/model-adaptation-workflow.zh-CN.md)，并按顺序执行所选阶段。
-详细规则仍是强制要求；拆分文档不削弱任何安全边界或验收条件。
-本地命令和证据绑定方法见 [工作流操作指南](docs/workflow-guide.md)。
-
-## 验证与报告
-
-- 修改 inventory 或组变量后，运行 `./scripts/inventory`。
-- 修改 inventory、变量或 playbook 后，运行 `./scripts/syntax-check`。
-- 对多主机操作，应逐台报告结果，并区分未变化、已变化、失败和不可达状态。
-- 对未连接或未验证的主机，不得声称操作成功。
-- 使用 `./scripts/connectivity-check`，不能只依赖 SSH 退出码；堡垒机可能在报告找不到
-  资产的同时返回退出码 0。
-
-## 密钥与敏感信息
-
-- 不得提交密钥。SSH 密钥使用 SSH agent/keychain，其他凭据使用 Ansible Vault 或经
-  批准的密钥管理器。
-- 包含敏感信息的 Ansible 任务必须设置 `no_log: true`。
+- 五阶段为模型分析（1）、环境分析（2）、进行适配（3）、适配验收（4）、适配复盘（5）。
+  只执行所选阶段，始终按 1→5 顺序进行；未选前置阶段只检查，不自动补跑或重写。
+- 框架相关工作前先选择 profile，阶段 2～5 还需准确 Host。draft/不完整 profile 仅允许
+  模型分析和只读调查；experimental 可执行声明的验证，但不能完成正式整体验收或标记
+  `optimized`。
+- 按各框架自己的实现与验收流程执行，不把 vLLM 服务门禁套在 Torch-FL Python API 上；
+  profile 不得削弱通用规则。
+- 模型结构和推理链路分析使用中文。本地 environment、adaptation、acceptance 目录仅放
+  精简 Markdown 记录；可执行过程产物和原生证据保留在批准的远端根目录。
+  目录布局、证据、经验复用和完成条件的完整要求见细则。
+- vLLM profile 按 `full` → `full-and-piecewise` → `decode-full` → `piecewise` 尝试，
+  每级完成定位/修复尝试并记录仍无法解决的阻塞后才回退一级，不得跳级。
+  以实测性能为目标，后续验收和启动脚本绑定逐 Host 最终验证的模式。精度、性能、最终
+  启动脚本和总结要求继续生效，单项成功不代表
+  整个适配完成。
+- 验证后才能更新 `framework.yml`（历史记录为 `platform.yml`）。
+  `./scripts/audit-workspace` 用于本地布局检查，warning 不能证明远端成功；
+  使用旧版门禁前先读适配细则。

@@ -1,6 +1,18 @@
-# 评测 Skills 项目入口
+# Skills 项目入口
 
-本目录的两个入口由项目维护，以 [项目契约](../docs/skills-project-contract.md) 和既有
+## 远程操作
+
+[remote-operations](remote-operations/SKILL.md) 用于用户指定主机上的检查、变更和本仓库
+机器清单/Ansible 入口维护。根 AGENTS 按任务要求读取这个路径，不需安装全局 Skill。
+可直接说“使用项目内 remote-operations，只检查 PPU-01 的加速卡状态”。
+
+该入口复用现有命令及审批规则；纯本地文档和模型分析不自动执行远端检查。
+它是操作指引，没有评测能力 ID、`interface.json` 或 journal 完成门禁，不能作为
+精度/性能原生回执生产者。完整要求见[远程操作细则](../docs/remote-operations.zh-CN.md)。
+
+## 精度与性能评测
+
+本目录的两个评测入口由项目维护，以 [项目契约](../docs/skills-project-contract.md) 和既有
 原生 runner 执行。保留旧目录名，能力身份分别为 `adaptation/accuracy`、
 `adaptation/performance`；不等同于 Hub 的同名公共包，也不运行时读取旁边的 Hub 工作区。
 
