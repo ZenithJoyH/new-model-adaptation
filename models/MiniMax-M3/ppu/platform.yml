@@ -1,0 +1,103 @@
+platform: ppu
+record_layout: compact
+inventory_group: ppu
+accelerator_query: ppu-smi
+target:
+  hosts:
+  - PPU-13
+  container_name: minimaxM3
+  container_image: harbor.baai.ac.cn/flagos-inner-models-release/ppu-pp001-gems0.0.0-tree0.6.1-cxnone-plugin0.3.0-vllm0.24.0-cp312-pt210-hggc130-x64-1.3.2-d7f5a2:lingjunbase@sha256:f222f9a173b320d799ada39791979828f6abc5218063616b7efdf05873c52c1f
+workspace:
+  roots:
+  - host_alias: PPU-13
+    host_root: /mnt/nfs/users/jinghao/minimaxM3
+    container_root: /mnt/nfs/users/jinghao/minimaxM3
+status: blocked
+validated_hosts:
+- PPU-13
+engine: vllm + vllm-plugin-FL
+engine_version: 0.24.0
+container_image: harbor.baai.ac.cn/flagos-inner-models-release/ppu-pp001-gems0.0.0-tree0.6.1-cxnone-plugin0.3.0-vllm0.24.0-cp312-pt210-hggc130-x64-1.3.2-d7f5a2:lingjunbase
+  (sha256:f222f9a173b320d799ada39791979828f6abc5218063616b7efdf05873c52c1f)
+last_verified: '2026-09-16'
+blocker: 2026-09-21 本地审计：execution-mode/sanity/accuracy 上下文失效；正式精度仅有 compact Markdown
+  绑定。保留历史结果，待原生远端证据复核；本次未重新评测。
+workflow:
+  architecture:
+    status: complete
+    evidence: ../architecture-and-inference.md
+    last_verified: '2026-09-15'
+    blocker: ''
+    verification:
+      run_id: minimax-m3-architecture-revalidated-20260915
+      last_verified: '2026-09-15'
+      evidence: ../architecture-and-inference.md
+      evidence_sha256: aff39c0eb4eb9c50c85b82981cb5701919d09b66c09bfd1dae60de2023c4d794
+      context_sha256: 4104a507f820b951be6528997444821494e7995e095a3c37288f60d85c171431
+  environment:
+    status: complete
+    evidence: environment/environment-analysis.md
+    last_verified: '2026-09-15'
+    blocker: ''
+    verification:
+      run_id: minimax-m3-environment-revalidated-20260915
+      last_verified: '2026-09-15'
+      evidence: environment/environment-analysis.md
+      evidence_sha256: 6fcafdc24bead61cd4213b3b3f374e0953a71e9a0db0338ce023012a4aa8073b
+      context_sha256: eb22d2cb25a6b27d1dffabedede57516da1cb9ceffad5b319ab4421b0188f40b
+  adaptation:
+    status: complete
+    evidence: adaptation/README.md
+    last_verified: '2026-09-16'
+    blocker: ''
+    verification:
+      run_id: minimax-m3-adaptation-squashed-plugin-20260916
+      last_verified: '2026-09-16'
+      evidence: adaptation/README.md
+      evidence_sha256: 47b5f24b45c1dc76134c0828cb71fdc289078345d2f0a30f3d6ea3225d2f56dd
+      context_sha256: 40707d1da3767d1133dcfd2729409070ffeaef175132f54fa93190af8e26cc55
+  acceptance:
+    status: blocked
+    evidence: acceptance/adaptation-summary.md
+    last_verified: null
+    blocker: 历史执行模式、小批量与精度证据需按当前部署复核；新框架门禁必须读取原生远端回执。
+    verification: {}
+    records:
+      execution-mode:
+        run_id: minimax-m3-execution-mode-current-redesign-20260915
+        last_verified: '2026-09-15'
+        evidence: acceptance/execution-mode-results.md
+        evidence_sha256: 16ccd375db264981b2ff813ae455eb6aa9d033a375947210aaba5d418409027a
+        context_sha256: 69971f3b83dd7d14a55a40c1542a475dfabe3eca71bb53aebe94d430681a3bdf
+        service_instance_id: ppu13-minimaxM3-7ffdd70d-boot-e0f88877-pid1551482-start219575444-cmd4735fa06
+      sanity:
+        run_id: minimax-m3-gpqa-sanity-first10-greedy-c10-20260916-01
+        last_verified: '2026-09-16'
+        evidence: acceptance/sanity-results.md
+        evidence_sha256: cc2d7b3abe7de1d477f25426312d22e91f294e66ecdc17aa99ee71fd17fd6229
+        context_sha256: 63720008da79611e598c00395db8ff3da4d122c58026c63312ba01ea2f63f621
+        service_instance_id: ppu13-minimaxM3-7ffdd70d-boot-e0f88877-pid1551482-start219575444-cmd4735fa06
+      accuracy:
+        run_id: minimax-m3-gpqa-diamond-full-c64-20260916-01
+        last_verified: '2026-09-16'
+        evidence: acceptance/accuracy-results.md
+        evidence_sha256: 9f97761bc14c6831dcd24503fa8fb60950d495a3f6ac5d6bb59453ea614b5c06
+        context_sha256: 3b8be363eae0426ca6f58dfd9e6093b7d8a45ebbdd5ca7b2a5a20abecef8819b
+        service_instance_id: ppu13-minimaxM3-7ffdd70d-boot-e0f88877-pid1551482-start219575444-cmd4735fa06
+    substeps:
+      execution-mode: blocked
+      sanity: blocked
+      accuracy: blocked
+      performance: not_started
+      evidence: not_started
+      summary: not_started
+  retrospective:
+    status: not_started
+    evidence: acceptance/adaptation-retrospective.md
+    last_verified: null
+    blocker: ''
+    verification: {}
+frameworks:
+  vllm-plugin-fl:
+    workspace: frameworks/vllm-plugin-fl/framework.yml
+    profile: framework-profiles/vllm-plugin-fl/profile.yml

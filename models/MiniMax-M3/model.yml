@@ -1,0 +1,13 @@
+---
+name: "MiniMax-M3"
+source:
+  modelscope_id: ""
+  huggingface_id: "MiniMaxAI/MiniMax-M3"
+  revision: "远端快照无可核实 Git revision；以 config sha256 c9c97ce1e4eece60012d5a10ea87717458bfb1f19c2c7a615a3dbff83d090c6b 和 index sha256 54dbde502126d07f6999077437a06b5df1f71e317518956d0aad1c8197df524e 标识"
+architecture: "MiniMaxM3SparseForConditionalGeneration（MSA + MoE + vision/video）"
+parameter_count: "约 428B（模型卡声明；权重索引总字节 869157697024）"
+active_parameter_count: "约 23B（模型卡声明；待端到端 profiler 验证）"
+estimated_weight_size_gb: 809.4661841392517
+remote_weight_path: "/mnt/cpfs/models/MiniMax-M3"
+status: in_progress
+notes: "目标平台 ppu，目标主机 PPU-13，适配容器 minimaxM3；模型目录无 Git 元数据，以配置与权重索引哈希固定当前快照身份。"

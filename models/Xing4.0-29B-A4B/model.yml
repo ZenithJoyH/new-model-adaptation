@@ -1,0 +1,13 @@
+---
+name: "Xing4.0-29B-A4B"
+source:
+  modelscope_id: ""
+  huggingface_id: ""
+  revision: ""
+architecture: "Xing4_0ForCausalLM (MLA + MoE + mHC)"
+parameter_count: "29B (目录命名；含 MTP 权重的精确口径待发布方确认)"
+active_parameter_count: "4B (目录命名)"
+estimated_weight_size_gb: 62.430071008
+remote_weight_path: "/mnt/cpfs/models/Xing4.0-29B-A4B"
+status: in_progress
+notes: "目标为 PPU-13/xing4_0；来源 revision 未提供，以 config/index SHA-256 标识。本轮新入口只接受 Xing4_0 新权重协议，不增加旧字段兼容。"

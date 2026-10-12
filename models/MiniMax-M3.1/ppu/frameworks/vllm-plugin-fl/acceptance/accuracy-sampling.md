@@ -1,0 +1,13 @@
+# PPU-07 GPQA Diamond MiniMax-M3 采样参数全量对照
+
+2026-09-30 用户要求使用 `temperature=1,top_p=0.95,top_k=20` 重测 MiniMax-M3.1 精度。Host `PPU-07`、模型 `/mnt/cpfs/models/MiniMax-M3.1-preview-private-W8A8-FlagOS-20260929`、容器 `minimaxM3.1`、评测容器 `flageval_llmeval-jinghao`；工作根 Host/两个容器均映射 `/mnt/nfs/users/jinghao/minimaxM3.1`，同 inode `41:29130276076`。当前显式 `decode-full` TP16 BF16 服务实例 `ppu07-m31-container1ac783da-api2291878-start345908995-cmd8ee48233f293f954` 健康 HTTP 200，prefix cache enabled，最大上下文 65,536。源码 HEAD/diff/status 与 65k 部署身份 `01-environment/identity-ctx65k-20260930.json` 相同。
+
+冻结配置 `03-acceptance/gpqa-formal-temp1-p095-k20-gen60k-ctx65k-20260930/config.json` SHA-256 `599d80928196834804ac3badc7f493b170f85ecad51b5dd894508f03a58d2a01`；与 60k greedy 配置逐字段核对，仅改 `gen_kwargs` 为 `temperature=1,top_p=0.95,top_k=20,max_gen_toks=60000` 和独立运行标识/输出/缓存路径。仍为同一 GPQA Diamond 198 题、32 并发、seed 42、严格匹配 minimum 0.88、timeout 计错。原生 preflight 已确认样本、完整 limit 和服务可用。运行 ID `m31-gpqa-diamond-c32-temp1-p095-k20-gen60k-ctx65k-20260930`，原始结果与缓存分别在 `04-runs/`、`06-cache/` 同名目录。
+
+## 完整结果
+
+原生 runner 已结束，wrapper 退出码 **1**。`04-runs/m31-gpqa-diamond-c32-temp1-p095-k20-gen60k-ctx65k-20260930/outputs/m31-gpqa-diamond-c32-temp1-p095-k20-gen60k-ctx65k-20260930/m31-gpqa-diamond-c32-temp1-p095-k20-gen60k-ctx65k-20260930/acceptance-result.json` SHA-256 `df5591ac4a78f7a740ea728f5d0be4b84711fc3555fd1d49b095743fcd12c31e`，`status=failed`。原生结果 SHA-256 `5b83abae8e63caad9ac90595d5899ab0c163cf87ad056740127d069d3d956b54`，严格匹配 **167/198 = 0.8434343434**，低于冻结的 0.88（至少 175/198），还差 8 道正确题。原生 source config 快照 SHA-256 `599d80928196834804ac3badc7f493b170f85ecad51b5dd894508f03a58d2a01` 与运行前冻结配置相同；effective config SHA-256 `b861eb83083ea1b3608894ee2aedcf1dfecde6f8a069d75cbb634e905ea86fcb`。两次 task attempt 均以进程码 0 完整执行，但同一缓存回答的指标低于门槛而均标 `result validation failed`；第二次为重新评分，不是独立抽样。回执 `errors=[]`，最终 timeout 策略为计错，评测后服务 `/health` HTTP 200。
+
+项目原生 `validate_samples` 对最终样本 SHA-256 `a596e764ccdb9e6ec1d971d3662abc6e8ba42ee77dff6f4b3bb9370ee83d3790` 返回 `True`：198 个唯一题号、396 条双过滤记录，零 timeout；与 60k greedy 轮次逐题 doc/prompt/target 哈希完全相同。对照文件 `04-runs/m31-gpqa-diamond-c32-temp1-p095-k20-gen60k-ctx65k-20260930/comparison.json` SHA-256 `b53de2b5c8c66a29d9cde7e6ce1ef79eee80ecfc012af86fd43f7210a6ebf329`。相对 greedy 的 164/198，本轮 **17 题转对、14 题转错，净增 3 题**；转对 ID 为 8、9、10、15、42、51、69、75、81、85、92、102、134、166、171、174、185，转错 ID 为 3、12、24、34、38、50、90、91、93、130、131、172、175、184。原 60k greedy 有 10 题触顶、8 题错；本轮仅 2 题触及 60k 上限，均错误（ID 71、127）。本轮 31 道错误里 29 道未触顶。提高采样随机性和限制 top-k/top-p 缩短了部分长推理，但没有消除较多的答案错误；大量双向逐题转移也说明单次随机采样结果有波动，不能据此证明模型或量化实现的具体缺陷。
+
+结论：这组 MiniMax-M3 采样参数在当前 M3.1 服务上使 strict 分数从 82.83% 升至 **84.34%**，仍未达到正式精度阈值。它与历史 MiniMax-M3 的 30k/50k、c64、不同模型/服务结果不能当作同配置直接比较。此轮完整失败证据保留，不降低阈值、不删题或按已见答案调参；正式性能、证据总结与最终 launcher 仍受精度门禁阻止。

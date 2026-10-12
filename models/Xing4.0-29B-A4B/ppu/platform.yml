@@ -1,0 +1,80 @@
+---
+platform: ppu
+record_layout: compact
+inventory_group: ppu
+accelerator_query: ppu-smi
+target:
+  hosts:
+    - PPU-13
+  container_name: xing4_0
+  container_image: harbor.baai.ac.cn/flagos-inner-models-release/xingchen4-pp001-gems5.3.5-tree0.6.2-cxnone-plugin0.0.0-vllm0.24.0-cp312-pt210-hggc130-x64-2.1.1-rbd225:202609141006
+workspace:
+  roots:
+    - host_alias: PPU-13
+      host_root: /mnt/nfs/users/jinghao/xingchen4
+      container_root: /mnt/nfs/users/jinghao/xingchen4
+status: environment_ready
+validated_hosts:
+  - PPU-13
+engine: vllm + vllm-plugin-FL
+engine_version: 0.24.0+empty
+container_image: harbor.baai.ac.cn/flagos-inner-models-release/xingchen4-pp001-gems5.3.5-tree0.6.2-cxnone-plugin0.0.0-vllm0.24.0-cp312-pt210-hggc130-x64-2.1.1-rbd225:202609141006
+last_verified: '2026-09-17'
+blocker: >-
+  Xing4-only source, focused tests, registry, and real checkpoint config/module
+  are verified. Fresh graph revalidation is pending because PPU 0-15 are occupied
+  by four unrelated TP4 services; formal acceptance was not selected.
+workflow:
+  architecture:
+    status: complete
+    evidence: ../architecture-and-inference.md
+    last_verified: '2026-09-16'
+    blocker: ""
+    verification:
+      run_id: xing4-architecture-pr57135-20260916
+      last_verified: '2026-09-16'
+      evidence: ../architecture-and-inference.md
+      evidence_sha256: e1ede6c48f901810840c6f82e95e5b0223ce749555666565e0f01018e6a2f7b7
+      context_sha256: 9c76fd1ca02624d5a8daa2136dbe466a2adfb42acdc5b61734a0e403817e03a0
+  environment:
+    status: complete
+    evidence: environment/environment-analysis.md
+    last_verified: '2026-09-16'
+    blocker: ""
+    verification:
+      run_id: xing4-environment-ppu13-20260916
+      last_verified: '2026-09-16'
+      evidence: environment/environment-analysis.md
+      evidence_sha256: d84975451cd58e513d60b8d7ec41da1c947446888084f9b86e12a44e16ccea3a
+      context_sha256: 03df8c2310adc1bdf8206c794feb7f915ce2030cbcd94bb36f414084a15534f7
+  adaptation:
+    status: in_progress
+    evidence: adaptation/001-xing4-registration-and-loader.md
+    last_verified: '2026-09-17'
+    blocker: "fresh graph revalidation pending; all 16 PPUs are occupied by unrelated TP4 services"
+    verification:
+      run_id: xing4-only-20260917-01
+      last_verified: '2026-09-17'
+      evidence: adaptation/001-xing4-registration-and-loader.md
+      evidence_sha256: 06f0021a5307d04c50c44d94705632453a3ed344779f217cd65e0e2200609f6a
+      context_sha256: 9c959c61c62e2f2456fccce0041aa224b138e91e0023ac000bb41625a89209cd
+  acceptance:
+    status: not_started
+    evidence: acceptance/adaptation-summary.md
+    last_verified: null
+    blocker: ""
+    verification: {}
+    records: {}
+    substeps:
+      execution-mode: not_started
+      sanity: not_started
+      accuracy: not_started
+      performance: not_started
+      evidence: not_started
+      summary: not_started
+  retrospective:
+    status: not_started
+    evidence: acceptance/adaptation-retrospective.md
+    last_verified: null
+    blocker: ""
+    verification: {}

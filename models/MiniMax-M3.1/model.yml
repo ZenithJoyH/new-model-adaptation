@@ -1,0 +1,19 @@
+---
+name: "MiniMax-M3.1"
+source:
+  modelscope_id: ""
+  huggingface_id: ""
+  revision: ""
+architecture: "MiniMaxM3SparseForConditionalGeneration"
+parameter_count: ""
+active_parameter_count: ""
+estimated_weight_size_gb: 401.288
+remote_weight_path: "/mnt/cpfs/models/MiniMax-M3.1-preview-private-W8A8-FlagOS-20260929"
+status: complete
+completion:
+  confirmed_on: '2026-10-08'
+  confirmed_by: user
+  scope: MiniMax-M3.1 / PPU-07 / minimaxM3.1 / vllm-plugin-fl
+  basis: implemented_service_and_verified_external_accuracy_and_performance
+  evidence: ppu/frameworks/vllm-plugin-fl/acceptance/adaptation-summary.md
+notes: "PPU-07 adaptation completed by user acceptance; native workflow evidence limitations are retained separately. 401.288 GiB is quantization report payload size, not independently reweighed."
