@@ -10,7 +10,7 @@ from pathlib import Path
 import yaml
 
 from adapt_model import MODEL_NAME_RE, PLATFORMS
-from framework_workspace import FRAMEWORK_ID_RE, load_yaml, resolved_profile
+from framework_workspace import FRAMEWORK_ID_RE, load_yaml, resolved_profile, pin_profile
 
 
 def parse_args() -> argparse.Namespace:
@@ -74,6 +74,7 @@ def main() -> int:
         name: "not_started" for name, spec in profile["acceptance"]["steps"].items()
         if not spec.get("optional", False)
     }
+    pin_profile(config, profile)
     config_path.write_text(
         yaml.safe_dump(config, allow_unicode=True, sort_keys=False),
         encoding="utf-8",

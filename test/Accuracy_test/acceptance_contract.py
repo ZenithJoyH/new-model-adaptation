@@ -37,8 +37,24 @@ def validate_formal_config(cfg, *, require_formal=False):
     errors = []
     if cfg.get("service_mode") != "graph":
         errors.append("formal acceptance requires service_mode=graph")
-    if type(cfg.get("num_concurrent")) is not int or cfg["num_concurrent"] < 32:
-        errors.append("formal acceptance requires num_concurrent >= 32")
+    version = cfg.get("formal_contract_version", 1)
+    if type(version) is not int or version not in (1, 2):
+        errors.append("unsupported formal_contract_version")
+    minimum = 1 if version == 2 else 32
+    if type(cfg.get("num_concurrent")) is not int or cfg["num_concurrent"] < minimum:
+        errors.append(f"formal acceptance requires num_concurrent >= {minimum}")
+    if version == 2:
+        run_id = cfg.get("run_id")
+        if (not isinstance(run_id, str) or not run_id or run_id == "auto" or
+                any(c not in "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789._-" for c in run_id)
+                or not run_id[0].isalnum()):
+            errors.append("v2 requires an explicit filename-safe run_id shared with service observation")
+        if not isinstance(cfg.get("concurrency_reason"), str) or not cfg["concurrency_reason"].strip():
+            errors.append("v2 requires a frozen concurrency_reason")
+        binding = cfg.get("service_binding")
+        if not isinstance(binding, dict) or not all(binding.get(k) for k in
+                ("service_instance_id", "deployment_fingerprint", "host_alias", "endpoint", "observation", "process_identity")):
+            errors.append("v2 requires a complete service_binding")
     if type(cfg.get("limit")) is not int or cfg["limit"] != 0:
         errors.append("formal acceptance requires limit=0 (full dataset)")
     if cfg.get("allow_timeouts") is not True:

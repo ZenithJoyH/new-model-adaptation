@@ -4,6 +4,9 @@
 from __future__ import annotations
 
 import re
+import copy
+import hashlib
+import json
 from pathlib import Path
 from typing import Any
 
@@ -20,6 +23,48 @@ MUTATION_POLICIES = {
 WORKSPACE_SECTIONS = ("environment", "adaptation", "acceptance")
 WORKFLOW_PHASES = ("architecture", "environment", "adaptation", "acceptance", "retrospective")
 WORKFLOW_STATUSES = {"not_started", "in_progress", "blocked", "failed", "passed", "complete"}
+
+
+def profile_contract(profile):
+    """Only executable requirements participate; editorial documents do not."""
+    return {k: copy.deepcopy(v) for k, v in profile.items()
+            if k not in {"documents", "display_name"}}
+
+
+def contract_digest(value):
+    return hashlib.sha256(json.dumps(value, sort_keys=True, ensure_ascii=False,
+                                    allow_nan=False).encode()).hexdigest()
+
+
+def pin_profile(config, profile):
+    config.update(evidence_contract=2, profile_version=profile["profile_version"],
+                  profile_snapshot=copy.deepcopy(profile),
+                  profile_sha256=contract_digest(profile_contract(profile)))
+
+
+def workspace_profile(root, config):
+    if type(config.get("evidence_contract", 1)) is not int:
+        raise ValueError("evidence_contract must be an integer")
+    if config.get("evidence_contract", 1) == 1:
+        return resolved_profile(root, config["framework"])[1]
+    if config.get("evidence_contract") != 2:
+        raise ValueError("unsupported evidence_contract")
+    profile = config.get("profile_snapshot")
+    errors = profile_errors(profile, config["framework"])
+    if errors:
+        raise ValueError("invalid pinned profile: " + "; ".join(errors))
+    if (profile["profile_version"] != config["profile_version"] or
+            contract_digest(profile_contract(profile)) != config.get("profile_sha256")):
+        raise ValueError("pinned profile identity changed; use an explicit contract upgrade")
+    if profile["status"] not in {"active", "experimental"}:
+        raise ValueError("pinned profile must be active or experimental")
+    return profile
+
+
+def require_agent_control(config):
+    control = config.get("control", {})
+    if control.get("mode", "agent") != "agent":
+        raise ValueError("人工接管中；使用 workspace-control status 查看交接，resume 后才能继续 Agent 操作")
 
 
 def load_yaml(path: Path) -> dict[str, Any]:
@@ -208,6 +253,11 @@ def workspace_errors(config: Any, *, model: str, platform: str, framework: str) 
         "not_started", "environment_ready", "model_loading", "functional", "optimized", "blocked"
     }:
         errors.append("status 非法")
+    if config.get("evidence_contract", 1) not in (1, 2):
+        errors.append("evidence_contract 必须为 1 或 2")
+    control = config.get("control", {})
+    if not isinstance(control, dict) or control.get("mode", "agent") not in {"agent", "human"}:
+        errors.append("control.mode 必须为 agent 或 human")
     workflow = config.get("workflow")
     if not isinstance(workflow, dict):
         return errors + ["workflow 必须是映射"]

@@ -131,7 +131,11 @@ def audit(root, *, allow_absent_model_roots=False):
                             config, model=model.name, platform=platform, framework=framework_id
                         ):
                             add("error", config_path, error)
-                        profile_path, profile = framework_workspace.resolved_profile(root, framework_id)
+                        profile = framework_workspace.workspace_profile(root, config)
+                        if config.get("evidence_contract") == 2:
+                            current = framework_workspace.load_yaml(root / config["profile"])
+                            if framework_workspace.profile_contract(current) != framework_workspace.profile_contract(profile):
+                                add("warning", config_path, "按固定契约保留历史验证；当前 profile 已更新，可显式升级")
                         for error in framework_evidence.validate_workspace(root, framework_dir, config, profile):
                             add("error", config_path, error)
                     except ValueError as exc:

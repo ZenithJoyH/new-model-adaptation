@@ -1,7 +1,7 @@
 schema_version: 1
 id: vllm-native
 display_name: Native vLLM on NVIDIA
-profile_version: 2
+profile_version: 3
 status: active
 platforms: [nvidia]
 
@@ -45,7 +45,7 @@ acceptance:
       checks: [eager, graph, model_inference]
     sanity:
       validator: checks
-      checks: [ten_concurrent_correct, output_health, performance_sanity]
+      checks: [reference_consistency, output_health, performance_sanity]
     accuracy:
       validator: flageval
       checks: [service_identity, dataset_provenance]

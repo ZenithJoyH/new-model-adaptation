@@ -92,7 +92,8 @@ def observe(root, manifest, *, timeout=45):
     require(isinstance(challenge, dict) and isinstance(challenge.get("nonce"), str)
             and re.fullmatch(r"[0-9a-f]{64}", challenge["nonce"]), "worker did not issue a valid live challenge")
     response = {"nonce": challenge["nonce"], "status": "failed",
-                "service_instance_id": manifest["service_instance_id"], "pid": manifest["service_pid"]}
+                "service_instance_id": manifest["service_instance_id"], "pid": manifest["service_pid"],
+                "run_id": manifest["run_plan"]["run_id"], "host_alias": manifest.get("host_alias")}
     try:
         require(challenge.get("service_instance_id") == manifest["service_instance_id"], "challenge instance mismatch")
         name = manifest["target_container_name"]
@@ -173,9 +174,20 @@ print(json.dumps({'start_ticks':ticks,'cmdline_sha256':hashlib.sha256(cmd).hexdi
 def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--run-dir", required=True, type=Path)
-    parser.add_argument("--manifest-json", required=True)
+    source = parser.add_mutually_exclusive_group(required=True)
+    source.add_argument("--manifest-json")
+    source.add_argument("--manifest-file", type=Path)
+    parser.add_argument("--standalone", action="store_true", help="issue a fresh challenge for a foreground human/agent run")
     args = parser.parse_args(argv)
-    print(json.dumps(observe(args.run_dir, json.loads(args.manifest_json))))
+    manifest = json.loads(args.manifest_file.read_text() if args.manifest_file else args.manifest_json)
+    if args.standalone:
+        expected = Path(manifest["workspace"]["host_root"]) / "04-runs" / manifest["run_plan"]["run_id"]
+        require(args.run_dir == expected and args.run_dir.resolve() == args.run_dir and args.run_dir.is_dir(),
+                "standalone observer needs the exact canonical prepared run directory")
+        require(not (args.run_dir / "service-observation.json").exists(), "observation already exists")
+        write_new(args.run_dir / "service-challenge.json", {
+            "nonce": secrets.token_hex(32), "service_instance_id": manifest["service_instance_id"]})
+    print(json.dumps(observe(args.run_dir, manifest)))
 
 
 if __name__ == "__main__":

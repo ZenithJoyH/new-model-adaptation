@@ -45,7 +45,7 @@ class FrameworkWorkspaceTests(unittest.TestCase):
     def test_vllm_profile_is_complete(self):
         path, profile = framework_workspace.resolved_profile(ROOT, "vllm-plugin-fl")
         self.assertEqual(path.parent.name, "vllm-plugin-fl")
-        self.assertEqual(profile["profile_version"], 6)
+        self.assertEqual(profile["profile_version"], 7)
         self.assertEqual(profile["execution_modes"]["required"], ["eager", "graph"])
         self.assertEqual(
             profile["execution_modes"]["graph_policy"]["preference_order"],
@@ -157,6 +157,8 @@ class FrameworkGateTests(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
         self.directory = self.root / 'models/Example/ppu/frameworks/torch-fl'
         self.cfg = framework_workspace.load_yaml(self.directory / 'framework.yml')
+        for key in ('evidence_contract', 'profile_snapshot', 'profile_sha256'):
+            self.cfg.pop(key, None)
         _, self.profile = framework_workspace.resolved_profile(self.root, 'torch-fl')
         self.remote = self.root / 'remote'
         self.remote.mkdir()

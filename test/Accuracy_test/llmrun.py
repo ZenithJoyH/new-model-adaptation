@@ -752,6 +752,9 @@ def write_acceptance_report(cfg, run_dir, failed, task_attempts, errors):
         "artifacts": {}, "task_attempts": task_attempts, "errors": list(errors),
         "config_artifacts": {},
     }
+    if cfg.get("formal_contract_version") == 2:
+        report["service_binding"] = cfg["service_binding"]
+        report["formal_contract_version"] = 2
     for task in cfg["tasks"]:
         records = task_attempts.get(task, [])
         directory = Path(records[-1]["output_dir"]) if records else run_dir / safe_name(task)

@@ -30,122 +30,16 @@ class AdaptModelTests(unittest.TestCase):
                 adapt_model.ACCEPTANCE_SUBSTEPS,
             )
 
-    def test_cli_initializes_only_selected_stage(self) -> None:
+    def test_legacy_platform_creation_is_rejected_before_writes(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
-            shutil.copytree(REPO_ROOT / "templates", root / "templates")
-            platform_dir = root / "models" / "Example" / "ppu"
-            platform_dir.mkdir(parents=True)
-            (platform_dir.parent / 'model.yml').write_text('name: Example\n', encoding='utf-8')
-            template_platform = REPO_ROOT / "models" / "_template" / "ppu" / "platform.yml"
-            destination_template = root / "models" / "_template" / "ppu"
-            destination_template.mkdir(parents=True)
-            shutil.copy2(template_platform, platform_dir / "platform.yml")
-            shutil.copy2(template_platform, destination_template / "platform.yml")
-            inventory_dir = root / "inventory"
-            inventory_dir.mkdir()
-            inventory_dir.joinpath("hosts.yml").write_text(
-                """---
-all:
-  children:
-    managed:
-      children:
-        ppu:
-          hosts:
-            PPU-01:
-""",
-                encoding="utf-8",
-            )
-
-            command = [
-                sys.executable,
-                str(REPO_ROOT / "scripts" / "adapt_model.py"),
-                "--repo-root",
-                str(root),
-                "Example",
-                "--platform",
-                "ppu",
-                "--hosts",
-                "PPU-01",
-                "--steps",
-                "environment",
-            ]
-            result = subprocess.run(command, check=False, capture_output=True, text=True)
-            self.assertEqual(result.returncode, 0, result.stderr)
-            self.assertTrue(
-                (platform_dir / "environment" / "environment-analysis.md").is_file()
-            )
-            target_file = platform_dir / 'environment/environment-target.yml'
-            target_bytes = target_file.read_bytes()
-            self.assertEqual(yaml.safe_load(target_bytes)['target']['hosts'], ['PPU-01'])
-            self.assertFalse(
-                (platform_dir / "environment" / "platform-adaptation-plan.md").exists()
-            )
-            self.assertFalse((platform_dir / "environment" / "plugin-change-review.md").exists())
-            self.assertFalse(
-                (platform_dir / "environment" / "runtime-config.yml").exists()
-            )
-            self.assertFalse(
-                (platform_dir / "environment" / "service-state.yml").exists()
-            )
-            self.assertFalse((platform_dir / "adaptation").exists())
-            self.assertFalse((platform_dir / "acceptance").exists())
-
-            checked = subprocess.run(
-                [*command, "--check-only"],
-                check=False,
-                capture_output=True,
-                text=True,
-            )
-            self.assertEqual(checked.returncode, 0, checked.stderr)
-            self.assertEqual(target_bytes, target_file.read_bytes())
-
-            combined = subprocess.run(
-                [
-                    *command[:-1],
-                    "architecture,environment,adaptation",
-                ],
-                check=False,
-                capture_output=True,
-                text=True,
-            )
-            self.assertEqual(combined.returncode, 0, combined.stderr)
-            self.assertTrue((root / "models" / "Example" / "architecture-and-inference.md").is_file())
-            self.assertTrue(
-                (platform_dir / "environment" / "platform-adaptation-plan.md").is_file()
-            )
-            self.assertTrue(
-                (platform_dir / "environment" / "runtime-config.yml").is_file()
-            )
-            self.assertTrue(
-                (platform_dir / "environment" / "service-state.yml").is_file()
-            )
-            self.assertEqual(
-                sorted(path.name for path in (platform_dir / "adaptation").iterdir()),
-                ["README.md"],
-            )
-            self.assertIn("适配配置仍需完善", combined.stdout)
-            review = platform_dir / "environment" / "plugin-change-review.md"
-            self.assertTrue(review.is_file())
-            review.write_text("Existing design review; preserve its conclusions.\n", encoding="utf-8")
-            repeated = subprocess.run(
-                [*command[:-1], "architecture,environment,adaptation"],
-                check=False, capture_output=True, text=True,
-            )
-            self.assertEqual(repeated.returncode, 0, repeated.stderr)
-            self.assertEqual(review.read_text(encoding="utf-8"),
-                             "Existing design review; preserve its conclusions.\n")
-            saved = review.with_suffix(".saved")
-            review.rename(saved)
-            checked = subprocess.run(
-                [*command[:-1], "architecture,environment,adaptation", "--check-only"],
-                check=False, capture_output=True, text=True,
-            )
-            self.assertNotEqual(checked.returncode, 0)
-            self.assertIn("plugin-change-review.md", checked.stderr)
-            self.assertFalse(review.exists())
-            self.assertEqual(saved.read_text(encoding="utf-8"),
-                             "Existing design review; preserve its conclusions.\n")
+            for steps in ('environment', 'architecture,environment,adaptation'):
+                result = subprocess.run([sys.executable, str(REPO_ROOT / 'scripts/adapt_model.py'),
+                    '--repo-root', str(root), 'Example', '--platform', 'ppu', '--hosts', 'PPU-01',
+                    '--steps', steps], capture_output=True, text=True)
+                self.assertNotEqual(result.returncode, 0)
+                self.assertIn('创建入口已停用', result.stderr)
+                self.assertEqual(list(root.iterdir()), [])
 
     def test_steps_are_deduplicated_and_ordered(self) -> None:
         self.assertEqual(

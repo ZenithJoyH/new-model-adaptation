@@ -1,7 +1,7 @@
 schema_version: 1
 id: vllm-ppu
 display_name: T-Head native vLLM on PPU
-profile_version: 1
+profile_version: 2
 status: experimental
 platforms: [ppu]
 
@@ -45,7 +45,7 @@ acceptance:
       checks: [eager, graph, model_inference]
     sanity:
       validator: checks
-      checks: [ten_concurrent_correct, output_health]
+      checks: [reference_consistency, output_health]
     evidence:
       validator: checks
       checks: [source_review, vllm_revision_and_diff, artifacts_complete]

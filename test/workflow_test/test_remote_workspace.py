@@ -81,7 +81,7 @@ class RemoteWorkspaceCliTests(unittest.TestCase):
         return ['adapt-model', 'Example', '--repo-root', str(self.root), '--platform', 'ppu',
                 '--hosts', 'PPU-01', '--steps', 'environment']
 
-    def test_environment_prompt_shows_roots_without_creating_remote_directories(self):
+    def test_legacy_environment_creation_refuses_without_touching_roots(self):
         argv = self.prepare()
         runtime_path = self.platform / 'environment/runtime-config.yml'
         runtime = workflow.load_yaml(runtime_path)
@@ -91,10 +91,8 @@ class RemoteWorkspaceCliTests(unittest.TestCase):
         before = {path: path.read_bytes() for path in self.root.rglob('*') if path.is_file()}
         output = io.StringIO()
         with patch.object(sys, 'argv', argv), patch('sys.stdout', output):
-            self.assertEqual(workflow.main(), 0)
-        self.assertIn('PPU-01: host_root=/operator/first', output.getvalue())
-        self.assertIn('container=model-container; container_root=/work/first', output.getvalue())
-        self.assertIn('不是 chroot', output.getvalue())
+            with self.assertRaisesRegex(workflow.WorkflowError, '创建入口已停用'):
+                workflow.main()
         self.assertEqual(before, {path: path.read_bytes() for path in self.root.rglob('*') if path.is_file()})
 
     def test_environment_without_runtime_reports_stop_write_and_does_not_backfill(self):
@@ -104,8 +102,8 @@ class RemoteWorkspaceCliTests(unittest.TestCase):
         status_before = (self.platform / 'platform.yml').read_bytes()
         output = io.StringIO()
         with patch.object(sys, 'argv', argv), patch('sys.stdout', output):
-            self.assertEqual(workflow.main(), 0)
-        self.assertIn('停止远端新增/写入', output.getvalue())
+            with self.assertRaisesRegex(workflow.WorkflowError, '创建入口已停用'):
+                workflow.main()
         self.assertFalse(runtime.exists())
         self.assertEqual(status_before, (self.platform / 'platform.yml').read_bytes())
         checked_output = io.StringIO()

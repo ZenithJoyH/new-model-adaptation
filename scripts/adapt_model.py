@@ -866,6 +866,8 @@ def main() -> int:
         raise WorkflowError("模型名只能包含字母、数字、点、下划线和连字符")
     steps = parse_steps(args.steps)
     needs_platform = any(step != "architecture" for step in steps)
+    if needs_platform and not args.check_only and not args.deployment_info and not args.evidence_info:
+        raise WorkflowError("阶段 2–5 创建入口已停用；请使用 new-framework 并明确 --framework；旧记录仅支持只读检查")
     if needs_platform and not args.platform:
         raise WorkflowError("步骤 2 至 5 必须使用 --platform 指定平台")
 

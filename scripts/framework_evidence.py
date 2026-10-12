@@ -8,7 +8,8 @@ import sys
 from datetime import date
 from pathlib import Path, PurePosixPath
 
-from framework_workspace import load_yaml, resolved_profile, workspace_errors, WORKFLOW_PHASES
+from framework_workspace import (load_yaml, workspace_errors, WORKFLOW_PHASES,
+                                 workspace_profile, profile_contract, require_agent_control, FRAMEWORK_ID_RE)
 
 DONE = {"passed", "complete"}
 SHA = re.compile(r"[0-9a-f]{64}\Z")
@@ -66,17 +67,32 @@ def state(cfg, stage):
 
 def context_hash(root, directory, cfg, profile, stage):
     model = root / "models" / cfg["model"]
-    files = [model / "model.yml", root / cfg["profile"]]
-    files += [(root / cfg["profile"]).parent / value for value in profile["documents"].values()]
+    modern = cfg.get("evidence_contract", 1) == 2
+    files = [model / "model.yml"]
+    if not modern:
+        files += [root / cfg["profile"]]
+        files += [(root / cfg["profile"]).parent / value for value in profile["documents"].values()]
     if stage != "architecture":
         files.append(model / "architecture-and-inference.md")
     for path in files:
         require(path.is_file(), f"缺少上下文文件: {path}")
     scope = {key: cfg.get(key) for key in ("model", "platform", "framework", "profile_version")}
+    if modern:
+        scope = {"model": cfg["model"], "evidence_contract": 2}
+        if stage != "architecture":
+            scope.update(platform=cfg["platform"], framework=cfg["framework"],
+                         contract=profile_contract(profile))
     if stage != "architecture":
         scope.update({key: cfg.get(key) for key in ("target", "workspace", "deployment")})
     if stage not in {"architecture", "environment", "adaptation"}:
         scope["acceptance_plan"] = cfg.get("acceptance_plan")
+        if modern and stage in {"execution-mode", "sanity", "accuracy"}:
+            keys = ["execution"]
+            if stage != "execution-mode":
+                keys.append("sanity_manifest_sha256")
+            if stage == "accuracy":
+                keys.append("accuracy_config_sha256")
+            scope["acceptance_plan"] = {k: cfg.get("acceptance_plan", {}).get(k) for k in keys}
     return canonical({"scope": scope, "stage": stage,
                       "files": {str(p.relative_to(root)): digest(p) for p in files},
                       "prerequisites": {s: record_for(cfg, s) for s in dependencies(cfg, profile, stage)}})
@@ -138,6 +154,12 @@ def native_accuracy(reader, native, envelope, cfg):
         report = reader.json(native["report"])
         frozen_path = reader.file(native["config"])
         frozen = json.loads(frozen_path.read_text(encoding="utf-8"))
+        if cfg.get("evidence_contract", 1) == 2:
+            from evidence_contract import service_binding
+            require(frozen.get("formal_contract_version") == 2, "新契约需要 formal_contract_version=2")
+            require(report.get("service_binding") == frozen.get("service_binding"), "原生精度服务身份与冻结配置不一致")
+            require(frozen.get("base_url") == frozen.get("service_binding", {}).get("endpoint"), "精度 endpoint 与服务身份不一致")
+            service_binding(reader, report.get("service_binding"), envelope, cfg, envelope["scope"]["host_alias"])
         require(not validate_formal_config(frozen, require_formal=True), "无效正式精度配置")
         require(report.get("kind") == "formal_accuracy" and report.get("status") == "passed"
                 and report.get("errors") == [] and report.get("failed_tasks") == [], "正式精度未通过")
@@ -207,6 +229,15 @@ def native_performance(reader, native, envelope, cfg):
                           for item in source["cases"]]
         require(report["cases"] == expected_cases, "性能回执指标与完整产物不一致")
         require(canonical(source["request"]) == cfg["acceptance_plan"].get("performance_request_sha256"), "性能场景未冻结或已变化")
+        if cfg.get("evidence_contract", 1) == 2:
+            from evidence_contract import performance_targets, service_binding
+            service_binding(reader, runtime.get("service_binding"), envelope, cfg, envelope["scope"]["host_alias"])
+            from urllib.parse import urlsplit
+            bound = urlsplit(runtime["service_binding"]["endpoint"])
+            request = source["request"]
+            require(bound.hostname == request["host"].strip("[]") and (bound.port or 80) == request["port"]
+                    and bound.path == request["endpoint"], "性能请求与原生服务身份不一致")
+            performance_targets(reader, source, cfg["acceptance_plan"])
     finally:
         sys.path.pop(0)
 
@@ -256,6 +287,23 @@ def check_graph_level(reader, report, ref, cfg, profile, stage):
     require(level == selected, f"{stage}: graph_level 与执行模式验收不一致")
 
 
+def native_sanity(reader, report, cfg, host):
+    sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "test/Accuracy_test"))
+    try:
+        from sanity import validate_result
+        from evidence_contract import service_binding
+        native = report["native"]
+        manifest = reader.json(native["manifest"])
+        result = reader.json(native["sanity"])
+        require(cfg["acceptance_plan"].get("sanity_manifest_sha256") == native["manifest"]["sha256"]
+                == result.get("manifest_sha256"), "sanity manifest 未冻结或已变化")
+        require(result.get("run_id") == report["run_id"], "sanity run_id 不匹配")
+        service_binding(reader, result.get("service_binding"), report, cfg, host)
+        validate_result(manifest, result)
+    finally:
+        sys.path.pop(0)
+
+
 def check_receipt(reader, ref, cfg, profile, stage, rec):
     report = reader.json(ref)
     require(report.get("schema_version") == 1 and report.get("kind") == "framework_check"
@@ -275,6 +323,16 @@ def check_receipt(reader, ref, cfg, profile, stage, rec):
     require(isinstance(artifacts, list) and artifacts, "验证回执缺少原始证据引用")
     for item in artifacts:
         reader.file(item)
+    if cfg.get("evidence_contract", 1) == 2:
+        from evidence_contract import producer, checks_evidence, execution, delivery
+        producer(report)
+        checks_evidence(reader, report, required)
+        if stage in {"execution-mode", "model-eager"}:
+            execution(reader, report, cfg, profile)
+        if stage == "sanity":
+            native_sanity(reader, report, cfg, ref["host_alias"])
+        if stage == "summary" and profile["status"] == "active":
+            delivery(reader, report)
     if spec and stage not in {"device", "operators", "wheel"}:
         require(report.get("mode") == profile["execution_modes"]["acceptance_primary"], "验收执行模式不匹配")
         check_graph_level(reader, report, ref, cfg, profile, stage)
@@ -286,7 +344,7 @@ def check_receipt(reader, ref, cfg, profile, stage, rec):
         accuracy_refs = record_for(cfg, "accuracy")["receipts"]
         expected = next(r["sha256"] for r in accuracy_refs if r["host_alias"] == ref["host_alias"])
         require(report.get("accuracy_receipt_sha256") == expected, "性能未绑定该 Host 的正式精度回执")
-    if cfg["framework"] == "vllm-plugin-fl" and stage in {"execution-mode", "sanity", "accuracy", "summary"}:
+    if profile["acceptance"]["prefix_caching"].get("non_performance") == "enabled" and stage in {"execution-mode", "sanity", "accuracy", "summary"}:
         require(report.get("prefix_caching_enabled") is True, "非性能验收必须开启前缀缓存")
     if stage == "summary" and profile["status"] == "active":
         launcher = report.get("launcher", {})
@@ -328,6 +386,8 @@ def validate_workspace(root, directory, cfg, profile, mounts=None):
     if errors:
         return errors
     try:
+        if cfg.get("evidence_contract", 1) == 2:
+            profile = workspace_profile(root, cfg)
         require(cfg["platform"] in profile["platforms"], "框架不支持该平台")
         require(cfg["profile_version"] == profile["profile_version"], "profile revision 已变化，必须复核证据")
         steps = step_names(cfg, profile)
@@ -366,6 +426,8 @@ def validate_workspace(root, directory, cfg, profile, mounts=None):
             basic = "execution-mode" if "execution-mode" in steps else "model-eager"
             require(basic in steps and state(cfg, basic) in DONE, "functional/optimized 缺少模型推理证据")
         if cfg["status"] == "optimized":
+            require(cfg.get("evidence_contract") == 2 and cfg.get("acceptance_plan", {}).get("performance_targets"),
+                    "optimized 需要 v2 性能目标；旧验收保留为历史记录")
             require(profile["status"] == "active" and all(state(cfg, s) in DONE for s in steps)
                     and state(cfg, "acceptance") in DONE, "optimized 需要 active profile 和完整验收")
         if profile["status"] == "experimental":
@@ -378,11 +440,14 @@ def validate_workspace(root, directory, cfg, profile, mounts=None):
 def check_command(args):
     require(args.check_only, "框架入口仅做 --check-only；创建请用 new-framework，执行用所选框架工作流")
     require(args.platform, "必须指定 --platform")
+    require(FRAMEWORK_ID_RE.fullmatch(args.framework), "非法 framework ID")
     root = args.repo_root.resolve()
-    _, profile = resolved_profile(root, args.framework)
     require(isinstance(args.model, str) and re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._-]*", args.model), "非法模型名")
     directory = root / "models" / args.model / args.platform / "frameworks" / args.framework
     cfg = load_yaml(directory / "framework.yml")
+    profile = workspace_profile(root, cfg)
+    if not args.verify_records and not args.evidence_info:
+        require_agent_control(cfg)
     mounts = {}
     for item in args.artifact_root:
         host, sep, path = item.partition("=")
@@ -423,6 +488,9 @@ def check_command(args):
         else:
             targets.append(phase)
     for target in targets:
+        if target == "performance" and cfg.get("evidence_contract") == 2:
+            from evidence_contract import validate_performance_plan
+            validate_performance_plan(cfg.get("acceptance_plan", {}))
         for previous in dependencies(cfg, profile, target):
             # Selection never waives an incomplete prerequisite in a read-only gate.
             require(state(cfg, previous) in DONE, f"{target} 前置 {previous} 未完成")

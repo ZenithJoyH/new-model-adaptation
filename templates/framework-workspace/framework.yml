@@ -9,6 +9,9 @@ validated_hosts: []
 container_image: ""
 last_verified: null
 blocker: ""
+control:
+  mode: agent
+  history: []
 target:
   hosts: []
   container_name: ""

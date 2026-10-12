@@ -94,6 +94,7 @@ def parse_args(argv=None, *, engine="vllm", profile=False, all_entrypoint=False)
                         help="Warmup runs omitted from averages, but not from failure checks")
     parser.add_argument("--output-dir", default=str(Path(__file__).resolve().parent / "results"),
                         help="Local artifact directory (default: ignored test/perf_test/results/)")
+    parser.add_argument("--run-id", help="Preassigned observation/journal ID; an existing run directory is never reused")
     parser.add_argument("--run-timeout", type=positive_int, default=21600,
                         help="Maximum seconds per benchmark subprocess (default: six hours)")
     parser.add_argument("--dry-run", action="store_true", help="Print commands only; produces no passing report")
@@ -112,6 +113,8 @@ def parse_args(argv=None, *, engine="vllm", profile=False, all_entrypoint=False)
         help=f"Enable all {len(ALL_TEST_CASES)} cases; default is {len(DEFAULT_TEST_CASES)} cases.",
     )
     args = parser.parse_args(argv)
+    if args.run_id is not None and not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._-]*", args.run_id):
+        parser.error("run-id must be a nonempty filename-safe identifier")
     args.engine = engine
     args.profiling_requested = profile and not args.no_profile
     args.profile_runs = getattr(args, "profile_runs", "last")
@@ -780,7 +783,7 @@ def main(argv=None, *, engine="vllm", profile=False, all_entrypoint=False):
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S_%f")
 
     model_label = re.sub(r"[^A-Za-z0-9._-]+", "_", args.model).strip(".") or "model"
-    output_dir = os.path.join(args.output_dir, model_label, timestamp)
+    output_dir = os.path.join(args.output_dir, model_label, args.run_id or timestamp)
     os.makedirs(output_dir, exist_ok=False)
     args._artifact_root = output_dir
     args._case_records = []
@@ -838,7 +841,7 @@ def main(argv=None, *, engine="vllm", profile=False, all_entrypoint=False):
         for run in record.get("runs", []):
             artifacts.extend(ref for ref in (run.get("stdout"), run.get("stderr")) if ref)
             artifacts.extend(run.get("traces", []))
-    report = {"schema_version": 1, "kind": "benchmark-result", "run_id": str(uuid.uuid4()),
+    report = {"schema_version": 1, "kind": "benchmark-result", "run_id": args.run_id or str(uuid.uuid4()),
         "created_at": datetime.now().astimezone().isoformat(),
         "producer": {"implementation": "perf_common.py", "sha256": file_sha256(__file__)},
         "status": "failed" if failed_cases else "passed", "request": request_record(args),
