@@ -19,6 +19,11 @@ agents; [AGENTS.zh-CN.md](AGENTS.zh-CN.md) is the human-readable Chinese version
 - Modify the verified container-installed FlagOS components directly, including
   ordinary package installations and editable sources; never select another copy
   or version through `PYTHONPATH`. Follow the profile's writable component list.
+- Keep code changes PR-ready and scoped to a verified adaptation need. Before
+  editing, bound the affected components/files/symbols and tests; justify additions
+  and deletions, exclude unrelated refactors, and review each final diff hunk.
+  For Plugin, FlagGems and FlagGems-vllm under `vllm-plugin-fl`, apply the
+  [contribution policy](docs/plugin-contribution-policy.md) to every changed component.
 - Final service launchers contain only necessary startup commands/settings.
   Required code, configuration and scripts must survive image packaging at
   container paths; a host bind mount is not evidence of inclusion in the image.

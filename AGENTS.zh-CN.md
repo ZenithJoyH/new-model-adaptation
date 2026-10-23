@@ -16,6 +16,9 @@
   profile 声明且已核实的可写源码树；未声明的源码只读，`vllm-plugin-fl` 下 vLLM 保持只读。
 - 直接修改容器实际安装的 FlagOS 组件，包括普通安装目录和 editable 源码；不得用
   `PYTHONPATH` 指向另一份代码或版本，仍按 profile 的可写组件清单执行。
+- 代码按正式 PR 的质量标准修改，只解决有证据的适配需求。动手前限定组件、文件/符号和
+  测试范围；增删代码须有依据，不夹带无关重构，最终逐块审查 diff。`vllm-plugin-fl` 下
+  Plugin、FlagGems、FlagGems-vllm 的每个被改组件均遵守[贡献标准](docs/plugin-contribution-policy.md)。
 - 最终服务脚本只保留必要启动指令与设置。必需代码、配置和脚本须在镜像打包后仍位于
   容器内路径；宿主机 bind mount 可访问不等于内容已进入镜像。
 - 适配容器必须持续运行。适配期间只允许按需停启当前任务负责的推理服务或相关进程。

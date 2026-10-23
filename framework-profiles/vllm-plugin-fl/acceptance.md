@@ -23,4 +23,9 @@
 - `launcher_self_contained`：按[远程操作细则](../../docs/remote-operations.zh-CN.md)核实交付
   脚本和必要配置/代码/运行库实际位于镜像可保留的容器文件系统；不能只核实挂载路径存在。
   记录必要外部输入的明确部署约定；实际打包后再记录新容器验证，未执行时不得声称镜像已验证。
-- 完成前记录 vLLM 未变化证据、Plugin/FlagGems revision、实际 diff、服务身份及全部验收回执。
+- `source_review` 必须覆盖每个被改的 Plugin、FlagGems、FlagGems-vllm 组件，按
+  [贡献标准](../../docs/plugin-contribution-policy.md)逐块核对真实 diff 与变更清单，尤其是
+  删除/替换依据、跨组件必要性、已有路径回归及试验残留。无法解释的增删、无关重构、重复
+  workaround 或已知回归未解决不得通过；服务跑通或精度/性能结果不能代替审查。
+  此项为有证据的设计判断，现有工具核验回执与证据绑定，不自动判定代码是否合理。
+- 完成前记录 vLLM 未变化证据、各被改组件版本/基线、实际 diff、服务身份及全部验收回执。

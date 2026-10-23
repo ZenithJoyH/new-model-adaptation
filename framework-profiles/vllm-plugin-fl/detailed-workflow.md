@@ -16,10 +16,16 @@ Applies only to this profile. Inherit the [common workflow](../../docs/model-ada
       changes, operator source, `eager` and `graph` impact, dependencies, risks,
       and planned verification for each item. This plan is preparation context,
       not an issue record.
-      Read `docs/plugin-contribution-policy.md` and the target plugin checkout's
+      Read `docs/plugin-contribution-policy.md` and each target component's
       current design/contribution guidance before choosing changes. Explain
       ownership, interface contracts, alternatives, shared callers, optional
       dependencies, guards, defaults and representative regression coverage.
+      Before edits, bound the owning components, files/symbols and intended
+      additions/modifications/deletions with necessity and tests. Include Plugin,
+      FlagGems and FlagGems-vllm only where needed; avoid duplicate workarounds.
+      Prove deletion safety beyond the current model. Check incremental diffs
+      against this plan and justify any expansion before further edits; work
+      outside the authorized task requires user direction.
    2. **Capture the baseline and enforce modification boundaries.** Inside the
       running adaptation container, record the repository path, revision, branch,
       and working-tree status for the plugin, vLLM, and FlagGems before editing.
@@ -193,11 +199,15 @@ Applies only to this profile. Inherit the [common workflow](../../docs/model-ada
       revision or commit when applicable, command, and result. Include service
       lifecycle actions, FlagGems evidence, and proof that
       vLLM remained unchanged in the applicable issue record before acceptance.
-   11. **Review plugin design and the final diff.** Record the review in the
+   11. **Review component design and the final diff.** Record the review in the
       relevant numbered issue and final acceptance summary, following
       `docs/plugin-contribution-policy.md`. Review the confirmed PR base, actual
       HEAD, dirty and untracked changes, inherited work, multi-model/platform
-      impact, regression evidence and workaround exit criteria. Resolve design
+      impact, regression evidence and workaround exit criteria. Review every
+      changed component, checking each diff hunk and all deletions
+      against the plan. Unexplained changes, unrelated refactors, duplicated
+      workarounds and known regressions block `source_review`. Use original-file
+      baselines and reviewable patches for installations without Git. Resolve
       blockers before marking adaptation complete; after material changes,
       refresh the affected review. Do not infer untested platform support or
       full acceptance from the design review, or commit/push/create a PR without

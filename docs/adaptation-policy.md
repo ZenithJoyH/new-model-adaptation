@@ -135,6 +135,14 @@ check is not a packaging pass. Commit/push still requires a user request.
   acceptance documents, and the target source tree's design, contribution and
   test guidance. For `vllm-plugin-fl`, also follow
   [the plugin contribution policy](plugin-contribution-policy.md).
+- Before editing, record a bounded change list in the existing plan or issue:
+  verified need, owning component, files/symbols, additions/modifications/deletions,
+  baseline and regression tests. Apply this to every changed component, including
+  Plugin, FlagGems and FlagGems-vllm where declared writable. Justify deletions with
+  caller/registration/compatibility evidence, not absence from the current model.
+  Avoid unrelated cleanup, whole-layer rewrites and duplicate cross-component
+  workarounds. Review incremental diffs against the plan; justify scope growth
+  before editing and seek authorization for work beyond the task's boundary.
 - Explain ownership, existing extension points, interface contracts, alternatives
   and affected callers in the platform environment analysis or relevant numbered
   adaptation issue. Reuse the
@@ -150,6 +158,8 @@ check is not a packaging pass. Commit/push still requires a user request.
   and record the review in the relevant numbered issue and final acceptance summary. Record
   the confirmed PR base, current HEAD, dirty/untracked changes, inherited work,
   impact matrix, test evidence, workaround exit conditions and unresolved risks.
+  Check each component's diff hunk against the bounded plan, including additions
+  and deletions; unexplained changes or known regressions block source review.
   Refresh the review after material changes; do not mark adaptation complete
   with unresolved design blockers. Design review and full acceptance are distinct.
 - Keep changes cohesive and production-focused. Do not perform unrelated

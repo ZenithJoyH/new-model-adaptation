@@ -3,6 +3,9 @@
 本 profile 继承仓库通用五阶段、安全、远端目录和证据规则，并补充以下强制要求：
 
 实施前必读 [详细流程](detailed-workflow.md)（[中文](detailed-workflow.zh-CN.md)）。
+任何产品代码增改删前，按[贡献标准](../../docs/plugin-contribution-policy.md#0-改前限定范围改中控制增删)
+在已有计划/问题中列明各组件的必要文件/符号、变更理由和测试，实施中核对增量 diff。
+不能因允许修改三个组件而同时修改三个组件；最终逐块审查所有被改组件的 diff。
 
 1. 在适配容器内核实服务解释器、vLLM、已安装 `vllm-plugin-FL`、FlagGems 及可选
    FlagGems-vllm 的包元数据与实际导入路径。有 Git 时记录 revision/diff，否则记录安装版本

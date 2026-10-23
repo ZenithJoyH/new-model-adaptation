@@ -117,8 +117,11 @@ FlagEval 镜像内的一个或多个 lm-eval task；GPQA 只是默认示例，�
 使用 `vllm-plugin-fl` profile 修改模型适配 Plugin 前，可参考
 [vllm-plugin-FL 项目分析与新模型适配代码修改指南](docs/vllm-plugin-FL-analysis.md)，按模型注册、算子 dispatch、平台 backend、量化、attention/MoE 和 graph 执行链路选择最小改动面。
 
-`vllm-plugin-fl` 的 Plugin 代码按 [修改与 PR 交付标准](docs/plugin-contribution-policy.md)
-设计；其他框架按各自 profile 和目标源码规范执行。所有框架都要核对职责、已有模型/平台
+`vllm-plugin-fl` 下 Plugin、FlagGems、FlagGems-vllm 均按
+[修改与 PR 交付标准](docs/plugin-contribution-policy.md)设计：改前限定必要组件与文件/符号，
+改中控制范围，增删须有依据，不夹带无关重构或重复 workaround，改后逐块审查 diff。
+这不要求同时修改所有组件，也不授权自动提交或创建 PR。
+其他框架按各自 profile 和目标源码规范执行。所有框架都要核对职责、已有模型/平台
 行为、实际回归范围和最终 diff。设计审查结论写入对应编号适配问题和最终验收总结；文档
 存在不代表代码已通过设计审查。
 
