@@ -11,8 +11,8 @@ Ansible 自身的 `--skip-tags always` 或排除 localhost 的 `--limit` 可跳�
 
 | 模型/平台 | 历史材料 | 处理与可用替代 |
 |---|---|---|
-| GLM / PPU | 固定目录的 `start_gpqa.sh` | [完整原文及 SHA256](../models/GLM-5.3-Flash-BF16/ppu/acceptance/historical-entrypoints/README.md)；新全量精度使用共享 runner |
-| Qwen / PPU | 旧全量/22 题启动、22 题执行器和旧 graph sanity Playbook | [完整原文及 SHA256](../models/Qwen3.8-Flash-Next/ppu/acceptance/historical-entrypoints/README.md)；正式精度与诊断子集保持区分，前台 sanity 测试源码保留 |
+| GLM / PPU | 固定目录的 `start_gpqa.sh` | [完整原文及 SHA256](../models/GLM-5.3-Flash-BF16/_shared/local-record-maintenance.md)；新全量精度使用共享 runner |
+| Qwen / PPU | 旧全量/22 题启动、22 题执行器和旧 graph sanity Playbook | [完整原文及 SHA256](../models/Qwen3.8-Flash-Next/_shared/local-record-maintenance.md)；正式精度与诊断子集保持区分，前台 sanity 测试源码保留 |
 
 快照位于各平台 `acceptance/historical-entrypoints/`，只有 Markdown，不再作为脚本/Playbook
 发现和执行。原文用于理解旧试验和比对证据，不是复制粘贴后绕过新门禁的操作教程。
