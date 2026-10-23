@@ -36,10 +36,21 @@ def contract_digest(value):
                                     allow_nan=False).encode()).hexdigest()
 
 
+def profile_digest(profile, version=2):
+    """Keep historical hashes readable; new hashes also bind ordered steps."""
+    contract = profile_contract(profile)
+    if type(version) is not int or version not in (1, 2):
+        raise ValueError("unsupported profile_hash_version")
+    if version == 2:
+        contract = {"profile": contract,
+                    "acceptance_step_order": list(profile["acceptance"]["steps"])}
+    return contract_digest(contract)
+
+
 def pin_profile(config, profile):
     config.update(evidence_contract=2, profile_version=profile["profile_version"],
                   profile_snapshot=copy.deepcopy(profile),
-                  profile_sha256=contract_digest(profile_contract(profile)))
+                  profile_hash_version=2, profile_sha256=profile_digest(profile))
 
 
 def workspace_profile(root, config):
@@ -54,7 +65,7 @@ def workspace_profile(root, config):
     if errors:
         raise ValueError("invalid pinned profile: " + "; ".join(errors))
     if (profile["profile_version"] != config["profile_version"] or
-            contract_digest(profile_contract(profile)) != config.get("profile_sha256")):
+            profile_digest(profile, config.get("profile_hash_version", 1)) != config.get("profile_sha256")):
         raise ValueError("pinned profile identity changed; use an explicit contract upgrade")
     if profile["status"] not in {"active", "experimental"}:
         raise ValueError("pinned profile must be active or experimental")
@@ -90,7 +101,7 @@ def profile_errors(profile: Any, expected_id: str | None = None) -> list[str]:
         errors.append(f"id 必须为 {expected_id!r}")
     if type(profile.get("profile_version")) is not int or profile["profile_version"] < 1:
         errors.append("profile_version 必须是正整数")
-    if profile.get("status") not in {"draft", "experimental", "active", "deprecated"}:
+    if not isinstance(profile.get("status"), str) or profile["status"] not in {"draft", "experimental", "active", "deprecated"}:
         errors.append("status 必须为 draft、experimental、active 或 deprecated")
     platforms = profile.get("platforms")
     if (not isinstance(platforms, list) or not platforms or
@@ -117,7 +128,7 @@ def profile_errors(profile: Any, expected_id: str | None = None) -> list[str]:
                 roles.add(role)
             if not isinstance(name, str) or not name.strip():
                 errors.append(f"components[{index}].name 不能为空")
-            if policy not in MUTATION_POLICIES:
+            if not isinstance(policy, str) or policy not in MUTATION_POLICIES:
                 errors.append(f"components[{index}].mutation_policy 非法: {policy}")
 
         source_policy = profile.get("source_policy")
@@ -131,6 +142,8 @@ def profile_errors(profile: Any, expected_id: str | None = None) -> list[str]:
                 errors.append("source_policy.writable_roles 包含未声明组件 role")
             else:
                 writable_components = {c.get("role") for c in components if isinstance(c, dict)
+                                       and isinstance(c.get("role"), str)
+                                       and isinstance(c.get("mutation_policy"), str)
                                        and c.get("mutation_policy") in
                                        {"editable_product_code", "installed_product_code"}}
                 if set(writable) != writable_components:
@@ -156,15 +169,16 @@ def profile_errors(profile: Any, expected_id: str | None = None) -> list[str]:
                 order = graph_policy.get("preference_order")
                 minimum = graph_policy.get("minimum")
                 level_checks = graph_policy.get("level_checks")
-                if (not isinstance(order, list) or not order
-                        or not all(isinstance(item, str) and item for item in order)
-                        or len(set(order)) != len(order)):
+                valid_order = (isinstance(order, list) and bool(order)
+                               and all(isinstance(item, str) and item for item in order)
+                               and len(set(order)) == len(order))
+                if not valid_order:
                     errors.append("graph_policy.preference_order 必须是非空且不重复的字符串列表")
                 elif minimum != order[-1]:
                     errors.append("graph_policy.minimum 必须是 preference_order 的最后一级")
                 if not isinstance(level_checks, dict):
                     errors.append("graph_policy.level_checks 必须逐级声明检查项")
-                elif isinstance(order, list) and set(level_checks) != set(order):
+                elif valid_order and set(level_checks) != set(order):
                     errors.append("graph_policy.level_checks 必须覆盖且仅覆盖 preference_order")
                 else:
                     for level, checks in level_checks.items():
@@ -192,7 +206,7 @@ def profile_errors(profile: Any, expected_id: str | None = None) -> list[str]:
                     errors.append(f"{name}: 验收步骤不得与五阶段重名")
                 if type(spec.get("optional", False)) is not bool:
                     errors.append(f"{name}: optional 必须是布尔值")
-                if spec.get("validator") not in {"checks", "flageval", "vllm-performance"}:
+                if not isinstance(spec.get("validator"), str) or spec["validator"] not in {"checks", "flageval", "vllm-performance"}:
                     errors.append(f"{name}: 未实现的 validator")
                 checks = spec.get("checks")
                 if not isinstance(checks, list) or not checks or not all(isinstance(c, str) and c for c in checks):
@@ -205,7 +219,8 @@ def profile_errors(profile: Any, expected_id: str | None = None) -> list[str]:
             if acceptance.get(field) not in (None, supported):
                 errors.append(f"{field}: adapter 尚未实现，不能声明可用")
         cache = acceptance.get("prefix_caching")
-        if not isinstance(cache, dict) or cache.get("performance") not in {"disabled", "not_applicable", "unavailable"}:
+        if (not isinstance(cache, dict) or not isinstance(cache.get("performance"), str)
+                or cache["performance"] not in {"disabled", "not_applicable", "unavailable"}):
             errors.append("必须声明前缀缓存适用性")
         elif cache["performance"] == "disabled" and not cache.get("disable_mechanism"):
             errors.append("性能缓存关闭机制不能为空")
@@ -249,14 +264,15 @@ def workspace_errors(config: Any, *, model: str, platform: str, framework: str) 
         errors.append(f"profile 必须为 {expected_profile!r}")
     if type(config.get("profile_version")) is not int or config["profile_version"] < 1:
         errors.append("profile_version 必须是正整数")
-    if config.get("status") not in {
+    if not isinstance(config.get("status"), str) or config["status"] not in {
         "not_started", "environment_ready", "model_loading", "functional", "optimized", "blocked"
     }:
         errors.append("status 非法")
-    if config.get("evidence_contract", 1) not in (1, 2):
+    if type(config.get("evidence_contract", 1)) is not int or config.get("evidence_contract", 1) not in (1, 2):
         errors.append("evidence_contract 必须为 1 或 2")
     control = config.get("control", {})
-    if not isinstance(control, dict) or control.get("mode", "agent") not in {"agent", "human"}:
+    if (not isinstance(control, dict) or not isinstance(control.get("mode", "agent"), str)
+            or control.get("mode", "agent") not in {"agent", "human"}):
         errors.append("control.mode 必须为 agent 或 human")
     workflow = config.get("workflow")
     if not isinstance(workflow, dict):
@@ -267,7 +283,7 @@ def workspace_errors(config: Any, *, model: str, platform: str, framework: str) 
         item = workflow.get(phase)
         if not isinstance(item, dict):
             errors.append(f"workflow.{phase} 必须是映射")
-        elif item.get("status") not in WORKFLOW_STATUSES:
+        elif not isinstance(item.get("status"), str) or item["status"] not in WORKFLOW_STATUSES:
             errors.append(f"workflow.{phase}.status 非法")
     return errors
 

@@ -127,18 +127,19 @@ def audit(root, *, allow_absent_model_roots=False):
                     config_path = framework_dir / "framework.yml"
                     try:
                         config = framework_workspace.load_yaml(config_path)
-                        for error in framework_workspace.workspace_errors(
+                        errors = framework_workspace.workspace_errors(
                             config, model=model.name, platform=platform, framework=framework_id
-                        ):
-                            add("error", config_path, error)
+                        )
+                        if errors:
+                            raise ValueError("; ".join(errors))
                         profile = framework_workspace.workspace_profile(root, config)
                         if config.get("evidence_contract") == 2:
                             current = framework_workspace.load_yaml(root / config["profile"])
-                            if framework_workspace.profile_contract(current) != framework_workspace.profile_contract(profile):
+                            if framework_workspace.profile_digest(current) != framework_workspace.profile_digest(profile):
                                 add("warning", config_path, "按固定契约保留历史验证；当前 profile 已更新，可显式升级")
                         for error in framework_evidence.validate_workspace(root, framework_dir, config, profile):
                             add("error", config_path, error)
-                    except ValueError as exc:
+                    except (ValueError, KeyError, TypeError, AttributeError, OSError) as exc:
                         add("error", config_path, str(exc))
                     for section in framework_workspace.WORKSPACE_SECTIONS:
                         section_dir = framework_dir / section
@@ -173,6 +174,13 @@ def audit(root, *, allow_absent_model_roots=False):
             profile = framework_workspace.load_yaml(profile_path)
             for error in framework_workspace.profile_errors(profile, profile_path.parent.name):
                 add("error", profile_path, error)
+            documents = profile.get("documents", {})
+            if isinstance(documents, dict):
+                for name, relative in documents.items():
+                    if (isinstance(relative, str) and relative and not Path(relative).is_absolute()
+                            and ".." not in Path(relative).parts
+                            and not (profile_path.parent / relative).is_file()):
+                        add("error", profile_path, f"缺少 documents.{name}: {relative}")
         except ValueError as exc:
             add("error", profile_path, str(exc))
     docs = [root / "README.md", root / "AGENTS.md", root / "AGENTS.zh-CN.md"]

@@ -89,7 +89,12 @@ def main() -> int:
     )
     print(f"Created framework workspace: {target}")
     print(f"Profile: framework-profiles/{args.framework}/profile.yml")
-    print("Next: record exact hosts and the framework-specific remote root in environment/README.md.")
+    print(f"Profile status: {profile['status']}")
+    print("Acceptance steps: " + " -> ".join(config["workflow"]["acceptance"]["substeps"]))
+    if profile["status"] == "experimental":
+        print("Experimental profile: declared checks only; formal acceptance and optimized are unavailable.")
+    print("Next: configure exact target hosts and workspace roots in framework.yml; "
+          "record verified mappings and environment facts in environment/README.md.")
     return 0
 
 

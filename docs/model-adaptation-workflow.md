@@ -65,8 +65,8 @@ verified prerequisites. Optional steps are explicitly added to the workspace's
 ordered substep map before execution. Never invent a missing runner or interpret
 unavailable capability as a pass.
 
-When a profile declares a graph preference, attempt each level in order. The two
-vLLM profiles use this project-defined sequence (not a guaranteed speed ranking):
+When a profile declares a graph preference, attempt each level in order. The
+current vLLM profiles use this project-defined sequence (not a guaranteed speed ranking):
 
 | Record value | vLLM mode | Coverage |
 | --- | --- | --- |

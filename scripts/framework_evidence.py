@@ -82,6 +82,8 @@ def context_hash(root, directory, cfg, profile, stage):
         if stage != "architecture":
             scope.update(platform=cfg["platform"], framework=cfg["framework"],
                          contract=profile_contract(profile))
+            if cfg.get("profile_hash_version", 1) == 2:
+                scope["acceptance_step_order"] = list(profile["acceptance"]["steps"])
     if stage != "architecture":
         scope.update({key: cfg.get(key) for key in ("target", "workspace", "deployment")})
     if stage not in {"architecture", "environment", "adaptation"}:

@@ -57,6 +57,54 @@ class ModernFixture(unittest.TestCase):
 
 
 class HumanControlTests(ModernFixture):
+    def test_removing_optional_step_requires_declared_change_and_rechecks_summary(self):
+        steps = self.cfg['workflow']['acceptance']['substeps']
+        self.cfg['workflow']['acceptance']['substeps'] = {
+            name: steps.get(name, 'not_started') for name in self.f.profile['acceptance']['steps']}
+        for stage in ('architecture', 'environment', 'adaptation', 'device', 'operators',
+                      'model-eager', 'wheel', 'summary'):
+            self.f.bind(stage)
+        self.handoff()
+        del self.cfg['workflow']['acceptance']['substeps']['wheel']
+        with self.assertRaisesRegex(ValueError, '不能声明 none'):
+            control.transition(self.f.directory, self.cfg, 'resume', actor='agent', note='resume',
+                               changes=['none'], root=self.f.root)
+        proof = self.f.remote/'change.txt'; proof.write_text('Remove optional wheel from this scope')
+        control.transition(self.f.directory, self.cfg, 'resume', actor='agent', note='调整验收范围',
+                           changes=['plan'], evidence=str(proof), root=self.f.root)
+        event = self.cfg['control']['history'][-1]
+        self.assertEqual(event['revalidate'], ['summary', 'acceptance', 'retrospective'])
+        self.assertEqual(event['removed_steps']['wheel']['status'], 'passed')
+        self.assertNotIn('wheel', self.cfg['workflow']['acceptance']['records'])
+        self.assertEqual(self.cfg['workflow']['acceptance']['substeps']['model-eager'], 'passed')
+
+    def test_resume_rejects_removing_required_step(self):
+        self.handoff()
+        del self.cfg['workflow']['acceptance']['substeps']['operators']
+        with self.assertRaisesRegex(ValueError, '必需验收子步骤'):
+            control.transition(self.f.directory, self.cfg, 'resume', actor='agent', note='resume',
+                               changes=['documentation'], root=self.f.root)
+        self.assertEqual(self.cfg['control']['mode'], 'human')
+
+    def test_optional_step_addition_rechecks_only_new_step_and_downstream(self):
+        self.handoff()
+        steps = self.cfg['workflow']['acceptance']['substeps']
+        self.cfg['workflow']['acceptance']['substeps'] = {
+            name: steps.get(name, 'not_started') for name in self.f.profile['acceptance']['steps']}
+        proof = self.f.remote/'change.txt'; proof.write_text('Add wheel validation')
+        control.transition(self.f.directory, self.cfg, 'resume', actor='agent', note='增加 wheel',
+                           changes=['plan'], evidence=str(proof), root=self.f.root)
+        self.assertEqual(self.cfg['control']['history'][-1]['revalidate'],
+                         ['wheel', 'summary', 'acceptance', 'retrospective'])
+
+    def test_resume_rejects_reordered_steps(self):
+        self.handoff()
+        steps = self.cfg['workflow']['acceptance']['substeps']
+        self.cfg['workflow']['acceptance']['substeps'] = dict(reversed(list(steps.items())))
+        with self.assertRaisesRegex(ValueError, '顺序必须按 profile'):
+            control.transition(self.f.directory, self.cfg, 'resume', actor='agent', note='resume',
+                               changes=['documentation'], root=self.f.root)
+
     def test_no_change_handoff_preserves_pass_and_blocks_agent(self):
         self.f.bind('architecture')
         original = copy.deepcopy(self.cfg['workflow'])
@@ -92,14 +140,17 @@ class HumanControlTests(ModernFixture):
         self.assertEqual(self.cfg['control']['mode'],'human')
 
     def test_performance_plan_edit_only_invalidates_performance_onward(self):
-        self.cfg['workflow']['acceptance']['substeps']={'execution-mode':'not_started','sanity':'not_started',
-            'accuracy':'not_started','performance':'not_started','summary':'not_started'}
+        profile = workspace.resolved_profile(self.f.root, 'vllm-plugin-fl')[1]
+        self.cfg.update(framework='vllm-plugin-fl', profile='framework-profiles/vllm-plugin-fl/profile.yml')
+        workspace.pin_profile(self.cfg, profile)
+        self.cfg['workflow']['acceptance']['substeps'] = {
+            name: 'not_started' for name in profile['acceptance']['steps']}
         self.handoff()
         self.cfg['acceptance_plan']['performance_targets']={'cases':[{'case':[1,1,1,1]}]}
         proof=self.f.remote/'change.txt'; proof.write_text('changed throughput target')
         control.transition(self.f.directory,self.cfg,'resume',actor='agent',note='新目标',changes=['plan'],
                            evidence=str(proof),root=self.f.root)
-        self.assertEqual(self.cfg['control']['history'][-1]['revalidate'],['performance','summary','acceptance','retrospective'])
+        self.assertEqual(self.cfg['control']['history'][-1]['revalidate'],['performance','evidence','summary','acceptance','retrospective'])
 
     def test_cli_roundtrip_and_upgrade_keeps_human_ownership(self):
         path=self.f.directory/'framework.yml'; path.write_text(yaml.safe_dump(self.cfg,sort_keys=False))
@@ -158,6 +209,49 @@ class HumanControlTests(ModernFixture):
 
 
 class PinnedContractTests(ModernFixture):
+    def test_pinned_contract_binds_acceptance_order(self):
+        self.cfg['profile_snapshot']['acceptance']['steps'] = dict(
+            reversed(list(self.cfg['profile_snapshot']['acceptance']['steps'].items())))
+        with self.assertRaisesRegex(ValueError, 'pinned profile identity'):
+            workspace.workspace_profile(self.f.root, self.cfg)
+
+    def test_order_changes_non_architecture_context_but_editorial_fields_do_not(self):
+        profile = copy.deepcopy(self.f.profile)
+        before = gate.context_hash(self.f.root, self.f.directory, self.cfg, profile, 'environment')
+        architecture = gate.context_hash(self.f.root, self.f.directory, self.cfg, profile, 'architecture')
+        profile['display_name'] = 'Editorial change'
+        profile['documents']['workflow'] = 'renamed.md'
+        self.assertEqual(before, gate.context_hash(self.f.root, self.f.directory, self.cfg, profile, 'environment'))
+        profile['acceptance']['steps'] = dict(reversed(list(profile['acceptance']['steps'].items())))
+        self.cfg['workflow']['acceptance']['substeps'] = {
+            name: 'not_started' for name, spec in profile['acceptance']['steps'].items() if not spec.get('optional')}
+        self.assertNotEqual(before, gate.context_hash(self.f.root, self.f.directory, self.cfg, profile, 'environment'))
+        self.assertEqual(architecture, gate.context_hash(self.f.root, self.f.directory, self.cfg, profile, 'architecture'))
+
+    def test_old_v2_hash_is_preserved_until_explicit_upgrade(self):
+        self.cfg.pop('profile_hash_version', None)
+        self.cfg['profile_sha256'] = workspace.contract_digest(workspace.profile_contract(self.f.profile))
+        self.f.bind('architecture')
+        self.assertEqual(workspace.workspace_profile(self.f.root, self.cfg), self.f.profile)
+        before = gate.context_hash(self.f.root, self.f.directory, self.cfg, self.f.profile, 'environment')
+        self.handoff()
+        control.transition(self.f.directory, self.cfg, 'upgrade', actor='operator',
+                           note='显式固定验收顺序', root=self.f.root)
+        self.assertEqual(self.cfg['profile_hash_version'], 2)
+        self.assertNotEqual(before, gate.context_hash(self.f.root, self.f.directory,
+                                                    self.cfg, self.f.profile, 'environment'))
+        self.assertEqual(self.cfg['workflow']['architecture']['status'], 'passed')
+
+    def test_current_profile_order_change_is_reported_by_audit(self):
+        import audit_workspace
+        path = self.f.root/self.cfg['profile']
+        profile = workspace.load_yaml(path)
+        profile['acceptance']['steps'] = dict(reversed(list(profile['acceptance']['steps'].items())))
+        path.write_text(yaml.safe_dump(profile, sort_keys=False))
+        (self.f.directory/'framework.yml').write_text(yaml.safe_dump(self.cfg, sort_keys=False))
+        findings = audit_workspace.audit(self.f.root)
+        self.assertTrue(any('profile 已更新' in item['message'] for item in findings), findings)
+
     def test_editorial_changes_do_not_invalidate_evidence(self):
         self.f.bind('architecture')
         path=self.f.root/self.cfg['profile']; doc=path.parent/'workflow.md'

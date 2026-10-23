@@ -10,6 +10,8 @@ new-framework 默认创建固定 profile 的 [v2 契约](evidence-contract-v2.md
 | Profile | 修改目标 | 验收顺序 | 当前能力 |
 | --- | --- | --- | --- |
 | vllm-plugin-fl | 容器实际安装的 Plugin、FlagGems、适用时 FlagGems-vllm；vLLM 只读 | execution-mode → sanity → accuracy → performance → evidence → summary | active；eager/graph；full → full-and-piecewise → decode-full → piecewise 逐级尝试，后续绑定最终验证模式 |
+| vllm-native | NVIDIA 原生 vLLM 的 profile 声明可写源码 | execution-mode → sanity → accuracy → performance → evidence → summary | active；使用自己的实现与验收文档，不套用 Plugin 的 vLLM 只读规则 |
+| vllm-ppu | 容器内安装的平头哥原生 vLLM | execution-mode → sanity → evidence → summary | experimental；eager/graph 定向验证，无正式精度/性能整体验收 |
 | torch-fl | 容器实际安装的 Torch-FL 及核实的构建源码 | device → operators → model-eager → 可选 wheel → summary | experimental；PPU Python API、eager 与可选 wheel 验证 |
 
 `experimental` 允许创建工作区、实施和执行声明的基础验证，避免“必须先验证才能开始验证”
@@ -99,7 +101,7 @@ verification 位于 `workflow.<phase>.verification`；子步骤位于
 
 ## vllm-plugin-fl 原生验收
 
-- vLLM 两个 profile 的 execution-mode 回执必须记录实际生效的 `graph_level`：
+- 声明 graph_policy 的 vLLM profile，其 execution-mode 回执必须记录实际生效的 `graph_level`：
   `full`、`full-and-piecewise`、`decode-full` 或 `piecewise`。对应 checks 分别必须含
   `full_graph`、`full_and_piecewise_graph`、`decode_full_graph` 或 `piecewise_graph: true`，
   并提供实际配置、capture/replay 及后端自动降级检查的现场证据。

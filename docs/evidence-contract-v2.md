@@ -6,6 +6,9 @@
 ## 固定契约
 
 profile_snapshot、profile_sha256 固定机器可执行要求；documents、display_name 不参与哈希。
+新建或显式升级的工作区使用 `profile_hash_version: 2`，另将 `acceptance.steps` 的有序名称
+序列纳入哈希和非架构阶段上下文，避免 JSON 键排序掩盖验收顺序变化。缺少该字段的旧 v2
+工作区仍按原算法核验，不自动改写哈希/历史回执；通过 workspace-control 显式升级后复核。
 架构绑定模型身份和证据，其余阶段绑定部署、对应计划及前置回执。performance_targets
 变化不直接改变 accuracy 的上下文。审计按固定版本验证，另提示当前 profile 更新；
 升级须显式执行。optimized 需要 v2、完整验收和性能目标通过。

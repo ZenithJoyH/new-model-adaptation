@@ -35,7 +35,8 @@ def snapshot(directory, cfg):
                     raise ValueError("local evidence escapes the model workspace")
                 paths.add(path)
     return {"identity": {k: copy.deepcopy(cfg.get(k)) for k in
-            ("target", "workspace", "deployment", "acceptance_plan", "profile_sha256", "evidence_contract")},
+            ("target", "workspace", "deployment", "acceptance_plan", "profile_sha256",
+             "profile_hash_version", "evidence_contract")},
             "workflow": copy.deepcopy(cfg["workflow"]),
             "files": {str(p): fingerprint(p) for p in sorted(paths)}}
 
@@ -98,7 +99,8 @@ def transition(directory, cfg, operation, *, actor, note, changes=(), evidence=N
         if cfg["platform"] not in profile["platforms"]:
             raise ValueError("新契约不支持当前平台")
         event["previous_contract"] = {k: copy.deepcopy(cfg.get(k)) for k in
-                                      ("evidence_contract", "profile_version", "profile_snapshot", "profile_sha256")}
+                                      ("evidence_contract", "profile_version", "profile_snapshot",
+                                       "profile_sha256", "profile_hash_version")}
         old_version = cfg.get("evidence_contract", 1)
         pin_profile(cfg, profile)
         # Clear old contract assertions before switching the step vocabulary.
@@ -128,21 +130,41 @@ def transition(directory, cfg, operation, *, actor, note, changes=(), evidence=N
         observed = [k for k, value in after["identity"].items() if before["identity"].get(k) != value]
         changed_files = [p for p in set(before["files"]) | set(after["files"])
                          if before["files"].get(p) != after["files"].get(p)]
-        from framework_evidence import record_for, state, DONE, dependencies, verify_record
+        from framework_evidence import record_for, state, DONE, dependencies, verify_record, step_names
+        profile = workspace_profile(root, cfg)
+        selected_steps = step_names(cfg, profile)
         previous = {"workflow": before["workflow"]}
+        previous_steps = list(previous["workflow"]["acceptance"]["substeps"])
+        selection_changed = previous_steps != selected_steps
+        previous_stages = ordered_stages(previous)
         changed_records = [s for s in ordered_stages(cfg)
-                           if record_for(previous, s) != record_for(cfg, s) or state(previous, s) != state(cfg, s)]
-        if changes == {"none"} and (observed or changed_files or changed_records):
+                           if s not in previous_stages or record_for(previous, s) != record_for(cfg, s)
+                           or state(previous, s) != state(cfg, s)]
+        if changes == {"none"} and (observed or changed_files or changed_records or selection_changed):
             raise ValueError("检测到文件或配置变化，不能声明 none；填写实际 --change")
         candidates = []
         candidates.extend(changed_records)
+        if selection_changed:
+            # Recheck from the first changed dependency, not unrelated earlier tests.
+            common = 0
+            for old, new in zip(previous_steps, selected_steps):
+                if old != new:
+                    break
+                common += 1
+            candidates.append(selected_steps[common] if common < len(selected_steps) else "acceptance")
+            removed = set(previous_steps) - set(selected_steps)
+            event["removed_steps"] = {
+                name: {"status": state(previous, name), "verification": copy.deepcopy(record_for(previous, name))}
+                for name in previous_steps if name in removed}
+            for name in removed:
+                cfg["workflow"]["acceptance"].get("records", {}).pop(name, None)
         basic = "execution-mode" if "execution-mode" in cfg["workflow"]["acceptance"]["substeps"] else "model-eager"
         mapping = {"model": "architecture", "environment": "environment", "code": "environment",
                    "service": basic}
         candidates.extend(mapping[c] for c in changes if c in mapping)
-        if "plan" in changes and "acceptance_plan" not in observed:
+        if "plan" in changes and "acceptance_plan" not in observed and not selection_changed:
             candidates.append(basic)
-        if set(observed) & {"target", "workspace", "deployment", "profile_sha256", "evidence_contract"}:
+        if set(observed) & {"target", "workspace", "deployment", "profile_sha256", "profile_hash_version", "evidence_contract"}:
             candidates.append("environment")
         if "acceptance_plan" in observed:
             old_plan = before["identity"].get("acceptance_plan") or {}

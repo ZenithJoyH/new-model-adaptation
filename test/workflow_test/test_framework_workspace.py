@@ -95,6 +95,43 @@ class FrameworkWorkspaceTests(unittest.TestCase):
             change(cfg)
             self.assertTrue(framework_workspace.profile_errors(cfg))
 
+    def test_malformed_profiles_report_errors_instead_of_crashing(self):
+        _, original = framework_workspace.resolved_profile(ROOT, "vllm-plugin-fl")
+        for change in (
+            lambda p: p["execution_modes"]["graph_policy"].update(preference_order=[{}]),
+            lambda p: p["components"][0].update(role=[]),
+            lambda p: p["components"][0].update(mutation_policy=[]),
+            lambda p: p.update(status={}),
+            lambda p: p["acceptance"]["steps"]["accuracy"].update(validator=[]),
+            lambda p: p["acceptance"]["prefix_caching"].update(performance={}),
+        ):
+            with self.subTest(change=change):
+                cfg = copy.deepcopy(original)
+                change(cfg)
+                self.assertTrue(framework_workspace.profile_errors(cfg))
+
+    def test_audit_reports_missing_profile_document_without_a_workspace(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = self.prepare(directory)
+            path = root / "framework-profiles/torch-fl/profile.yml"
+            profile = framework_workspace.load_yaml(path)
+            profile['documents']['runtime_notes'] = 'missing-notes.md'
+            path.write_text(yaml.safe_dump(profile, sort_keys=False))
+            findings = audit_workspace.audit(root)
+            self.assertTrue(any(item["level"] == "error" and
+                                "documents.runtime_notes" in item["message"] for item in findings), findings)
+
+    def test_audit_continues_after_malformed_profile(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = self.prepare(directory)
+            path = root / "framework-profiles/vllm-plugin-fl/profile.yml"
+            profile = framework_workspace.load_yaml(path)
+            profile["execution_modes"]["graph_policy"]["preference_order"] = [{}]
+            path.write_text(yaml.safe_dump(profile, sort_keys=False))
+            findings = audit_workspace.audit(root)
+            self.assertTrue(any(item["level"] == "error" and "preference_order" in item["message"]
+                                for item in findings), findings)
+
     def test_new_framework_creates_scoped_workspace_without_overwrite(self):
         with tempfile.TemporaryDirectory() as directory:
             root = self.prepare(directory)
@@ -144,6 +181,27 @@ class FrameworkWorkspaceTests(unittest.TestCase):
             config, model="Example", platform="ppu", framework="vllm-plugin-fl"
         )
         self.assertTrue(any("profile 必须" in item for item in errors))
+
+    def test_new_workspaces_use_the_selected_framework_steps_and_guidance(self):
+        for framework, platform in (("torch-fl", "ppu"), ("vllm-ppu", "ppu"), ("vllm-native", "nvidia")):
+            with self.subTest(framework=framework), tempfile.TemporaryDirectory() as directory:
+                root = self.prepare(directory)
+                platform_dir = root / "models/Example" / platform
+                if not platform_dir.exists():
+                    platform_dir.mkdir()
+                    shutil.copy2(ROOT / "models/_template" / platform / "platform.yml", platform_dir)
+                result = subprocess.run([sys.executable, str(ROOT / "scripts/new_framework.py"),
+                    "--repo-root", str(root), "Example", platform, framework], capture_output=True, text=True)
+                self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+                cfg = framework_workspace.load_yaml(platform_dir / "frameworks" / framework / "framework.yml")
+                profile = framework_workspace.workspace_profile(root, cfg)
+                steps = [name for name, spec in profile['acceptance']['steps'].items() if not spec.get('optional')]
+                self.assertEqual(list(cfg['workflow']['acceptance']['substeps']), steps)
+                self.assertEqual(cfg['profile_hash_version'], 2)
+                self.assertIn('Acceptance steps: ' + ' -> '.join(steps), result.stdout)
+                self.assertIn('configure exact target hosts and workspace roots in framework.yml', result.stdout)
+                self.assertEqual('formal acceptance and optimized are unavailable' in result.stdout,
+                                 profile['status'] == 'experimental')
 
 
 class FrameworkGateTests(unittest.TestCase):
