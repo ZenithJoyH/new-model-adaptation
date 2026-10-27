@@ -55,6 +55,7 @@ Load unrelated workflows only if the user expands the task.
 | Requested work | Required entry |
 | --- | --- |
 | Local documentation, code review or control-tool maintenance | Relevant files and their tests/contracts; use the rows below only if their scope applies. |
+| Adaptation completion handoff or a standalone deployment guide | [Deployment guide Skill](skills/adaptation-deployment-guide/SKILL.md) and its bundled English template. |
 | Remote checks/changes, or inventory, group variables, Ansible entrypoint or playbook maintenance | [Remote operations Skill](skills/remote-operations/SKILL.md), then its linked policy. |
 | Any selected model-adaptation phase | [Adaptation policy](docs/adaptation-policy.md), selected profile's workflow/acceptance documents, then [detailed workflow](docs/model-adaptation-workflow.md). |
 | Adaptation involving remote work | Also read the remote operations Skill before the first remote action. |
@@ -90,6 +91,12 @@ installation is required. A local-only task does not activate remote checks.
 - Verify work before updating `framework.yml` (or legacy `platform.yml`).
   Use `./scripts/audit-workspace` for local layout checks; its warnings do not
   prove remote success. Read the adaptation policy before using legacy gates.
+- After each completed adaptation, invoke the repository-local
+  [deployment guide Skill](skills/adaptation-deployment-guide/SKILL.md) to write
+  English `acceptance/deployment-guide.md` in its local framework workspace.
+  It is also independently callable; keep its template inside the Skill.
+  Retain weight-download instructions for readers without executing downloads.
+  This handoff document does not replace acceptance evidence or run unselected phases.
 - New workspaces pin the [v2 evidence contract](docs/evidence-contract-v2.md).
   Upgrade existing contracts explicitly and preserve historical results.
   `optimized` requires frozen performance targets as well as valid measurements.

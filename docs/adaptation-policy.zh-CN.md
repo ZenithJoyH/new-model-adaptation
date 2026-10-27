@@ -80,6 +80,10 @@ draft/不完整 profile 只允许模型分析和只读调查；experimental 允�
   才能标记 `optimized`。
 - 不得提交权重、密钥、完整日志或大型原始 benchmark。
 
+技术适配完成后、最终交付前，Agent 调用[部署文档 Skill](../skills/adaptation-deployment-guide/SKILL.md)
+生成本地英文 `acceptance/deployment-guide.md`。模板在 Skill 内维护，权重下载仅写使用说明，
+不执行下载。单独调用、草稿处理和阶段隔离见[完成交付](model-adaptation-workflow.zh-CN.md#完成交付英文部署文档)。
+
 ## 框架实现与 PR 质量
 
 - 将修改按多模型、多平台框架的可维护贡献来设计。修改前阅读选定 profile、其工作流与验收

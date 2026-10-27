@@ -1,5 +1,17 @@
 # Skills 项目入口
 
+## 适配完成后的英文部署文档
+
+[adaptation-deployment-guide](adaptation-deployment-guide/SKILL.md) 在每次适配完成交付时由
+Agent 调用，也可以单独调用；默认输出为对应本地框架工作区的 `acceptance/deployment-guide.md`。
+英文模板直接位于 Skill 的 `assets/deployment-guide.md`，不在项目 `templates/` 重复维护。
+内容涵盖评测结果、环境、镜像/权重获取说明、容器启动、已验收启动脚本、调用示例及许可证。
+只整理已有证据，不下载、不部署、不重跑验收，也不自动修改状态、提交或发布。
+
+调用示例：“使用项目内 adaptation-deployment-guide，为模型 X 在 metax 的 vllm-plugin-fl
+工作区生成英文部署说明，只使用已有适配记录。”
+按仓库路径读取入口即可，无需全局安装；本入口不提供评测 `interface.json` 或 journal gate。
+
 ## 远程操作
 
 [remote-operations](remote-operations/SKILL.md) 用于用户指定主机上的检查、变更和本仓库

@@ -128,6 +128,13 @@ check is not a packaging pass. Commit/push still requires a user request.
   correctness regression plus performance results for `optimized`.
 - Never commit weights, secrets, complete logs, or bulky raw benchmarks.
 
+After technical completion, the Agent invokes the
+[deployment guide Skill](../skills/adaptation-deployment-guide/SKILL.md) for the
+English local `acceptance/deployment-guide.md` before handoff. Its bundled template
+includes weight-download instructions only; do not execute them. Follow the
+[completion handoff](model-adaptation-workflow.md#completion-handoff-english-deployment-guide)
+for independent invocation, draft handling and phase isolation.
+
 ## Framework implementation and PR quality
 
 - Treat changes as maintainable contributions to a multi-model, multi-platform

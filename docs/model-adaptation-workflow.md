@@ -132,6 +132,27 @@ pretending formal acceptance has completed. Promote only reusable verified
 experience, citing revisions and applicable scope. Repository-wide changes still
 require a relevant user request.
 
+## Completion handoff: English deployment guide
+
+After each adaptation completes its required acceptance and any selected
+retrospective, the Agent must invoke
+[adaptation-deployment-guide](../skills/adaptation-deployment-guide/SKILL.md)
+before the final handoff. This is a document task within completion, not a sixth
+phase or permission to run unselected phases. Write English
+`acceptance/deployment-guide.md` in the exact local framework workspace (or the
+existing legacy platform workspace), using only the template bundled in that Skill.
+The guide is user-facing; retain the internal adaptation summary separately.
+Keep model-weight download instructions without performing downloads. Deployment,
+startup, evaluation, packaging, release and license statements must reflect the
+available verified evidence; unresolved facts stay explicitly pending.
+
+The same Skill can be called independently to generate or refresh this document
+from existing records. It must not change workflow status or rerun missing tests.
+Partial/experimental work can have an explicitly labeled draft, not a claim of
+complete acceptance. A missing or draft guide leaves documentation handoff
+incomplete without rewriting technical acceptance results. This is an Agent
+invocation requirement, not a new native receipt, background job or executable hook.
+
 ## Evidence gates
 
 See [framework evidence](framework-evidence.md) and [execution guide](workflow-guide.md).
