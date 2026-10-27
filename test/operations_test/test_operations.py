@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import shutil
+import subprocess
 import sys
 import tempfile
 import unittest
@@ -10,6 +12,46 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "scripts"))
 import check_local_operations as checks  # noqa: E402
+
+
+class SyntaxCheckTests(unittest.TestCase):
+    def test_optional_arguments_with_system_bash(self) -> None:
+        # macOS /bin/bash is 3.2; Linux also exercises the current Bash runtime.
+        for arguments, expected_flag, expected_status in (
+            ([], "", 0),
+            (["--offline"], "--repository-only", 0),
+            (["--unknown"], None, 2),
+            (["--offline", "extra"], None, 2),
+        ):
+            with self.subTest(arguments=arguments), tempfile.TemporaryDirectory() as directory:
+                root = Path(directory)
+                (root / "scripts").mkdir()
+                (root / ".venv/bin").mkdir(parents=True)
+                shutil.copyfile(ROOT / "scripts/syntax-check", root / "scripts/syntax-check")
+                # Stub all children: no Ansible, SSH, recursive tests or real audit.
+                for name in ("scripts/inventory", "scripts/audit-workspace", ".venv/bin/python"):
+                    stub = root / name
+                    stub.write_text(
+                        '#!/bin/sh\n'
+                        'printf "%s|%s|%s\\n" "${0##*/}" "$#" "$*" >> calls.log\n',
+                        encoding="utf-8",
+                    )
+                    stub.chmod(0o755)
+                result = subprocess.run(
+                    ["/bin/bash", str(root / "scripts/syntax-check"), *arguments],
+                    cwd=root, capture_output=True, text=True, timeout=10,
+                )
+                self.assertEqual(result.returncode, expected_status, result.stderr)
+                log = root / "calls.log"
+                if expected_status:
+                    self.assertIn("Usage:", result.stderr)
+                    self.assertFalse(log.exists())
+                    continue
+                calls = log.read_text(encoding="utf-8").splitlines()
+                count = int(bool(expected_flag))
+                self.assertEqual(calls[0], f"inventory|{count}|{expected_flag}")
+                self.assertEqual(calls[-1], f"audit-workspace|{count}|{expected_flag}")
+                self.assertEqual(len(calls), 5)
 
 
 class DiscoveryTests(unittest.TestCase):
