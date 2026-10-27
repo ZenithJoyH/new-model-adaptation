@@ -25,6 +25,11 @@ agents; [AGENTS.zh-CN.md](AGENTS.zh-CN.md) is the human-readable Chinese version
   For Plugin, FlagGems and FlagGems-vllm under `vllm-plugin-fl`, apply the
   [contribution policy](docs/plugin-contribution-policy.md) to every changed component.
 - Final service launchers contain only necessary startup commands/settings.
+  Omit unnecessary cache-directory environment overrides. Prepare the minimal
+  `start-model.sh` before service acceptance and reuse the same script for sanity,
+  accuracy, performance and delivery; only performance switches prefix caching
+  off, while normal/accuracy startup keeps it on. Follow the
+  [shared launcher contract](docs/remote-operations.md#shared-service-launcher).
   Required code, configuration and scripts must survive image packaging at
   container paths; a host bind mount is not evidence of inclusion in the image.
 - The adaptation container must remain running. Only the current task's assigned

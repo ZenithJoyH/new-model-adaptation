@@ -103,10 +103,17 @@ full run. Native result/sample verification is mandatory. A Markdown hash is not
 a formal receipt. Performance cache behavior is framework-specific: disable it
 with the declared mechanism if applicable; do not add vLLM flags to Python API tests.
 
+For service profiles, prepare the minimal root-level `start-model.sh` before
+sanity/formal acceptance and use the same script for accuracy and performance;
+only the explicit performance switch disables prefix caching. Keep that tested
+script for delivery. Follow the [shared launcher contract](remote-operations.md#shared-service-launcher),
+including removal of unnecessary cache-path overrides and recording verified
+default locations. Do not introduce service launchers for Python-API-only profiles.
 For active complete service adaptations, verify each root-level `start-model.sh`
 against the final accepted primary mode, runtime identity, executable permissions,
 syntax, actual readiness, minimal required settings, normal cache behavior and
-root mappings. Logs/results stay in `04-runs/`, caches in `06-cache/`. Reference
+root mappings. Logs/results stay in `04-runs/`, evaluation caches in `06-cache/`;
+service runtime defaults follow the shared launcher contract. Reference
 its exact paths, SHA-256 and verification date locally. Never stop the container.
 Keep only necessary startup commands/settings in the launcher. Follow the
 [image-delivery rules](remote-operations.md): required files must survive in the

@@ -137,7 +137,8 @@ draft/不完整 profile 只允许模型分析和只读调查；experimental 允�
   后续动作由调用方 Agent 决定。
 - 对具备前缀缓存的框架，模型分析、环境分析、适配、执行模式、小批量与精度等非性能环节
   保持前缀缓存开启。本项目仅对性能测试增加一个强制前置条件：任何性能测试或
-  Profiling 开始前，必须使用性能测试专用的服务启动配置，不得把关闭参数写入通用 graph
+  Profiling 开始前，必须复用精度测试的最小 `start-model.sh`，仅选择其显式性能开关，遵循
+  [统一服务启动入口](remote-operations.zh-CN.md#统一服务启动入口)，不得把关闭参数写入通用 graph
   配置；应使用选定 framework profile 声明的准确缓存关闭机制，并从实际生效的启动配置和
   启动证据核实其关闭状态，随后把证据引用绑定到正式性能回执。`vllm-plugin-fl` profile
   中仍必须在本轮被测实例加入准确参数 `--no-enable-prefix-caching`。

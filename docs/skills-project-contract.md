@@ -50,6 +50,10 @@ minimal-regression 由框架定向测试承担，只有提供固定案例集时�
 
 ## 精度评测映射
 
+- 服务型评测按[统一服务启动入口](remote-operations.zh-CN.md#统一服务启动入口)，
+  在小批量/正式精度前准备最小 `start-model.sh`；普通及精度使用无参数调用并核实
+  prefix cache 开启。后续性能复用相同脚本 SHA-256 与基础配置，仅传 `--performance`。
+  记录脚本、实际调用、生效配置与每轮服务实例；非必要磁盘缓存目录环境变量不保留。
 - 方法：本节、项目本地精度入口及 `test/Accuracy_test/` 的原生执行/验证工具。
 - `service-sanity`：在已通过执行模式验收的最终 graph 服务上，冻结符合模型能力的代表性请求、
   参考输出和经容量验证的正整数并发。v2 使用 `test/Accuracy_test/sanity.py`，默认只离线
@@ -114,7 +118,8 @@ minimal-regression 由框架定向测试承担，只有提供固定案例集时�
   （vLLM 按 Host 绑定有逐级回退证据的 `full`、`full-and-piecewise`、`decode-full` 或 `piecewise`），
   并要求当前精度 `gate-check` 已通过。profiler-on
   轮次和 trace 只属于诊断，不进入正式性能结果。
-- 非性能测试保持前缀缓存开启。所有性能与 Profiling 轮次都必须切换到性能专用服务配置，
+- 非性能测试保持前缀缓存开启。所有性能与 Profiling 轮次都通过精度验收使用的同一脚本
+  `./start-model.sh --performance` 启动服务，只切换前缀缓存，不另写启动命令或脚本，
   使用 profile 声明的缓存关闭机制；`vllm-plugin-fl` 的准确参数为
   `--no-enable-prefix-caching`，不得将它写入普通 graph 参数。
   执行前核实本轮服务实例的生效启动配置和启动证据，在 runtime 的
@@ -122,6 +127,9 @@ minimal-regression 由框架定向测试承担，只有提供固定案例集时�
   `launch_args` 和非空 `verification`。正式回执会校验 runtime、
   准确关闭参数、现场证据与服务实例绑定。benchmark 客户端不负责修改模型服务，
   `--random-prefix-len 0` 不能替代该证据。
+  性能后通过同一脚本的默认调用恢复前缀缓存开启；若更改其他推理配置，重新完成受影响的
+  验收（包括性能前的精度），不能复用旧结果。这里只增加操作与证据记录要求，不改变
+  既有回执 schema；不得把相同脚本哈希误当作当前服务状态的自动验证。
 - 性能计划/包装放 `03-acceptance/`，原始 JSON/CSV/stdout/stderr 放
   `04-runs/<run_id>/`，缓存放 `06-cache/`；本地只保存 Markdown 摘要与准确证据引用。
 
@@ -136,7 +144,8 @@ minimal-regression 由框架定向测试承担，只有提供固定案例集时�
 
 ## 产物与生命周期
 
-完整日志、样本、结果 JSON/CSV、Trace 和缓存留在批准的远端工作根。本地模型目录只保存
+完整日志、样本、结果 JSON/CSV、Trace 和评测缓存留在批准的远端工作根；服务运行时缓存
+遵循[统一服务启动入口](remote-operations.zh-CN.md#统一服务启动入口)的获准默认路径规则。本地模型目录只保存
 精简、可读且可复核的 Markdown 记录。经脱敏且可复用的小型交付配置、补丁及恢复说明可放在
 独立 `deliveries/`，按 [v2 交付契约](evidence-contract-v2.md) 管理。服务停止/重启、容器保护、源码边界和需确认操作继续遵守
 `AGENTS.md`；公共 Skill 不扩大授权。

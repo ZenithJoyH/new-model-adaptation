@@ -213,8 +213,10 @@ check is not a packaging pass. Commit/push still requires a user request.
   execution-mode, sanity, accuracy, and all other non-performance work. This
   project adds one mandatory performance-only precondition: prefix caching must
   be explicitly disabled on the exact service instance under test before any
-  performance or profiling run starts. Use a performance-specific service launch
-  profile; do not add the disable mechanism to the normal service profile. Use
+  performance or profiling run starts. Use the same minimal `start-model.sh`
+  used for accuracy, selecting only its explicit performance switch; do not add
+  the disable mechanism to the normal invocation. Follow the
+  [shared launcher contract](remote-operations.md#shared-service-launcher). Use
   the exact mechanism declared by the selected framework profile, verify that it
   is present in the effective launch configuration and startup evidence, and bind that evidence into the formal
   performance receipt. A zero random-prefix length in the client workload

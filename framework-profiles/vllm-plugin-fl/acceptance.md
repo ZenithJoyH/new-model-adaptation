@@ -10,12 +10,16 @@
 - 图模式选择服务于实测性能，按通用工作流比较同条件吞吐、时延和显存；性能问题需先
   尝试优化，仍无法解决且有对比证据才能作为回退依据。
   后续冻结并发的小批量、精度、性能验收和启动脚本绑定最终验证模式，改变后重新验证受影响项。
+- 小批量/正式精度前准备最小根级 `start-model.sh`，按
+  [统一服务启动入口](../../docs/remote-operations.zh-CN.md#统一服务启动入口)删除非必要缓存目录环境变量。
+  精度用 `./start-model.sh`，性能用同一脚本的 `./start-model.sh --performance`；基础配置及
+  脚本 SHA-256 不变，只切换前缀缓存。记录实际生效配置及服务实例，交付保留已测脚本。
 - 正式精度使用 FlagEval 容器及仓库统一精度入口，按冻结阈值判定。
 - 所有非性能工作保持前缀缓存开启。
 - 性能服务必须显式使用 `--no-enable-prefix-caching`，并验证实际启动命令和服务实例；性能后
   恢复普通的前缀缓存开启配置。
-- 最终 `start-model.sh` 使用最终验收选定 graph 模式的最小生产命令，不携带性能专用的
-  `--no-enable-prefix-caching`、诊断、profiling、dump 或临时参数。
+- 最终 `start-model.sh` 使用最终验收选定 graph 模式的最小生产命令，默认调用不携带
+  `--no-enable-prefix-caching`；该参数仅由显式性能开关启用，不保留诊断、profiling、dump 或临时参数。
 - `launcher_minimal` 同时审查指令和参数：脚本不安装依赖、更新源码、应用补丁、运行评测
   或收集报告；仅保留服务启动必需内容。外部验收负责就绪检查和取证。
 - `installed_component_imports`：不设置 `PYTHONPATH` 或其他导入覆盖，核实服务解释器实际

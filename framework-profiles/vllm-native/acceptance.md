@@ -1,5 +1,9 @@
 # NVIDIA 原生 vLLM 验收要求
 
+- 小批量/正式精度前准备最小根级 `start-model.sh`，精度使用默认调用、性能使用同一脚本的
+  `--performance` 开关，仅改变前缀缓存。删除非必要缓存目录环境变量，记录相同脚本
+  SHA-256、实际生效配置与服务实例，交付保留已测脚本；见
+  [统一服务启动入口](../../docs/remote-operations.zh-CN.md#统一服务启动入口)。
 - `execution-mode`：真实权重在 eager 与 graph 均可推理；多模态模型还须验证其声明的
   图像与视频路径。graph 按 `full` → `full-and-piecewise` → `decode-full` → `piecewise`
   逐级尝试；每个更高档位都必须有定位、修复尝试和未解决阻塞证据。记录准确配置、服务

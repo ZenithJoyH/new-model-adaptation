@@ -140,10 +140,14 @@ Applies only to this profile. Inherit the [common workflow](../../docs/model-ada
       retain exact configuration and unresolved-blocker evidence for every higher
       level. Follow the common workflow's effective-mode and measured-performance
       checks. Piecewise may pass with the complete fallback chain; eager-only may
-      not. Do not call an intermediate launcher final. After acceptance selects
-      the final verified graph configuration,
-      place its executable entry point at the remote root's `start-model.sh`.
-      Build that final script from the smallest accepted launch command. Remove
+      not. Prepare the minimal executable `start-model.sh` at the remote root
+      before small-batch/formal acceptance. Use this same script for accuracy,
+      performance and delivery; do not call it final until acceptance passes.
+      Follow the shared launcher contract in `docs/remote-operations.md`: the
+      default invocation enables prefix caching, while `--performance` changes
+      only that cache state. Remove unnecessary cache-directory environment
+      overrides and verify approved container defaults. Build the script from
+      the smallest production launch command. Remove
       package installation, Git updates, patch application, cleanup, diagnostic
       probes, evaluation, polling and report-generation commands. Perform those
       as separate adaptation/acceptance actions. Follow the remote operations
@@ -154,8 +158,9 @@ Applies only to this profile. Inherit the [common workflow](../../docs/model-ada
       workarounds, duplicated defaults, experimental tuning, and unrelated
       model/platform settings unless controlled acceptance proves they are still
       required. Reconstruct it as a production launcher instead of copying the
-      last diagnostic, accuracy, or performance command; specifically exclude
-      the performance-only `--no-enable-prefix-caching` argument. Prefer engine
+      last diagnostic, accuracy, or performance command; exclude
+      `--no-enable-prefix-caching` from its default invocation and select it only
+      through the explicit performance branch. Prefer engine
       defaults whenever explicit pinning is unnecessary, and retain no argument
       solely because it appeared in an earlier run. Document the correctness, safety, resource-placement, or
       reproducibility reason for every retained environment variable and
@@ -279,8 +284,8 @@ Applies only to this profile. Inherit the [common workflow](../../docs/model-ada
       performance testing or profiling. Do not start the formal performance
       evaluation while full accuracy is incomplete or failing. Keep prefix
       caching enabled for sanity, accuracy, and every other non-performance run.
-      Before any performance or profiling request, switch to a performance-only
-      service launch profile and explicitly disable server-side prefix caching
+      Before any performance or profiling request, invoke the same tested script
+      as `./start-model.sh --performance` and explicitly disable server-side prefix caching
       on the exact service instance under test by adding the exact
       service launch argument `--no-enable-prefix-caching`. Verify this argument
       in the effective launch configuration and startup evidence, and bind the
@@ -298,7 +303,7 @@ Applies only to this profile. Inherit the [common workflow](../../docs/model-ada
       environment, result locations, metrics, pass criteria, and outcomes under
       the platform's `acceptance/` directory. Explicitly identify `graph` as the
       execution mode used for all acceptance work after step 1. Keep new remote
-      datasets/caches and raw outputs under the approved remote root's `06-cache/`
+      evaluation datasets/caches and raw outputs under the approved remote root's `06-cache/`
       and `04-runs/`; existing external datasets may be referenced read-only. Local
       records retain paths and concise evidence, not a full copy of remote outputs.
       If a common test asset
@@ -313,11 +318,14 @@ Applies only to this profile. Inherit the [common workflow](../../docs/model-ada
       limitations, and next steps. Before marking completion, verify that each
       approved target `host_root` contains executable `start-model.sh`, that its
       verified container path launches the final accepted graph configuration,
-      and that it routes logs/results to `04-runs/` and caches to `06-cache/`
+      and that evaluation logs/results use `04-runs/` and evaluation caches use `06-cache/`
+      (service runtime defaults follow the shared launcher contract)
       without affecting an unrelated service or the adaptation container. Record
       both paths, SHA-256, syntax check, launch/readiness result, complete
-      arguments, confirmation that performance-only and diagnostic flags are
-      absent, the result of the minimal-parameter review and justification for
+      arguments, confirmation that performance-only flags are absent from default
+      startup and diagnostic flags are absent entirely, matching script hashes
+      and effective invocation evidence from accuracy/performance, the result of
+      the minimal-parameter review and justification for
       every retained explicit setting, revisions, and verification date. Do not mark the adaptation
       complete until every acceptance item and this launcher verification have
       passed and the summary reflects the verified outcome.

@@ -102,15 +102,16 @@ apply to tasks involving those resources; this document does not grant access.
   the profile's final accepted primary execution mode and per-Host graph level
   selected through its evidenced stepwise fallback and performance review,
   keep logs/results under `04-runs/`
-  and caches under `06-cache/`, contain no secrets, and refuse to overwrite an
+  and evaluation caches under `06-cache/` (service runtime caches follow the
+  shared launcher contract below), contain no secrets, and refuse to overwrite an
   unrelated running service. Keep the launcher minimal: remove diagnostic,
   profiling, tracing, dump, temporary-path, obsolete workaround, duplicated
   default, experimental tuning, and unrelated model/platform settings unless
-  the accepted configuration demonstrably requires them. Rebuild it from the
-  smallest accepted production command instead of copying the last diagnostic,
-  accuracy, or performance command. In particular, do not carry the
-  profile's performance-only cache-disable mechanism into the final launcher;
-  for `vllm-plugin-fl`, this includes `--no-enable-prefix-caching`.
+  the accepted configuration demonstrably requires them. Build it before
+  acceptance from the smallest production command instead of copying the last diagnostic,
+  accuracy, or performance command. Do not enable the profile's performance-only
+  cache-disable mechanism in the default invocation; it is allowed only in the
+  same script's explicit performance branch described below.
   Prefer engine defaults over explicit flags when behavior and reproducibility
   do not depend on pinning them; do not add convenience flags merely because they
   appeared in an earlier run. Every retained explicit
@@ -140,7 +141,8 @@ apply to tasks involving those resources; this document does not grant access.
   External weights/tokenizers or other deliberately external inputs require an
   explicitly agreed deployment mount and container path; do not silently rely
   on the adaptation host's directories or copy weights without authorization.
-  Logs/caches must use container-writable `04-runs/` and `06-cache/` paths.
+  Evaluation logs/caches use container-writable `04-runs/` and `06-cache/` paths;
+  service runtime caches follow the verified default-path rule below.
   Verify imports and launch/readiness without `PYTHONPATH` or incidental host
   development mounts. Record required-file paths, mount/image ownership, hashes
   and installed-component identities. When image packaging is requested, test a
@@ -157,6 +159,45 @@ apply to tasks involving those resources; this document does not grant access.
   source cannot be verified,
   stop and report the blocker instead of creating a replacement checkout under
   the work root.
+
+## Shared service launcher
+
+- For service-based profiles, prepare the minimal root-level `start-model.sh`
+  before small-batch and formal acceptance. Use that same script to start the
+  service for sanity, accuracy and performance; do not maintain separate launch
+  commands or scripts for each test. Delivery retains the tested script, not an
+  untested rewrite after acceptance. This does not add a service contract to
+  Python-API-only profiles such as experimental Torch-FL.
+- Normal/accuracy invocation is `./start-model.sh`; prefix caching must be
+  effectively enabled where supported. The only test-mode switch is
+  `./start-model.sh --performance`, which changes only prefix caching using the
+  profile's declared mechanism (`--no-enable-prefix-caching` for vLLM). Use a
+  small explicit branch, reject unknown arguments, and do not add arbitrary
+  argument/environment passthrough or duplicate the model command. Do not emit
+  conflicting enable/disable flags. Rely on an enabled default only after
+  verifying the installed version; otherwise retain the necessary enable flag.
+  Restore normal startup before subsequent non-performance work.
+- Retain only the service command, indispensable environment variables/arguments
+  and this cache switch. Remove redundant cache-path overrides such as `HF_HOME`,
+  `XDG_CACHE_HOME`, `TORCHINDUCTOR_CACHE_DIR`, `TRITON_CACHE_DIR` and
+  `VLLM_CACHE_ROOT` when their defaults suffice. Do not relocate these exports to
+  a sourced helper or caller merely to make the script look shorter. Service
+  runtime cache defaults may be used when verified container-writable, approved
+  and independent of incidental host mounts; record their resolved locations
+  in the environment analysis. This is a narrow exception to the work-root
+  cache layout, not general permission to write outside approved paths. If a
+  default path is unapproved or unsuitable, obtain approval or retain only the
+  necessary override with its reason. Evaluation caches still use `06-cache/`;
+  prefix caching is a separate runtime feature, not a filesystem directory.
+- Record the script path/SHA-256, invocation, effective environment/arguments,
+  prefix-cache state and service instance for each test. Accuracy and performance
+  use identical script bytes and base configuration; only prefix-cache state
+  may differ. Verify the transition using existing evidence checks. Changes to
+  code, model, topology, graph level or other inference settings require affected
+  acceptance to be rerun, including accuracy before performance. A later script
+  edit requires review and revalidation of affected evidence; never merely
+  refresh its hash. Readiness checks, logging/redirection and evaluation remain
+  outside the launcher. Stop/restart only authorized task services, never the container.
 
 ## Validation and reporting
 

@@ -133,6 +133,9 @@ verification 位于 `workflow.<phase>.verification`；子步骤位于
   回执还须记录性能 `service_instance_id` 和该 Host 的 `accuracy_receipt_sha256`。
 - 性能关闭前缀缓存常需重启服务。冻结基准部署身份不变，只允许经过核实的缓存专用配置
   切换；记录 `accuracy_to_performance_transition` 检查及其准确前后启动/实例证据。
+  前后均通过同一根级 `start-model.sh` 启动：普通精度无参数、性能传 `--performance`。
+  在既有检查证据中记录一致的脚本 SHA-256、两种调用及实际生效的配置/缓存状态；无需
+  新增回执字段，也不能只凭脚本哈希判定运行服务配置一致。
   其他源码、模型、拓扑、推理设置变化须重新执行精度，不能靠这项检查豁免。
 - summary 回执中 `launcher` 为根目录 `start-model.sh` 的 `{path, sha256}`，必须存在且可执行；
   它必须启动该 Host 最终选定且已验收的 `graph_level`；其 syntax/readiness/minimal/cache checks 由
