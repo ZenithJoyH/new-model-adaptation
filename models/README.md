@@ -1,103 +1,57 @@
-# 模型适配工作区
+# 模型适配记录
 
-本目录属于**本地工作目录**，只保存精简、可追溯的模型与平台记录；实际源码 checkout、
-一次性诊断、日志、缓存、运行结果和 `08-bugs/` 复现保存在用户指定的**远端工作目录**。
-本地记录通过准确 Host、远端绝对路径、容器对应路径和 revision 引用远端事实，不复制完整
-远端运行目录。
+目录整理日期：2026-10-12。合并后模型导航共 14 项、15 个已有 framework 工作区；本轮仅整理本地记录，没有执行远端适配或评测。
 
-本地每个模型使用一个独立目录，目录名采用模型的稳定短名称。平台目录名与 Ansible
-inventory 组保持一致。
+## 模型导航
 
-```text
-models/<model-name>/
-├── README.md                 # 总体目标、状态矩阵、关键结论
-├── model.yml                 # 模型来源、规模和共享参数
-├── architecture-and-inference.md # 中文模型结构与推理链路分析（步骤 1 创建）
-├── _shared/README.md         # 跨平台 Tokenizer、补丁和共性问题
-├── nvidia/
-├── ppu/
-├── metax/
-├── ascend/
-├── mthreads/
-└── hygon/
-```
+| 模型 | 已有记录范围 | 结果与限制 |
+| --- | --- | --- |
+| [DeepSeek-V4-Flash](DeepSeek-V4-Flash/README.md) | metax | MetaX 的 eager 与 decode FULL graph 有最小请求记录；全链路图模式、正式精度与性能尚未完成。目标为 V4 INT8，不与 V4.1 混用。 |
+| [DeepSeek-V4.1-Flash](DeepSeek-V4.1-Flash/README.md) | nvidia；metax 仅为 V4 误存历史 | NVIDIA 原生 vLLM 已有最小功能与 GPQA 176/198（88.89%）记录；execution-mode/sanity 的正式前置绑定及性能未闭环。Plugin 工作区单独保留。 |
+| [GLM-5.3-Flash-BF16](GLM-5.3-Flash-BF16/README.md) | ppu | PPU-13 的功能适配已有记录；最新记录的 GPQA 为 172/198（86.87%），低于 88% 阈值，保留失败结论。 |
+| [Hy4-preview](Hy4-preview/README.md) | ppu | PPU-07 历史服务的 strict 90.91% 精度由用户按 87% 业务阈值接受；原生通过回执缺失，部分性能场景超时且用户已停止继续测试。新版 BF16/INT8 来源分析与旧运行结果分别保留。 |
+| [MiniCPM-V-4.7-1B](MiniCPM-V-4.7-1B/README.md) | nvidia, ppu | 分别保留 NVIDIA 原生 vLLM、NVIDIA Plugin、PPU Plugin 和 PPU 原生框架记录。已有小样本功能结果不代表完整精度、性能或其他框架通过。 |
+| [MiniCPM-V-4.7-35B-A3B](MiniCPM-V-4.7-35B-A3B/README.md) | nvidia, ppu | 已合并旧名 MiniCPM-V-4.7-35B；分别保留 NVIDIA 原生 vLLM、NVIDIA Plugin、PPU Plugin 与 PPU 原生框架。功能或诊断结果不等于正式整体验收。 |
+| [MiniMax-M3](MiniMax-M3/README.md) | ppu | PPU-13 旧工作区与 PPU-07 新适配分别保留。PPU-07 的 GPQA 178/198（89.90%）达到用户指定目标，但 sanity 9/10 和原生配置冲突使正式验收仍未闭环。 |
+| [MiniMax-M3.1](MiniMax-M3.1/README.md) | ppu | 已完成（2026-10-08 用户验收确认）。GPQA 84.8484% 与三组性能结果的完成结论保持不变；原生证据和镜像验证限制继续作为维护备注，不自动重开评测。 |
+| [Qwen-Image-2.1](Qwen-Image-2.1/README.md) | ppu | PPU 的 Torch-FL / Diffusers eager 完整出图、配对验证及性能实验已有记录。保留各实验容器的独立身份；不套用 vLLM 服务验收，不宣称 graph 或正式整体验收完成。 |
+| [Qwen3.6-27B](Qwen3.6-27B/README.md) | metax | MetaX mx-58 的模型结构、环境及 Plugin 适配过程已有记录；正式精度、性能与完整验收尚未闭环。 |
+| [Qwen3.6-35B](Qwen3.6-35B/README.md) | metax | 旧 mx-104 平台记录与 mx-59 Plugin 优化记录分别保留。mx-59 三组吞吐改善为 21.3% / 65.2% / 49.0%，但部分尾延迟上升；正式整模精度及镜像验收未执行。 |
+| [Qwen3.8-Flash-Next](Qwen3.8-Flash-Next/README.md) | ppu | PPU-01 的功能与算子归属整理已有记录；最新双实例正式精度为 171/198（86.36%），低于 88% 阈值。跨实例数值差异和生成上限问题保持未关闭。 |
+| [Xing4.0-29B-A4B](Xing4.0-29B-A4B/README.md) | nvidia, ppu | PPU-13 的独立 Xing4.0 实现已有验证，最新重构后 graph 尚未重跑；NVIDIA H100-145 另有 MATH-500 432/500（86.40%）独立评测，不作为正式 acceptance。与 XingChen4 保持独立目录。 |
+| [XingChen4-29B-A4B](XingChen4-29B-A4B/README.md) | nvidia, ppu | NVIDIA / PPU 历史功能、GPU Xid、长生成和跨请求 graph 分叉分别保留；正式验收未闭环，PPU 仍有明确阻塞。NVIDIA 旧概览与平台配置的 Host 不一致，接续前需核对。 |
 
-每个平台根目录初始只包含：
+## 目录与接续规则
 
-- `README.md`：平台索引和约定。
-- `platform.yml`：平台信息、五阶段状态、验收子步骤状态和证据路径。
+- 模型根：`model.yml`、`README.md`、已有的 `architecture-and-inference.md`；`_shared/` 放精简跨平台分析和维护索引。
+- 新布局：`<platform>/frameworks/<framework>/`；`framework.yml` 固定 profile 快照与 evidence v2，`environment/`、`adaptation/`、`acceptance/` 均为平铺 Markdown。问题编号保持原值。
+- 旧布局：平台根下已有阶段记录保持原位，明确为 legacy；不为了统一目录而批量迁移到猜测的 framework 或 Host。后续新工作先明确框架与准确主机。
+- 历史脚本、配置、快照和过程子目录已迁入 Git 忽略的本地归档。它们不是当前执行入口；新执行材料仍应位于任务批准的远端工作根。
+- 保留未开展平台的已有骨架，不新增任务。实验 profile、诊断子集、人工验收与完整原生验收分别说明。
+- 不存放模型权重、密钥、完整日志或大型评测产物，不在本次整理中提交或推送。
 
-为用户指定的平台执行阶段准备后，按需新增：
+## 历史结果与 v2 状态
 
-- `environment/`：只保存 Markdown 环境与平台分析；`README.md` 导航少量专题分析。
-- `adaptation/`：仅保存适配问题索引 `README.md` 和按问题编号的 Markdown 记录；每条
-  记录聚焦问题现象、诊断、尝试、根因、解决方法、验证结论与限制。
-- `acceptance/`：只保存 Markdown 验收计划、精度与性能结论、最终总结和适配复盘；
-  `README.md` 区分正式轮次、历史失败与诊断子集，文件存在不代表已执行或通过。
+已有 framework 通过显式交接升级，原通过、失败、未完成状态及 verification 保存在 `control.history` 和完整快照。当前阶段 `not_started` 表示 v2 证据尚未建立，`blocked` 表示无法仅用旧回执通过新门禁；不表示历史工作被删除或实际模型重新失败。
+MiniMax-M3.1 的用户验收完成结论保持 **complete**；Hy4 的精度业务接受、性能失败和停止继续测试决定也保持原状。任何契约整理都不自动安排重跑。
+部分 legacy 验收仍缺少正式前置或原生回执，保留待复核项，不刷新哈希来制造通过。不同 Host、容器、权重和框架的记录不互相继承。
 
-`_shared/` 只保存 Markdown 索引和少量合并后的跨平台分析。上游原始配置、模板副本、
-一次性检查脚本、JSON/YAML 快照和其他采集产物留在已批准远端工作根目录。
+[人工接管与交回](../docs/human-collaboration.md) · [v2 证据契约](../docs/evidence-contract-v2.md) · [适配流程](../docs/adaptation-policy.zh-CN.md)
 
-三个本地目录均不存放脚本、Playbook、运行配置、源码、补丁、测试文件、原始日志、
-JSON/YAML、缓存、临时输出或子目录。Plugin 仓库只保存必要的产品实现和可长期维护的回归测试；一次性过程脚本与代码
-放在已批准远端根目录、各源码仓库之外的 `06-tmp/` 或 `03-issues/`，且不得提交。FlagGems 复现保留在
-已批准工作根目录的 `08-bugs/`，并通过已核实的容器对应路径原地执行；如果已在工作目录中，
-不得再复制到 `/bug/`。只有必要工具明确要求时，才使用指向同一目录的已批准映射或明确
-例外。问题记录通过准确路径、revision/commit、复现命令和结果引用这些材料。新问题使用
-`templates/adaptation/issue-record.md`，按出现顺序命名为 `NNN-short-title.md`。
+## 归档与恢复
 
-步骤 1 可以使用阶段入口初始化模型结构分析文档：
+[本次完整快照、迁移清单与恢复说明](../.local/adaptation-history/20261012-model-layout-080344/README.md)。每个模型 `_shared/local-record-maintenance.md` 提供其原状态、契约变更和归档文件哈希。
+归档只在当前本机，克隆仓库不包含这些文件。本次未把材料上传到服务器，也未验证远端历史产物仍然可读。
 
-```bash
-./scripts/adapt-model <model-name> --steps architecture
-```
-
-当前工具的平台阶段仍包含旧版结构化文件门禁。步骤 2～5 直接使用自然语言调用 Codex，
-不得为通过旧门禁把 YAML 或过程文件重新放回精简平台目录。
-
-不要把权重、完整日志、性能原始数据或密钥提交到 Git。权重位置只记录为
-远端绝对路径。
-
-## 当前已启动目录
-
-只整理已有工作，不为未启动平台新增计划、审查或验收材料。这里提供导航，不重复维护动态分数。
-
-| 模型 / 平台 | 平台概览 | 环境与设计 | 问题台账 | 验收轮次 |
-|---|---|---|---|---|
-| GLM-5.3-Flash-BF16 / PPU | [概览](GLM-5.3-Flash-BF16/ppu/README.md) | [环境](GLM-5.3-Flash-BF16/ppu/environment/README.md) | [问题](GLM-5.3-Flash-BF16/ppu/adaptation/README.md) | [验收](GLM-5.3-Flash-BF16/ppu/acceptance/README.md) |
-| Hy4-preview / PPU | [概览](Hy4-preview/ppu/README.md) | [环境](Hy4-preview/ppu/environment/README.md) | [问题](Hy4-preview/ppu/adaptation/README.md) | [验收](Hy4-preview/ppu/acceptance/README.md) |
-| Qwen3.8-Flash-Next / PPU | [概览](Qwen3.8-Flash-Next/ppu/README.md) | [环境](Qwen3.8-Flash-Next/ppu/environment/README.md) | [问题](Qwen3.8-Flash-Next/ppu/adaptation/README.md) | [验收](Qwen3.8-Flash-Next/ppu/acceptance/README.md) |
-| XingChen4-29B-A4B / NVIDIA | [概览](XingChen4-29B-A4B/nvidia/README.md) | [环境](XingChen4-29B-A4B/nvidia/environment/README.md) | [问题](XingChen4-29B-A4B/nvidia/adaptation/README.md) | [验收](XingChen4-29B-A4B/nvidia/acceptance/README.md) |
-| XingChen4-29B-A4B / PPU | [概览](XingChen4-29B-A4B/ppu/README.md) | [环境](XingChen4-29B-A4B/ppu/environment/README.md) | [问题](XingChen4-29B-A4B/ppu/adaptation/README.md) | [验收](XingChen4-29B-A4B/ppu/acceptance/README.md) |
-
-## 状态约定
-
-`platform.yml` 顶层 `status` 表示平台总体成熟度：
-
-- `not_started`：尚未开始。
-- `environment_ready`：依赖和硬件环境可用。
-- `model_loading`：模型能加载，推理尚未验证。
-- `functional`：最小推理正确。
-- `optimized`：完成目标性能优化和回归验证。
-- `blocked`：存在明确阻塞，并在平台 README 中记录原因。
-
-`workflow.<phase>.status` 和验收子步骤状态使用：
-
-- `not_started`：尚未开始。
-- `in_progress`：正在执行。
-- `blocked`：存在明确且已记录的阻塞。
-- `failed`：已经执行验证且失败，保留失败证据。
-- `passed`：阶段已经通过并具有对应证据。
-- `complete`：复盘或需要收尾的阶段已经完整关闭。
-
-通过状态必须同时具有与当前输入一致的证据绑定；历史无绑定的状态不能自动作为下一
-阶段的前置通过依据。字段和校验入口见 [工作流指南](../docs/workflow-guide.md)。
-
-## 创建新模型
+## 新模型和新框架入口
 
 ```bash
 ./scripts/new-model <model-name>
+./scripts/new-framework <model-name> <platform> <framework-id>
 ```
 
-脚本从 `models/_template` 复制平台根目录骨架，若目标已存在会拒绝覆盖。创建后
-先填写 `model.yml`，再使用 `scripts/adapt-model` 只初始化实际请求的阶段和平台。
+阶段 1 可用 `adapt-model --steps architecture` 初始化；阶段 2～5 的旧创建入口已停用。执行时只选择用户要求的阶段，先检查现有进程和前置证据，不重放历史启动命令。
+
+## 本轮本地检查
+
+此前目录整理时审计为 0 个错误、9 个待复核项。此次 MiniCPM 35B 别名合并前后审计均为 **2 个既有错误、9 个待复核项，无新增问题**：两个错误来自项目根 README 与本页指向当前缺失的 XingChen4-29B-A4B 目录；待复核项仍为 DeepSeek-V4.1 的 legacy 前置/精度绑定 8 项、Hy4 的原生精度回执缺口 1 项。MiniCPM 合并范围的本地链接与框架配置校验通过；目录与链接通过不等于远端验收通过。

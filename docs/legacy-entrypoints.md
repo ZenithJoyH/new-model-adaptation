@@ -1,7 +1,7 @@
 # 历史执行入口与新运行边界
 
-2026-09-07 的本地修复将不可安全重放的一次性入口改为明确拒绝执行。原文件路径仍在，
-但正常调用仅给出停用原因并返回非零；不连接服务器、不改文件、不发模型请求、不启动或停止进程。
+2026-09-07 的本地修复将不可安全重放的一次性入口改为明确拒绝执行。这些旧入口随后于 2026-10-12 随模型目录整理迁入本地历史归档。归档前的停用入口
+正常调用仅给出停用原因并返回非零；不连接服务器、不改文件、不发模型请求、不启动或停止进程。
 Python 入口可以安全导入；shell 被 source 时返回失败，不主动退出调用者 shell。
 Ansible 入口仅含本机失败任务，原远端任务不再留在可执行 YAML 内，也没有绕过开关。
 Ansible 自身的 `--skip-tags always` 或排除 localhost 的 `--limit` 可跳过唯一拒绝任务并
@@ -12,10 +12,9 @@ Ansible 自身的 `--skip-tags always` 或排除 localhost 的 `--limit` 可跳�
 | 模型/平台 | 历史材料 | 处理与可用替代 |
 |---|---|---|
 | GLM / PPU | 固定目录的 `start_gpqa.sh` | [完整原文及 SHA256](../models/GLM-5.3-Flash-BF16/_shared/local-record-maintenance.md)；新全量精度使用共享 runner |
-| Qwen / PPU | 旧全量/22 题启动、22 题执行器和旧 graph sanity Playbook | [完整原文及 SHA256](../models/Qwen3.8-Flash-Next/_shared/local-record-maintenance.md)；正式精度与诊断子集保持区分，前台 sanity 测试源码保留 |
+| Qwen / PPU | 旧全量/22 题启动、22 题执行器和旧 graph sanity Playbook | [完整原文及 SHA256](../models/Qwen3.8-Flash-Next/_shared/local-record-maintenance.md)；正式精度与诊断子集保持区分，历史 sanity 源码归档，新增验证使用当前 runner |
 
-快照位于各平台 `acceptance/historical-entrypoints/`，只有 Markdown，不再作为脚本/Playbook
-发现和执行。原文用于理解旧试验和比对证据，不是复制粘贴后绕过新门禁的操作教程。
+原 `acceptance/historical-entrypoints/` 已整体归档，具体位置和 SHA-256 见上表的模型维护索引；模型验收目录只保留平铺 Markdown。归档仅用于历史检查，不作为脚本/Playbook 发现和执行。原文用于理解旧试验和比对证据，不是复制粘贴后绕过新门禁的操作教程。
 历史配置、日志摘要、分数和 `platform.yml` 未因此改成通过。
 
 ## 新任务怎么运行
@@ -26,8 +25,8 @@ Ansible 自身的 `--skip-tags always` 或排除 localhost 的 `--limit` 可跳�
 2. 为本次运行准备独立输出目录，部署当前共享工具及其完整依赖。正式精度使用
    [llmrun.py](../test/Accuracy_test/llmrun.py) 与正式契约；诊断、阶段计分和历史 finalize
    结果不能替代 passing `acceptance-result.json`。
-3. 前台测试先选择步骤并检查当前阶段、运行计划与服务身份，再执行明确 argv。现有模型
-   专用 sanity 源码只是测试 payload，不会自动获得授权或准入；不要直接导入它来检查帮助
+3. 前台测试先选择步骤并检查当前阶段、运行计划与服务身份，再执行明确 argv。已归档的模型
+   专用 sanity 源码只是历史测试 payload，不会自动获得授权或准入；不要直接导入它来检查帮助
    或收集函数。
 4. 后台任务必须由实际 worker/supervisor 管理完整生命周期；需要全新远端 run 目录和已
    核实的运行计划，不能原地升级活跃目录。历史 proof 不替代当前服务实例的正式门禁，
