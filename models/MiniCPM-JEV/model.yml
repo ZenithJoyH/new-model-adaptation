@@ -1,0 +1,12 @@
+name: MiniCPM-JEV
+source:
+  modelscope_id: ''
+  huggingface_id: ''
+  revision: ''
+architecture: Qwen3_5ForSequenceClassification (value head)
+parameter_count: '2213245760'
+active_parameter_count: ''
+estimated_weight_size_gb: 4.426567144
+remote_weight_path: /mnt/nfs/users/jinghao/MiniCPM-JEV/rm_hf_infer_demo_v1_20261015_with_ckpt/qwen35_2b_l2_triple_value_checkpoint-3000
+status: functional
+notes: PPU-01 minicpm-jev-vllm，双图 value head；eager/PIECEWISE 12样例、4/8并发及图像消融通过，正式全量精度/性能未执行。
