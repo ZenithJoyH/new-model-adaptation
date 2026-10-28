@@ -506,7 +506,10 @@ class ObjectiveEvidenceTests(ModernFixture):
 
     def test_accuracy_native_gate_checks_actual_service_binding(self):
         self.cfg['workspace']['roots'][0]['host_root']=str(self.f.remote)
-        binding=self.binding(); cfg=formal_config()
+        from test_service_acceptance import freeze_service, launch_record
+        freeze_service(self)
+        launch_envelope, binding, _ = launch_record(self, 'accuracy')
+        cfg=formal_config()
         cfg.update(formal_contract_version=2,concurrency_reason='capacity fixture',service_binding=binding,run_id='accuracy-run',
                    num_concurrent=1,eval_model='accuracy-run',model_name='Example',base_url=binding['endpoint'])
         path=self.f.remote/'config.json'; path.write_text(json.dumps(cfg))
@@ -518,7 +521,8 @@ class ObjectiveEvidenceTests(ModernFixture):
         llmrun.write_acceptance_report(effective,run,[],{'example':[{'output_dir':str(run),'returncode':0,'status':'passed','errors':[]}]},[])
         self.cfg['acceptance_plan']['accuracy_config_sha256']=gate.digest(path)
         native={'report':self.ref(run/'acceptance-result.json'),'config':self.ref(path)}
-        report={'run_id':'accuracy-run','service_instance_id':'service-A','scope':{'host_alias':'PPU-01'}}
+        report={'run_id':'accuracy-run','service_instance_id':'service-A','scope':{'host_alias':'PPU-01'},
+                'native':launch_envelope['native']}
         reader=gate.Artifacts(self.cfg,'PPU-01',self.f.mounts)
         gate.native_accuracy(reader,native,report,self.cfg)
         report['service_instance_id']='service-B'

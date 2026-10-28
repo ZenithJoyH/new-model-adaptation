@@ -112,3 +112,12 @@ installation is required. A local-only task does not activate remote checks.
 - New workspaces pin the [v2 evidence contract](docs/evidence-contract-v2.md).
   Upgrade existing contracts explicitly and preserve historical results.
   `optimized` requires frozen performance targets as well as valid measurements.
+- For service profiles, freeze verified model modalities, architecture SHA-256 and
+  each Host's served aliases, shared launcher and effective startup configuration in
+  `acceptance_plan.service_contract` before sanity. Bind sanity, accuracy, performance
+  and delivery to it; only performance changes prefix caching. Follow the
+  [service evidence contract](docs/evidence-contract-v2.md#服务范围与共享启动绑定).
+  First performance measurements need no prior baseline; comparisons/relative targets do.
+- A retrospective may review failed, blocked or partial work without passing prior
+  phases. Bind the review to actual stage states/evidence; it never promotes acceptance
+  or overall adaptation status. Revalidate the review when its referenced state changes.

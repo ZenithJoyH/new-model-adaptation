@@ -61,6 +61,8 @@ minimal-regression 由框架定向测试承担，只有提供固定案例集时�
   原生 manifest、结果与服务绑定见 [v2 契约](evidence-contract-v2.md)。原始结果放在
   远端 `<host_root>/04-runs/<run_id>/`；未提供已核实参考或不适用该 runner 时为
   `incomplete`。历史 v1 的十并发规则保持原记录，不套用于新 v2 工作区。
+  正式 gate 另核对冻结 `service_contract` 中的模型能力、服务别名与启动身份，
+  单独 manifest 预检不能代替这些检查。
 - `formal-full` evaluator：目标机器上基于
   `harbor.baai.ac.cn/flageval/flageval-llmeval:v1` 或已核实的适用 arm64 镜像的评测容器。
 - `formal-full` runner：`test/Accuracy_test/llmrun.py`。在容器内保持该文件与
@@ -102,7 +104,8 @@ minimal-regression 由框架定向测试承担，只有提供固定案例集时�
   `test/perf_test/sglang_perf.py`；`all_perf.py` 仅在其文档支持范围内作为兼容入口。
 - `single-scenario`：把冻结的单个场景映射为一个
   `--case INPUT,OUTPUT,CONCURRENCY,NUM_PROMPTS`；先执行相同命令加 `--dry-run`，核对后只移除
-  `--dry-run`。必须提供匹配 baseline，结论仅覆盖该场景。
+  `--dry-run`。首次适配可直接记录测量结果作为基线，结论仅覆盖该场景；
+  只有声明提速/比较收益或配置相对目标时才必须提供同条件、可核验 baseline。
 - `full-suite`：把版本化完整场景 manifest 中每项映射为重复的 `--case`；不得静默遗漏。
   `--model`、`--tokenizer`、`--max-model-len`、Host、端口和 endpoint 来自当前服务取证，且
   每个 `INPUT+OUTPUT` 不超过当前上下文预算。
@@ -128,8 +131,10 @@ minimal-regression 由框架定向测试承担，只有提供固定案例集时�
   准确关闭参数、现场证据与服务实例绑定。benchmark 客户端不负责修改模型服务，
   `--random-prefix-len 0` 不能替代该证据。
   性能后通过同一脚本的默认调用恢复前缀缓存开启；若更改其他推理配置，重新完成受影响的
-  验收（包括性能前的精度），不能复用旧结果。这里只增加操作与证据记录要求，不改变
-  既有回执 schema；不得把相同脚本哈希误当作当前服务状态的自动验证。
+  验收（包括性能前的精度），不能复用旧结果。本扩展不改写
+  历史回执 schema；新服务工作区通过 `acceptance_plan.service_contract` 与每轮
+  `native.service_launch` 追加跨阶段检查，见[服务证据契约](evidence-contract-v2.md#服务范围与共享启动绑定)。
+  同时核验实际进程 argv、必要环境变量和有效配置，不只比较脚本哈希。
 - 性能计划/包装放 `03-acceptance/`，原始 JSON/CSV/stdout/stderr 放
   `04-runs/<run_id>/`，缓存放 `06-cache/`；本地只保存 Markdown 摘要与准确证据引用。
 

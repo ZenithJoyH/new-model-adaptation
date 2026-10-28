@@ -1,5 +1,8 @@
 # NVIDIA 原生 vLLM 验收要求
 
+新服务工作区在 sanity 前冻结 `acceptance_plan.service_contract`，绑定实际模型能力、
+服务别名及逐 Host 共享脚本/配置；见[服务证据契约](../../docs/evidence-contract-v2.md#服务范围与共享启动绑定)。
+
 - 小批量/正式精度前准备最小根级 `start-model.sh`，精度使用默认调用、性能使用同一脚本的
   `--performance` 开关，仅改变前缀缓存。删除非必要缓存目录环境变量，记录相同脚本
   SHA-256、实际生效配置与服务实例，交付保留已测脚本；见
@@ -13,7 +16,7 @@
 - `accuracy`：冻结数据集、样本数、指标键和阈值，通过项目 `adaptation/accuracy` 原生入口
   完成正式评测。保留全部样本和原生回执；错误样本和最终超时按项目契约计入。
 - `performance`：准确性通过后，使用 `adaptation/performance` 原生入口。仅针对准确服务
-  实例的性能配置显式加入 `--no-enable-prefix-caching` 并核实生效；记录同条件基线。
+  实例的性能配置显式加入 `--no-enable-prefix-caching` 并核实生效；首次测量无需已有基线，比较收益或相对目标才要求同条件基线。
 - `evidence`：核对当前 vLLM 源码 Git 身份、原有与本轮 diff、真实运行修订及产物完整性。
 - `summary`：恢复正常前缀缓存配置，验证根级 `start-model.sh` 的语法、容器映射、实际
   就绪、最小必要参数、SHA-256 与已验收 graph 级别。脚本不得停启适配容器。

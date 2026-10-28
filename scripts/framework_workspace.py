@@ -51,6 +51,8 @@ def pin_profile(config, profile):
     config.update(evidence_contract=2, profile_version=profile["profile_version"],
                   profile_snapshot=copy.deepcopy(profile),
                   profile_hash_version=2, profile_sha256=profile_digest(profile))
+    if "sanity" in profile["acceptance"]["steps"]:
+        config.setdefault("acceptance_plan", {}).setdefault("service_contract", {"schema_version": 1})
 
 
 def workspace_profile(root, config):

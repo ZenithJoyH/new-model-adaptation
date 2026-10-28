@@ -1,5 +1,12 @@
 # vllm-plugin-fl implementation and acceptance
 
+Before sanity, freeze the service contract specified in the
+[shared evidence contract](../../docs/evidence-contract-v2.md#服务范围与共享启动绑定).
+It binds model capabilities and each Host's served aliases, launcher and effective
+startup settings across sanity, accuracy, performance and delivery. First end-to-end
+measurements need no previous baseline; comparisons and relative targets do.
+Retrospectives may review partial or failed work without passing prior acceptance.
+
 Applies only to this profile. Inherit the [common workflow](../../docs/model-adaptation-workflow.md); legacy direct records retain their paths.
 
 3. **Perform the adaptation.** Combine the model architecture and inference-path

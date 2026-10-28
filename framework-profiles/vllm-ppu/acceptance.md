@@ -1,5 +1,9 @@
 # 平头哥原生 vLLM 验证边界
 
+服务小批量验证使用 `acceptance_plan.service_contract` 绑定结构分析、模型能力、服务别名
+及共享启动配置；见[服务证据契约](../../docs/evidence-contract-v2.md#服务范围与共享启动绑定)。
+这不增加本实验 profile 尚未支持的正式精度或性能验收。
+
 - 已声明的服务验证复用最小根级 `start-model.sh` 的默认启动，删除非必要缓存目录环境变量。
   若以后补齐并获准精度/性能验收，遵循[统一服务启动入口](../../docs/remote-operations.zh-CN.md#统一服务启动入口)：
   同一脚本默认开启前缀缓存，仅显式性能开关关闭；本条不扩展当前 experimental 验收能力。

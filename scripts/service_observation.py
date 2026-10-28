@@ -119,12 +119,19 @@ def observe(root, manifest, *, timeout=45):
         require(container_id == manifest["service_process_identity"]["container_id"], "service container was replaced")
         port = manifest["run_plan"]["service_port"]
         require(type(port) is int and 0 < port <= 65535, "invalid service port")
+        environment_keys = manifest.get("launch_environment_keys", [])
+        require(isinstance(environment_keys, list) and len(set(environment_keys)) == len(environment_keys)
+                and all(isinstance(k, str) and re.fullmatch(r"[A-Za-z_][A-Za-z0-9_]*", k) for k in environment_keys),
+                "launch_environment_keys must explicitly name necessary non-secret settings")
         probe = """import pathlib,hashlib,json,sys
 p=pathlib.Path('/proc')/sys.argv[1]
 port=int(sys.argv[2])
 s=p.joinpath('stat').read_text()
 ticks=int(s[s.rfind(')')+2:].split()[19])
 cmd=p.joinpath('cmdline').read_bytes()
+keys=json.loads(sys.argv[3])
+env=dict(item.split('=',1) for item in p.joinpath('environ').read_bytes().decode().split('\\0') if '=' in item) if keys else {}
+selected={key:env.get(key) for key in keys}
 sockets=set()
 for fd in p.joinpath('fd').iterdir():
     try:
@@ -147,13 +154,14 @@ for protocol in ('tcp','tcp6'):
 if not listeners or not listeners.issubset(sockets):
     sys.exit('recorded service PID does not own the requested LISTEN socket')
 s2=p.joinpath('stat').read_text()
-if not cmd or ticks!=int(s2[s2.rfind(')')+2:].split()[19]):
+if not cmd or cmd!=p.joinpath('cmdline').read_bytes() or ticks!=int(s2[s2.rfind(')')+2:].split()[19]):
     sys.exit('empty command or PID changed during probe')
 print(json.dumps({'start_ticks':ticks,'cmdline_sha256':hashlib.sha256(cmd).hexdigest(),
-    'boot_id':pathlib.Path('/proc/sys/kernel/random/boot_id').read_text().strip(),'listening_port':port}))
+    'boot_id':pathlib.Path('/proc/sys/kernel/random/boot_id').read_text().strip(),'listening_port':port,
+    'argv':cmd.rstrip(b'\\0').decode().split('\\0'),'launch_environment':selected}))
 """
         result = subprocess.run(["docker", "exec", "--workdir", manifest["workspace"]["container_root"],
-            container_id, "python3", "-B", "-c", probe, str(pid), str(port)], cwd=root, check=True,
+            container_id, "python3", "-B", "-c", probe, str(pid), str(port), json.dumps(environment_keys)], cwd=root, check=True,
             capture_output=True, text=True, timeout=15)
         details = json.loads(result.stdout)
         require(type(details.get("listening_port")) is int and details["listening_port"] == port,
@@ -162,7 +170,8 @@ print(json.dumps({'start_ticks':ticks,'cmdline_sha256':hashlib.sha256(cmd).hexdi
         identity["container_id"] = container_id
         validate_identity(identity)
         require(identity == manifest["service_process_identity"], "live PID/start/boot/command identity differs from recorded service")
-        response.update(status="verified", process_identity=identity, listening_port=port)
+        response.update(status="verified", process_identity=identity, listening_port=port,
+                        argv=details.get("argv"), launch_environment=details.get("launch_environment"))
     except (OSError, ValueError, KeyError, TypeError, subprocess.SubprocessError) as exc:
         response["error"] = str(exc)
     response["observed_at"] = datetime.now(timezone.utc).isoformat()

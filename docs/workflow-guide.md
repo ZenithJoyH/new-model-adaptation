@@ -119,6 +119,7 @@ models/<model>/<platform>/
 - 步骤 4：在 `acceptance/` 记录计划、每轮验收结论和最终总结。原始结果及机器可执行配置
   留在远端 `03-acceptance/`、`04-runs/`。
 - 步骤 5：在 `acceptance/adaptation-retrospective.md` 总结问题、有效经验、流程缺口和改进项。
+  可单独复盘失败或部分完成的任务，无需前序验收通过；引用实际阶段状态/证据，复盘不提升适配状态。
 
 ## 5. 状态与证据
 

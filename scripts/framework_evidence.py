@@ -47,14 +47,14 @@ def record_for(cfg, stage):
 
 def dependencies(cfg, profile, stage):
     steps = step_names(cfg, profile)
+    if stage == "retrospective":
+        return []  # Review failures/partial work without upgrading their status.
     if stage in steps:
         return ["architecture", "environment", "adaptation", *steps[:steps.index(stage)]]
     phases = list(WORKFLOW_PHASES)
     require(stage in phases, f"未知阶段: {stage}")
     previous = phases[:phases.index(stage)]
-    if stage == "retrospective" and profile["status"] == "experimental":
-        previous.remove("acceptance")
-    if stage in {"acceptance", "retrospective"}:
+    if stage == "acceptance":
         previous += steps
     return previous
 
@@ -73,7 +73,9 @@ def context_hash(root, directory, cfg, profile, stage):
         files += [root / cfg["profile"]]
         files += [(root / cfg["profile"]).parent / value for value in profile["documents"].values()]
     if stage != "architecture":
-        files.append(model / "architecture-and-inference.md")
+        architecture = model / "architecture-and-inference.md"
+        if stage != "retrospective" or architecture.is_file():
+            files.append(architecture)
     for path in files:
         require(path.is_file(), f"缺少上下文文件: {path}")
     scope = {key: cfg.get(key) for key in ("model", "platform", "framework", "profile_version")}
@@ -90,11 +92,16 @@ def context_hash(root, directory, cfg, profile, stage):
         scope["acceptance_plan"] = cfg.get("acceptance_plan")
         if modern and stage in {"execution-mode", "sanity", "accuracy"}:
             keys = ["execution"]
+            if stage != "execution-mode" and "service_contract" in cfg.get("acceptance_plan", {}):
+                keys.append("service_contract")
             if stage != "execution-mode":
                 keys.append("sanity_manifest_sha256")
             if stage == "accuracy":
                 keys.append("accuracy_config_sha256")
             scope["acceptance_plan"] = {k: cfg.get("acceptance_plan", {}).get(k) for k in keys}
+    if stage == "retrospective":
+        scope["reviewed_state"] = {s: {"status": state(cfg, s), "record": record_for(cfg, s)}
+                                  for s in [*WORKFLOW_PHASES[:-1], *step_names(cfg, profile)]}
     return canonical({"scope": scope, "stage": stage,
                       "files": {str(p.relative_to(root)): digest(p) for p in files},
                       "prerequisites": {s: record_for(cfg, s) for s in dependencies(cfg, profile, stage)}})
@@ -162,6 +169,11 @@ def native_accuracy(reader, native, envelope, cfg):
             require(report.get("service_binding") == frozen.get("service_binding"), "原生精度服务身份与冻结配置不一致")
             require(frozen.get("base_url") == frozen.get("service_binding", {}).get("endpoint"), "精度 endpoint 与服务身份不一致")
             service_binding(reader, report.get("service_binding"), envelope, cfg, envelope["scope"]["host_alias"])
+            if "service_contract" in cfg.get("acceptance_plan", {}):
+                from service_acceptance import validate_launch, validate_served_model
+                host = envelope["scope"]["host_alias"]
+                validate_served_model(cfg, host, frozen.get("model_name"))
+                validate_launch(reader, envelope, cfg, host, "accuracy", report["service_binding"])
         require(not validate_formal_config(frozen, require_formal=True), "无效正式精度配置")
         require(report.get("kind") == "formal_accuracy" and report.get("status") == "passed"
                 and report.get("errors") == [] and report.get("failed_tasks") == [], "正式精度未通过")
@@ -239,6 +251,11 @@ def native_performance(reader, native, envelope, cfg):
             request = source["request"]
             require(bound.hostname == request["host"].strip("[]") and (bound.port or 80) == request["port"]
                     and bound.path == request["endpoint"], "性能请求与原生服务身份不一致")
+            if "service_contract" in cfg.get("acceptance_plan", {}):
+                from service_acceptance import validate_launch, validate_served_model
+                host = envelope["scope"]["host_alias"]
+                validate_served_model(cfg, host, request.get("model"))
+                validate_launch(reader, envelope, cfg, host, "performance", runtime["service_binding"])
             performance_targets(reader, source, cfg["acceptance_plan"])
     finally:
         sys.path.pop(0)
@@ -301,6 +318,10 @@ def native_sanity(reader, report, cfg, host):
                 == result.get("manifest_sha256"), "sanity manifest 未冻结或已变化")
         require(result.get("run_id") == report["run_id"], "sanity run_id 不匹配")
         service_binding(reader, result.get("service_binding"), report, cfg, host)
+        if manifest.get("schema_version") == 2 or "service_contract" in cfg.get("acceptance_plan", {}):
+            from service_acceptance import validate_sanity_scope, validate_launch
+            validate_sanity_scope(cfg, host, manifest)
+            validate_launch(reader, report, cfg, host, "sanity", result["service_binding"])
         validate_result(manifest, result)
     finally:
         sys.path.pop(0)
@@ -335,6 +356,9 @@ def check_receipt(reader, ref, cfg, profile, stage, rec):
             native_sanity(reader, report, cfg, ref["host_alias"])
         if stage == "summary" and profile["status"] == "active":
             delivery(reader, report)
+            if "service_contract" in cfg.get("acceptance_plan", {}):
+                from service_acceptance import validate_launch
+                validate_launch(reader, report, cfg, ref["host_alias"], "summary")
     if spec and stage not in {"device", "operators", "wheel"}:
         require(report.get("mode") == profile["execution_modes"]["acceptance_primary"], "验收执行模式不匹配")
         check_graph_level(reader, report, ref, cfg, profile, stage)
@@ -373,6 +397,9 @@ def verify_record(root, directory, cfg, profile, stage, mounts=None):
     require(context_hash(root, directory, cfg, profile, stage) == rec.get("context_sha256"), f"{stage}: 上下文已变化")
     if stage == "architecture":
         return
+    if stage in {"sanity", "accuracy", "performance", "summary", "acceptance"} and "service_contract" in cfg.get("acceptance_plan", {}):
+        from service_acceptance import validate_plan
+        validate_plan(cfg, digest(root / "models" / cfg["model"] / "architecture-and-inference.md"))
     hosts = cfg["target"]["hosts"]
     refs = rec.get("receipts")
     require(isinstance(refs, list) and len(refs) == len(hosts), f"{stage}: 必须逐 Host 记录回执")

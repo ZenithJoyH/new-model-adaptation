@@ -257,6 +257,9 @@ for independent invocation, draft handling and phase isolation.
   blocker when prerequisite identity, evidence, status, or freshness is missing
   or inconsistent; never repair it by silently rerunning another phase or merely
   refreshing hashes.
+- Retrospective is an independent review of actual states, including failed/blocked
+  or partial work. It does not require prior passes or promote acceptance; bind its
+  context to the reviewed states/evidence and revalidate after they change.
 - Acceptance substeps come from the selected profile's ordered `acceptance.steps`.
   vllm-plugin-fl uses execution-mode → sanity → accuracy → performance → evidence → summary;
   Torch-FL uses device → operators → model-eager → optional wheel → summary.

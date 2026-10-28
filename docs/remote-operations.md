@@ -162,6 +162,11 @@ apply to tasks involving those resources; this document does not grant access.
 
 ## Shared service launcher
 
+New service workspaces also bind each acceptance run to the frozen launcher,
+observed argv, necessary environment and effective configuration via the
+[service evidence contract](evidence-contract-v2.md#服务范围与共享启动绑定).
+Collect evidence separately; do not add probes or report generation to the launcher.
+
 - For service-based profiles, prepare the minimal root-level `start-model.sh`
   before small-batch and formal acceptance. Use that same script to start the
   service for sanity, accuracy and performance; do not maintain separate launch

@@ -48,7 +48,7 @@ def source_files(root, spec=None):
     if spec is not None:
         scripts = ('agent_step.py', 'project_gates.py', 'skill_bundle.py', 'framework_evidence.py',
                    'framework_workspace.py', 'evidence_contract.py', 'adapt_model.py',
-                   'workflow_state.py', 'service_observation.py')
+                   'workflow_state.py', 'service_observation.py', 'service_acceptance.py')
         files = [root / 'scripts' / name for name in scripts]
         files += list((root / 'test/Accuracy_test').glob('*.py'))
         files += list((root / 'test/perf_test').glob('*.py'))
@@ -155,7 +155,8 @@ def acceptance_binding(root, spec):
                         'target', 'workspace', 'deployment', 'acceptance_plan')}
         if config.get('evidence_contract') == 2 and check.get('acceptance_substeps') == ['accuracy']:
             binding['acceptance_plan'] = {k: config.get('acceptance_plan', {}).get(k)
-                for k in ('execution', 'sanity_manifest_sha256', 'accuracy_config_sha256')}
+                for k in ('execution', 'sanity_manifest_sha256', 'accuracy_config_sha256', 'service_contract')
+                if k != 'service_contract' or k in config.get('acceptance_plan', {})}
         values.append(binding)
     return hashlib.sha256(json.dumps(values, sort_keys=True, ensure_ascii=False,
                         separators=(',', ':'), allow_nan=False).encode()).hexdigest()

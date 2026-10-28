@@ -94,6 +94,80 @@ nnodes、TP/PP、master和除node-rank/headless外全部推理参数须一致，
 实际连接四元组必须互逆。所有引用仍按原契约校验哈希；缺失、旧run/nonce或单端连接不通过。
 该扩展不把headless节点声明为本地API，也不代替实际16rank推理与图重放证据。
 
+## 服务范围与共享启动绑定
+
+新建或通过 `workspace-control upgrade` 显式升级的服务型 profile（含 sanity）会初始化
+`acceptance_plan.service_contract: {schema_version: 1}`。这只是待填写计划，不是通过证据；
+必须在小批量验证前完成冻结。纯 Python API 的 Torch-FL 不增加该计划。已有未使用此扩展
+的 schema 1 小批量历史回执按原契约读取，不自动迁移或重新判分。启用本扩展时，schema 1
+从实际请求识别模态并与模型能力比对；schema 2（所选 runner 支持时）还需核对声明的 modalities。
+本扩展不改变 runner 原有响应判定方式。已有任务采用新检查前保留旧记录、明确升级，并重新验证受影响验收，不能只补哈希。
+
+```yaml
+acceptance_plan:
+  service_contract:
+    schema_version: 1
+    architecture_sha256: <模型级 architecture-and-inference.md 的真实 SHA-256>
+    required_modalities: [text, image]  # 按已核实结构分析；纯文本为 [text]
+    hosts:
+      <exact-host-alias>:
+        launcher: {path: start-model.sh, sha256: <已测最小脚本 SHA-256>}
+        argv: [<实际解释器>, -m, vllm, serve, <容器模型路径>, --served-model-name, <服务名>]
+        environment: {}  # 必需且不含凭据的服务环境设置，默认不额外覆盖
+        effective_config:
+          served_model_names: [<服务名>]  # 实际服务名/别名，可与本地模型目录名不同
+          prefix_caching_enabled: true
+          settings:
+            dtype: <实际值>
+            graph: <实际值>
+            max_model_len: <实际值>
+            tensor_parallel_size: <实际值>
+            # 填完整有效推理配置，包括影响推理的环境设置和框架默认值
+```
+
+能力结论必须来自结构分析并经核实。gate 将其文件哈希与计划绑定，并检查 sanity manifest
+的 model 属于该 Host 的服务别名、modalities 覆盖实际必需模态。`sanity.py` 单独预检只检查
+请求格式；正式框架 gate 才读取工作区能力计划，不能用清单自报能力代替模型分析。
+当前原生小批量工具覆盖文本/图像；视频等其他能力仍须按 profile 单独验证，不能宣称覆盖。
+
+sanity、accuracy、performance 和 active profile 的 summary 回执增加
+`native.service_launch: {path: <本轮启动证据>, sha256: <真实哈希>}`。实际证据保存为 JSON；
+下例用 YAML 展示其字段结构，填写真实值后转换为 JSON：
+
+```yaml
+kind: service_launch
+schema_version: 1
+run_id: <与本轮评测/总结一致>
+service_binding: <与该轮原生结果一致的完整服务绑定>
+launcher: {path: start-model.sh, sha256: <与冻结计划一致>}
+effective_config:
+  served_model_names: [<真实服务名>]
+  prefix_caching_enabled: true  # 只有性能轮次为 false
+  settings: <与冻结计划一致的完整有效推理配置>
+configuration_review:
+  reviewer: <实际审阅者>
+  note: <如何从本轮服务的有效配置/启动输出核实默认值、模型身份及缓存状态>
+  evidence:
+    - {path: <本轮服务配置或输出的原始证据>, sha256: <真实哈希>}
+```
+
+现场 `service_observation.py` 读取实际进程 argv；取证 manifest 通过
+`launch_environment_keys: [<必需环境变量名>]` 明确选择需比对的非秘密变量，与计划
+environment 的键一致；为空时不采集环境。输出 `argv` 和 `launch_environment`，不导出
+完整进程环境。进程身份仍需通过 PID、启动时间、容器、命令哈希与实际监听关系校验。
+多机 pipeline 的专用取证程序应在每个 participant observation 中补充该 Host 的
+`launch_environment`；按各 Host 的真实 argv/角色分别冻结，不能用协调节点代替 headless 节点。
+
+gate 核对观察到的 argv 与进程哈希，比较冻结 argv、必要环境变量、脚本及有效配置。
+命令只允许 `--enable-prefix-caching` 与 `--no-enable-prefix-caching` 这一处差别；性能必须
+使用准确关闭参数，其他轮次必须开启缓存。有效配置只允许 `prefix_caching_enabled` 变化。
+环境/命令相同也不能证明框架默认值未变化，因此仍必须审阅原始有效配置证据，不能凭填表通过。
+新增字段只是取证与校验，不应添加到最终启动脚本；保持脚本最小且只使用必要容器内路径。
+
+同一冻结计划与脚本哈希绑定后续阶段，summary 的交付脚本也须匹配。改变其他配置须重新
+完成受影响验收（包括性能前的精度）。PID、run_id、服务实例可以随重启变化，每轮必须使用
+新的现场取证，不能复用旧 observation。所有配置/脚本原件及大结果仍保留在批准远端目录。
+
 ## 小集合与正式精度
 
 sanity 使用 test/Accuracy_test/sanity.py。manifest 固定 model、concurrency、timeout 和

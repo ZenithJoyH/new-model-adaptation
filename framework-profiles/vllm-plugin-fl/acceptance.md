@@ -1,5 +1,9 @@
 # vLLM + vllm-plugin-FL 验收要求
 
+新服务工作区在 sanity 前冻结 `acceptance_plan.service_contract`；模态与服务别名必须
+匹配结构分析和实际服务，精度/性能/交付共用已冻结脚本和配置，只有性能关闭缓存。
+完整字段与升级规则见[服务证据契约](../../docs/evidence-contract-v2.md#服务范围与共享启动绑定)。
+
 - 最小推理分别在 eager 和 graph 跑通。graph 按
   `full` → `full-and-piecewise` → `decode-full` → `piecewise` 逐级尝试。
   每次回退都要提供上一档的配置、定位、修复尝试、未解决阻塞及证据，不能跳级。

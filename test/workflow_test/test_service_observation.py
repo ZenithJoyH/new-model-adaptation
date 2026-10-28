@@ -84,15 +84,20 @@ class ServiceObservationTests(unittest.TestCase):
             self.assertEqual(argv[3], self.manifest["workspace"]["container_root"])
             self.assertEqual(argv[4], self.identity["container_id"])
             self.assertEqual(argv[5:8], ["python3", "-B", "-c"])
-            self.assertEqual(argv[-2:], ["123", "8010"])
+            self.assertEqual(argv[-3:-1], ["123", "8010"])
+            self.assertEqual(json.loads(argv[-1]), self.manifest.get("launch_environment_keys", []))
+            compile(argv[8], "service-probe", "exec")
             self.assertEqual(kwargs["timeout"], 15)
             observed = identity if identity is not None else self.identity
             observed = {key: value for key, value in observed.items() if key != "container_id"}
             observed["listening_port"] = listening_port
+            observed["argv"] = ["fixture-service", "--port", "8010"]
+            observed["launch_environment"] = {key: "1" for key in self.manifest.get("launch_environment_keys", [])}
             return subprocess.CompletedProcess(argv, 0, json.dumps(observed), "")
         return run
 
     def test_observer_pins_full_container_id_and_returns_bound_identity(self):
+        self.manifest["launch_environment_keys"] = ["OMP_NUM_THREADS"]
         self.challenge()
         with patch.object(observer.subprocess, "run", side_effect=self.docker()) as docker:
             response = observer.observe(self.run, self.manifest)
@@ -102,6 +107,8 @@ class ServiceObservationTests(unittest.TestCase):
         self.assertEqual(response["process_identity"], self.identity)
         self.assertEqual(response["pid"], self.manifest["service_pid"])
         self.assertEqual(response["listening_port"], 8010)
+        self.assertEqual(response["argv"], ["fixture-service", "--port", "8010"])
+        self.assertEqual(response["launch_environment"], {"OMP_NUM_THREADS": "1"})
         self.assertEqual(json.loads((self.run / "service-observation.json").read_text()), response)
         self.assertTrue(response["observed_at"].endswith("+00:00"))
 
@@ -319,7 +326,7 @@ class ServiceObservationTests(unittest.TestCase):
         # Fake the precise /proc file/socket reads in a real local Python process.
         # Unexpected paths fail: neither a real PID nor a container is accessed.
         bootstrap = '''import json,pathlib,sys
-scenario=json.loads(sys.argv[3])
+scenario=json.loads(sys.argv[4])
 class FixturePath:
     reads=0
     def __init__(self, path): self.path=path
@@ -334,6 +341,7 @@ class FixturePath:
         FixturePath.reads+=1
         return '123 (worker (with) spaces) '+ ' '.join(['S']+['0']*18+[str(ticks)]+['0']*3)
     def read_bytes(self):
+        if self.path=='/proc/123/environ': return b'OMP_NUM_THREADS=1\\0UNREQUESTED=hidden\\0'
         if self.path!='/proc/123/cmdline': raise RuntimeError('unexpected fixture read '+self.path)
         return scenario['command'].encode()
     def exists(self):
@@ -369,13 +377,15 @@ pathlib.Path=FixturePath
         for optimized in (False, True):
             for scenario, accepted, error in scenarios:
                 argv = [sys.executable, "-B"] + (["-O"] if optimized else [])
-                argv += ["-c", bootstrap + payload, "123", "8010", json.dumps(scenario)]
+                argv += ["-c", bootstrap + payload, "123", "8010", '["OMP_NUM_THREADS"]', json.dumps(scenario)]
                 result = subprocess.run(argv, cwd=self.run, capture_output=True, text=True, timeout=5, check=False)
                 with self.subTest(optimized=optimized, scenario=scenario):
                     if accepted:
                         self.assertEqual(result.returncode, 0, result.stderr)
                         expected = {key: value for key, value in self.identity.items() if key != "container_id"}
                         expected["listening_port"] = 8010
+                        expected["argv"] = ["fixture-service", "--port", "8010"]
+                        expected["launch_environment"] = {"OMP_NUM_THREADS": "1"}
                         self.assertEqual(json.loads(result.stdout), expected)
                     else:
                         self.assertNotEqual(result.returncode, 0)

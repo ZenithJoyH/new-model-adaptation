@@ -97,6 +97,12 @@ Bind all later receipts and the launcher to the final verified per-Host mode.
 Changing it invalidates affected receipts and requires revalidation, including
 accuracy before final performance; never silently downgrade a running service.
 
+Before sanity, freeze verified modalities, the architecture hash, served aliases and
+per-Host startup identity in `acceptance_plan.service_contract`, following the
+[service evidence contract](evidence-contract-v2.md#服务范围与共享启动绑定).
+Test coverage cannot be reduced by changing only the request manifest.
+The first performance measurement needs no prior baseline; comparisons and relative targets require one.
+
 Formal metrics pass at frozen thresholds with complete valid coverage; individual
 wrong answers and retained timeout-as-incorrect samples do not alone fail a valid
 full run. Native result/sample verification is mandatory. A Markdown hash is not
@@ -106,7 +112,9 @@ with the declared mechanism if applicable; do not add vLLM flags to Python API t
 For service profiles, prepare the minimal root-level `start-model.sh` before
 sanity/formal acceptance and use the same script for accuracy and performance;
 only the explicit performance switch disables prefix caching. Keep that tested
-script for delivery. Follow the [shared launcher contract](remote-operations.md#shared-service-launcher),
+script for delivery. Each run binds its hash, observed process argv, necessary
+environment and effective settings to the frozen service contract; changes other
+than prefix caching require revalidation. Follow the [shared launcher contract](remote-operations.md#shared-service-launcher),
 including removal of unnecessary cache-path overrides and recording verified
 default locations. Do not introduce service launchers for Python-API-only profiles.
 For active complete service adaptations, verify each root-level `start-model.sh`
@@ -127,8 +135,10 @@ formal acceptance.
 ## 5. Retrospective
 
 Review the selected work, verified problems/solutions, unsuccessful attempts,
-limitations and workflow improvements. Experimental work may be reviewed without
-pretending formal acceptance has completed. Promote only reusable verified
+limitations and workflow improvements. Failed, blocked, partial and experimental
+work may be reviewed independently without passing prior phases. The review binds
+actual stage states/evidence and must be revalidated when they change. Completing
+a retrospective never promotes acceptance or overall adaptation status. Promote only reusable verified
 experience, citing revisions and applicable scope. Repository-wide changes still
 require a relevant user request.
 

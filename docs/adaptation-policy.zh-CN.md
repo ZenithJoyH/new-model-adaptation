@@ -165,6 +165,8 @@ draft/不完整 profile 只允许模型分析和只读调查；experimental 允�
   `./scripts/new-framework` 创建，并用 `./scripts/audit-workspace` 检查本地结构；历史直接平台
   记录继续使用已有检查。前置身份、证据、状态或时效性缺失/冲突时，停止并报告准确阻塞，不得静默
   补跑其他阶段或只刷新哈希。
+- 复盘是对实际状态的独立审阅，可覆盖失败、阻塞或部分完成工作；无需前序通过，也不能
+  提升验收状态。复盘上下文绑定所审阅阶段状态/证据，变化后重新复核。
 - 验收子步骤由 profile 的有序 `acceptance.steps` 决定。vllm-plugin-fl 使用
   execution-mode → sanity → accuracy → performance → evidence → summary；Torch-FL 使用
   device → operators → model-eager → 可选 wheel → summary。不得混用框架流程或跳过前置。
