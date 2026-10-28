@@ -1,0 +1,13 @@
+---
+name: MiniCPM-V-4.7-1B
+source:
+  modelscope_id: ""
+  huggingface_id: openbmb/MiniCPM-V-4.7
+  revision: 'local weight SHA-256 3b801e149bc6dab4bb8c4cf61bed4197cce810f6c2f523f60b266459f809251c; upstream revision not verified'
+architecture: MiniCPMV4_7ForConditionalGeneration
+parameter_count: '1554476272 checkpoint parameters, including vision tower and lm_head'
+active_parameter_count: '1554476272 for a full forward pass; runtime sparsity not identified'
+estimated_weight_size_gb: 2.90
+remote_weight_path: /data/models/MiniCPM-V-4.7/weights/1b
+status: in_progress
+notes: 'H100-149 / MinicpmV4.7-1B-native; config SHA-256 0d2f763cf97a0a5beec8f52b13b4cbf7262680df6fd35e1f0e48c09288c4bb12; tokenizer SHA-256 33861e37bb955af1e3f3061182b820f347eba2b9c2c1011c82794bf0d6e77b54.'

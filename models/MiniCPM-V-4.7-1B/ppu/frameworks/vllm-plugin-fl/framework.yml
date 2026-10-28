@@ -1,0 +1,318 @@
+schema_version: 1
+model: MiniCPM-V-4.7-1B
+platform: ppu
+framework: vllm-plugin-fl
+profile: framework-profiles/vllm-plugin-fl/profile.yml
+profile_version: 7
+status: blocked
+validated_hosts: []
+container_image: sha256:f222f9a173b320d799ada39791979828f6abc5218063616b7efdf05873c52c1f
+last_verified: '2026-10-03'
+blocker: '人工变更后待复核: architecture, environment, adaptation, execution-mode, sanity,
+  accuracy, performance, evidence, summary, acceptance, retrospective'
+target:
+  hosts:
+  - PPU-13
+  container_name: minicpmV4.7-1B
+workspace:
+  roots:
+  - host_alias: PPU-13
+    host_root: /mnt/nfs/users/jinghao/MiniCPMV4.7-1B
+    container_root: /mnt/nfs/users/jinghao/MiniCPMV4.7-1B
+deployment:
+  fingerprint: 64db21546a04caa0b6a4d3fb711bda02ceaa4487a94ee0ae929d4f3a8c2c61e3
+acceptance_plan:
+  accuracy_config_sha256: 73280a2228b065becf536aaad56178ebe77bf8df50006614d1fd2daca724eab2
+  performance_request_sha256: 1cea946eebef9ce66639c116891e4050bbc7e26fe58b53b344792ddd26fee896
+workflow:
+  architecture:
+    status: not_started
+    evidence: ../../../architecture-and-inference.md
+    last_verified: null
+    blocker: '人工变更后待复核: 863f747037364c659665cd656975ff09'
+    verification: {}
+  environment:
+    status: not_started
+    evidence: environment/README.md
+    last_verified: null
+    blocker: '人工变更后待复核: 863f747037364c659665cd656975ff09'
+    verification: {}
+  adaptation:
+    status: not_started
+    evidence: adaptation/README.md
+    last_verified: null
+    blocker: '人工变更后待复核: 863f747037364c659665cd656975ff09'
+    verification: {}
+  acceptance:
+    status: not_started
+    evidence: acceptance/README.md
+    last_verified: null
+    blocker: '人工变更后待复核: 863f747037364c659665cd656975ff09'
+    verification: {}
+    records: {}
+    substeps:
+      execution-mode: not_started
+      sanity: not_started
+      accuracy: not_started
+      performance: not_started
+      evidence: not_started
+      summary: not_started
+  retrospective:
+    status: not_started
+    evidence: acceptance/README.md
+    last_verified: null
+    blocker: '人工变更后待复核: 863f747037364c659665cd656975ff09'
+    verification: {}
+control:
+  mode: agent
+  history:
+  - id: 59f8451d8ce347b6a42e7f942c8da6ce
+    at: '2026-10-12T08:04:31.641665+00:00'
+    operation: handoff
+    actor: agent/local-record-maintenance
+    note: 用户要求按最新流程整理模型记录；仅进行本地目录和契约维护，不操作远端或重启任务。
+  - id: 863f747037364c659665cd656975ff09
+    at: '2026-10-12T08:04:31.735722+00:00'
+    operation: upgrade
+    actor: agent/local-record-maintenance
+    note: 显式采用当前 v2 契约；旧状态与回执保留在 control.history 和本地完整快照，不据此声明新验收通过。
+    previous_contract:
+      evidence_contract: null
+      profile_version: 4
+      profile_snapshot: null
+      profile_sha256: null
+    revalidate:
+    - architecture
+    - environment
+    - adaptation
+    - execution-mode
+    - sanity
+    - accuracy
+    - performance
+    - evidence
+    - summary
+    - acceptance
+    - retrospective
+    previous_status: functional
+    retired_records:
+      architecture:
+        status: passed
+        evidence: ../../../architecture-and-inference.md
+        last_verified: '2026-09-28'
+        blocker: ''
+        verification:
+          run_id: arch-ppu13-minicpm47-1b-20260928
+          last_verified: '2026-09-28'
+          evidence: ../../../architecture-and-inference.md
+          evidence_sha256: 4ddd202db9d55f789f9141858bd94fca9fac4b2c6dc5c1e70d0021c16348cc80
+          context_sha256: d92e3bc33c287ef8f769584b7e6511e4852237da2d00e707202d54142ba3a621
+      environment:
+        status: passed
+        evidence: environment/README.md
+        last_verified: '2026-09-29'
+        blocker: ''
+        verification:
+          run_id: env-final-v2-20260929
+          last_verified: '2026-09-29'
+          evidence: environment/README.md
+          evidence_sha256: 0aee111918f459694287d12ae0a6a139b13d55b2bf6a15219be20cc806504884
+          context_sha256: c20d4dbb5fd4b86d80a6cff4ee55fc29ba5f3d59ea78b274847bac636eb5fe3c
+          receipts:
+          - host_alias: PPU-13
+            path: 04-runs/env-final-v2-20260929/framework-check.json
+            sha256: d6862356579b549ab1e3db4fc4995e65b78b00be8c965ad65cd40fdd20dcfcda
+      adaptation:
+        status: passed
+        evidence: adaptation/README.md
+        last_verified: '2026-09-29'
+        blocker: ''
+        verification:
+          run_id: adapt-final-v1-20260929
+          last_verified: '2026-09-29'
+          evidence: adaptation/README.md
+          evidence_sha256: 99b469287acb425939db82c8747b46dcf2b4ab3a824221bb403e632677930c88
+          context_sha256: 081fe0cc82e9d09b3aa3292dbeb2b43791184a9b7701f8b34448f895a1a94c8e
+          receipts:
+          - host_alias: PPU-13
+            path: 04-runs/adapt-final-v1-20260929/framework-check.json
+            sha256: 3faf6d3b0065415d6706a8137940c43bacda528d8083b2c3d543e8eeeb6fd7fe
+      execution-mode:
+        status: passed
+        verification:
+          run_id: execution-mode-v1-20260929
+          last_verified: '2026-09-29'
+          evidence: acceptance/execution-mode.md
+          evidence_sha256: bca40048c905ae8cebc4e2d60c590010bb9dfef7e513c2eb5070935d661ee3f0
+          context_sha256: 717c66132f64b73fcc3b50b19f08cf1c1135761ce5711c0f6ff44ceb650945b7
+          receipts:
+          - host_alias: PPU-13
+            path: 04-runs/execution-mode-v1-20260929/framework-check.json
+            sha256: 508fe516c460952d2d0d5476e27659e25deabc18fac9eada01c5783e9af5b1c4
+      sanity:
+        status: passed
+        verification:
+          run_id: science-sanity-10-v3-20260929
+          last_verified: '2026-09-29'
+          evidence: acceptance/sanity.md
+          evidence_sha256: 6efa2bda98ce826d6d893a4872016cc18f43279c874f5bbf57eef87e945e9d3c
+          context_sha256: c6df9544c8a6f58693f2c45ee0dc3fd871290bb895281768f9ab9ac3b2cb03fe
+          receipts:
+          - host_alias: PPU-13
+            path: 04-runs/science-sanity-10-v3-20260929/framework-check.json
+            sha256: 222c76c0020b3c2955c111501ea5a46537ea2dfbf38e7a0c2d4a4ed4cef11d8d
+      accuracy:
+        status: failed
+        verification: {}
+      performance:
+        status: not_started
+        verification: {}
+      evidence:
+        status: not_started
+        verification: {}
+      summary:
+        status: not_started
+        verification: {}
+      acceptance:
+        status: in_progress
+        evidence: acceptance/README.md
+        last_verified: null
+        blocker: 正式 GPQA 精度失败；后续仅完成用户指定的 MMLU-Pro 每科 50 题诊断，不能代替冻结阈值的正式精度回执；性能、证据、总结等待精度前置通过。
+        verification: {}
+      retrospective:
+        status: not_started
+        evidence: acceptance/README.md
+        last_verified: null
+        blocker: ''
+        verification: {}
+  - id: 4daf422726ad4decaa37ca220c891993
+    at: '2026-10-12T08:04:31.835782+00:00'
+    operation: resume
+    actor: agent/local-record-maintenance
+    note: 本地契约整理完成；没有远端变更。未选择新的适配或评测，历史人工完成结论保持有效。
+    changes:
+    - none
+    observed_fields: []
+    changed_files: []
+  operator: agent/local-record-maintenance
+  note: 本地契约整理完成；没有远端变更。未选择新的适配或评测，历史人工完成结论保持有效。
+evidence_contract: 2
+profile_snapshot:
+  schema_version: 1
+  id: vllm-plugin-fl
+  display_name: vLLM + vllm-plugin-FL + FlagGems
+  profile_version: 7
+  status: active
+  platforms:
+  - nvidia
+  - ppu
+  - metax
+  - ascend
+  - mthreads
+  - hygon
+  components:
+  - role: inference_engine
+    name: vllm
+    required: true
+    mutation_policy: read_only
+  - role: platform_adapter
+    name: vllm-plugin-FL
+    required: true
+    mutation_policy: installed_product_code
+  - role: kernel_library
+    name: FlagGems
+    required: true
+    mutation_policy: installed_product_code
+  - role: vllm_kernel_library
+    name: FlagGems-vllm
+    required: false
+    mutation_policy: installed_product_code
+  source_policy:
+    default: read_only
+    writable_roles:
+    - platform_adapter
+    - kernel_library
+    - vllm_kernel_library
+  execution_modes:
+    required:
+    - eager
+    - graph
+    acceptance_primary: graph
+    graph_policy:
+      preference_order:
+      - full
+      - full-and-piecewise
+      - decode-full
+      - piecewise
+      minimum: piecewise
+      level_checks:
+        full:
+        - full_graph
+        full-and-piecewise:
+        - full_and_piecewise_graph
+        decode-full:
+        - decode_full_graph
+        piecewise:
+        - piecewise_graph
+  service:
+    protocols:
+    - openai-chat
+    - openai-completions
+  acceptance:
+    steps:
+      execution-mode:
+        validator: checks
+        checks:
+        - eager
+        - graph
+        - model_inference
+      sanity:
+        validator: checks
+        checks:
+        - reference_consistency
+        - output_health
+        - performance_sanity
+      accuracy:
+        validator: flageval
+        checks:
+        - service_identity
+        - dataset_provenance
+      performance:
+        validator: vllm-performance
+        checks:
+        - service_identity
+        - accuracy_to_performance_transition
+      evidence:
+        validator: checks
+        checks:
+        - source_review
+        - vllm_unchanged
+        - artifacts_complete
+      summary:
+        validator: checks
+        checks:
+        - launcher_syntax
+        - launcher_readiness
+        - launcher_minimal
+        - launcher_self_contained
+        - installed_component_imports
+        - normal_cache_restored
+    accuracy_adapter: flageval-openai
+    performance_adapter: vllm-bench-serve
+    prefix_caching:
+      non_performance: enabled
+      performance: disabled
+      disable_mechanism: --no-enable-prefix-caching
+  documents:
+    workflow: workflow.md
+    acceptance: acceptance.md
+    detailed_workflow: detailed-workflow.md
+    detailed_workflow_zh: detailed-workflow.zh-CN.md
+profile_sha256: a3795bad2fda5fe53c0e684f7b0d4c88acc78b268ebabad59123d6e3db3e650c
+record_maintenance:
+  date: '2026-10-12'
+  scope: local-layout-and-contract-only
+  remote_verified: false
+  historical_snapshot: .local/adaptation-history/20261012-model-layout-080344/snapshot/models/MiniCPM-V-4.7-1B/ppu/frameworks/vllm-plugin-fl/framework.yml
+  previous_status: functional
+  project_completion_preserved: false
+  note: 当前阶段状态仅表示 v2 回执尚未重新建立；历史结果、失败与用户完成确认均保留。本次不安排远端复验。

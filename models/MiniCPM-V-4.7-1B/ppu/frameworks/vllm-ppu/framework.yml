@@ -1,0 +1,235 @@
+schema_version: 1
+model: MiniCPM-V-4.7-1B
+platform: ppu
+framework: vllm-ppu
+profile: framework-profiles/vllm-ppu/profile.yml
+profile_version: 2
+status: not_started
+validated_hosts: []
+container_image: ''
+last_verified: null
+blocker: ''
+target:
+  hosts: []
+  container_name: ''
+workspace:
+  roots: []
+deployment:
+  fingerprint: ''
+acceptance_plan: {}
+workflow:
+  architecture:
+    status: not_started
+    evidence: ../../../architecture-and-inference.md
+    last_verified: null
+    blocker: ''
+    verification: {}
+  environment:
+    status: not_started
+    evidence: environment/README.md
+    last_verified: null
+    blocker: ''
+    verification: {}
+  adaptation:
+    status: not_started
+    evidence: adaptation/README.md
+    last_verified: null
+    blocker: ''
+    verification: {}
+  acceptance:
+    status: not_started
+    evidence: acceptance/README.md
+    last_verified: null
+    blocker: ''
+    verification: {}
+    records: {}
+    substeps:
+      execution-mode: not_started
+      sanity: not_started
+      evidence: not_started
+      summary: not_started
+  retrospective:
+    status: not_started
+    evidence: acceptance/README.md
+    last_verified: null
+    blocker: ''
+    verification: {}
+control:
+  mode: agent
+  history:
+  - id: 7e46430435f7403eba06b490510ae39c
+    at: '2026-10-12T08:04:31.955025+00:00'
+    operation: handoff
+    actor: agent/local-record-maintenance
+    note: 用户要求按最新流程整理模型记录；仅进行本地目录和契约维护，不操作远端或重启任务。
+  - id: 24818e2bff22494cb4372d5005747cac
+    at: '2026-10-12T08:04:32.046823+00:00'
+    operation: upgrade
+    actor: agent/local-record-maintenance
+    note: 显式采用当前 v2 契约；旧状态与回执保留在 control.history 和本地完整快照，不据此声明新验收通过。
+    previous_contract:
+      evidence_contract: null
+      profile_version: 1
+      profile_snapshot: null
+      profile_sha256: null
+    revalidate:
+    - architecture
+    - environment
+    - adaptation
+    - execution-mode
+    - sanity
+    - evidence
+    - summary
+    - acceptance
+    - retrospective
+    previous_status: not_started
+    retired_records:
+      architecture:
+        status: not_started
+        evidence: ../../../architecture-and-inference.md
+        last_verified: null
+        blocker: ''
+        verification: {}
+      environment:
+        status: not_started
+        evidence: environment/README.md
+        last_verified: null
+        blocker: ''
+        verification: {}
+      adaptation:
+        status: not_started
+        evidence: adaptation/README.md
+        last_verified: null
+        blocker: ''
+        verification: {}
+      execution-mode:
+        status: not_started
+        verification: {}
+      sanity:
+        status: not_started
+        verification: {}
+      evidence:
+        status: not_started
+        verification: {}
+      summary:
+        status: not_started
+        verification: {}
+      acceptance:
+        status: not_started
+        evidence: acceptance/README.md
+        last_verified: null
+        blocker: ''
+        verification: {}
+      retrospective:
+        status: not_started
+        evidence: acceptance/README.md
+        last_verified: null
+        blocker: ''
+        verification: {}
+  - id: c04f5262032a4b42a3caa9233fdf474a
+    at: '2026-10-12T08:04:32.154186+00:00'
+    operation: resume
+    actor: agent/local-record-maintenance
+    note: 本地契约整理完成；没有远端变更。未选择新的适配或评测，历史人工完成结论保持有效。
+    changes:
+    - none
+    observed_fields: []
+    changed_files: []
+  operator: agent/local-record-maintenance
+  note: 本地契约整理完成；没有远端变更。未选择新的适配或评测，历史人工完成结论保持有效。
+evidence_contract: 2
+profile_snapshot:
+  schema_version: 1
+  id: vllm-ppu
+  display_name: T-Head native vLLM on PPU
+  profile_version: 2
+  status: experimental
+  platforms:
+  - ppu
+  components:
+  - role: inference_engine
+    name: T-Head vLLM
+    required: true
+    mutation_policy: installed_product_code
+  - role: model_implementation
+    name: model configuration, processor and weights
+    required: true
+    mutation_policy: read_only
+  - role: platform_runtime
+    name: T-Head driver, SDK, PyTorch and native kernels
+    required: true
+    mutation_policy: read_only
+  source_policy:
+    default: read_only
+    writable_roles:
+    - inference_engine
+  execution_modes:
+    required:
+    - eager
+    - graph
+    acceptance_primary: graph
+    graph_policy:
+      preference_order:
+      - full
+      - full-and-piecewise
+      - decode-full
+      - piecewise
+      minimum: piecewise
+      level_checks:
+        full:
+        - full_graph
+        full-and-piecewise:
+        - full_and_piecewise_graph
+        decode-full:
+        - decode_full_graph
+        piecewise:
+        - piecewise_graph
+  service:
+    protocols:
+    - openai-chat
+    - openai-completions
+  acceptance:
+    steps:
+      execution-mode:
+        validator: checks
+        checks:
+        - eager
+        - graph
+        - model_inference
+      sanity:
+        validator: checks
+        checks:
+        - reference_consistency
+        - output_health
+      evidence:
+        validator: checks
+        checks:
+        - source_review
+        - vllm_revision_and_diff
+        - artifacts_complete
+      summary:
+        validator: checks
+        checks:
+        - launcher_syntax
+        - launcher_readiness
+        - launcher_minimal
+        - normal_cache_restored
+        - limitations_recorded
+    accuracy_adapter: null
+    performance_adapter: null
+    prefix_caching:
+      non_performance: enabled
+      performance: disabled
+      disable_mechanism: --no-enable-prefix-caching
+  documents:
+    workflow: workflow.md
+    acceptance: acceptance.md
+profile_sha256: 460683921d64250dbc9c1db1f1edb3085beb8047220d86dfe9e1a36e53423192
+record_maintenance:
+  date: '2026-10-12'
+  scope: local-layout-and-contract-only
+  remote_verified: false
+  historical_snapshot: .local/adaptation-history/20261012-model-layout-080344/snapshot/models/MiniCPM-V-4.7-1B/ppu/frameworks/vllm-ppu/framework.yml
+  previous_status: not_started
+  project_completion_preserved: false
+  note: 当前阶段状态仅表示 v2 回执尚未重新建立；历史结果、失败与用户完成确认均保留。本次不安排远端复验。

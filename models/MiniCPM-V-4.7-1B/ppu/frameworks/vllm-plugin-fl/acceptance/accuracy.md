@@ -1,0 +1,11 @@
+# PPU-13 GPQA Diamond 正式精度
+
+2026-09-29 冻结本项目本地 `inference-accuracy-evaluation` Skill 的 `formal-full` 操作，bundle SHA-256 `5ba2c9b96040324baf067405c53ff48528ae463b2dcd06f0a062ce57ac3885ca`。真实模型服务为 `PPU-13` 的 `minicpmV4.7-1B` 容器内 `127.0.0.1:8327`，模型 ID `minicpm-v-4.7-1b-ppu`，当前已验收的 `decode-full` graph，正常前缀缓存开启；服务实例 boot ID `e0f88877-608c-4443-a22d-2d773ff175f1`、PID `109945`、启动 tick `337210114`、命令 SHA-256 `de005c1cebe1acd8a90935259fddd9078fcf8e6e04e260c09ebe1d61c16abd59`。评测容器 `flageval_llmeval-jinghao` 使用已核实的 Host `/mnt` bind mount，同一工作根设备号与 inode 为 `41:12343819932`；不启动新容器。
+
+冻结配置 `03-acceptance/accuracy-v1/gpqa-diamond-full-v1.json` SHA-256 `73280a2228b065becf536aaad56178ebe77bf8df50006614d1fd2daca724eab2`：`gpqa_diamond_generative_cot`，`Idavidrein/gpqa` / `gpqa_diamond` / `train` 全量 198 题，`exact_match,strict-match` 最低 `0.25`，`limit=0`，并发 32、温度 0、`max_gen_toks=2048`、每请求 600 秒、最终超时计错误、API 和评测重试均为 0。分数低于 `1.0` 的个别错题按冻结阈值判断，不采用 sanity 的逐题全对规则。离线预检 `04-runs/gpqa-diamond-preflight-v1-20260929.json` SHA-256 `38de40de528782d9a686b499020abc44e0ff9a99412150d77339256e7f2ae493` 确认缓存数据集恰为 198 题、服务模型 ID 匹配；未发起评测。`06-cache/accuracy-gpqa-v1` 中的 SQLite 双连接独占锁探针通过，供本轮原生响应缓存使用。
+
+原生 runner `03-acceptance/accuracy-v1/llmrun.py` 与 `acceptance_contract.py`、`score_progress.py` 同目录。在确认输出目录不存在、评测容器无活跃任务、配置哈希和服务健康后，使用 `03-acceptance/accuracy-v1/start-formal-v1.sh` 单次启动 `python3 llmrun.py <冻结配置>`；控制日志与 PID 在 `04-runs/accuracy-controller-v1-20260929/`，正式产物在 `04-runs/minicpm-v-4.7-1b-ppu/gpqa-diamond-full-v1-20260929/`。初始日志核对实际命令为并发 32、超时 600 秒、`max_retries=0`、`max_gen_toks=2048`，请求缓存 0/198。
+
+首次全量运行于 2026-09-29 完成 198/198 请求，runner 退出码 1，原生 `acceptance-result.json` SHA-256 `f660aec6985753e211e766ccdbf254dca4b358bcb77178cc3fa4de6026423d6a`，明确为 `failed`：`exact_match,strict-match=0.19696969696969696`，低于冻结阈值 `0.25`；同一输出的 `flexible-extract=0.25252525252525254` 仅供诊断，不能替代冻结指标。原生结果和样本哈希分别为 `cb5857a2dd878fd3b13030cda231393804cd61f8d24b45bdaaf1accd7ff7e26a`、`b1c5ef2a0b6b2ead452f7c23fb031d24f429f614b72b16a33de1bbed29dc1d70`；原生报告记录进程返回 0 但指标验证失败，不签发通过回执。样本诊断见 `adaptation/004-gpqa-strict-accuracy.md`。当前正常前缀缓存服务保持运行，请求 running/waiting 均为 0；性能阶段尚未获准进入。
+
+用户随后要求暂不继续精度测试。提示词 v2/v3 和请求级思考开关三轮 64 题诊断均已结束，组合对照未启动，详见问题 004；不再启动新评测。2026-09-29 停点核实评测容器无活跃评测进程，服务 `/health=200` 且 running/waiting 均为 0，容器和普通服务继续运行。
