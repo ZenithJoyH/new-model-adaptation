@@ -1,0 +1,12 @@
+name: MiniCPM-OCR
+source:
+  modelscope_id: ''
+  huggingface_id: ''
+  revision: ''
+architecture: MiniCPMOcrForConditionalGeneration
+parameter_count: 1,300,434,160
+active_parameter_count: ''
+estimated_weight_size_gb: 2.600969816
+remote_weight_path: /public/flagos/jinghao/MiniCPM-OCR/MiniCPM-OCR-1.0
+status: environment_ready
+notes: 已交付 H100-149 原生 vLLM 可用服务；固定小集合参考一致性与 eager/graph 功能验证通过。用户明确将正式精度和性能另行安排；框架完整原生验收未完成。

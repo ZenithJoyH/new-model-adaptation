@@ -1,0 +1,179 @@
+schema_version: 1
+model: MiniCPM-OCR
+platform: ppu
+framework: vllm-plugin-fl
+profile: framework-profiles/vllm-plugin-fl/profile.yml
+profile_version: 7
+status: not_started
+validated_hosts: []
+container_image: ''
+last_verified: null
+blocker: 当前容器索引修复及算子回归通过；用户手动启动的 9999 服务已完成指定 OmniDocBench 全量测量，Overall 96.4217。正式 framework 验收、性能验收及镜像验证未执行。
+control:
+  mode: agent
+  history: []
+  note: 用户授权容器源码修复、9999 指定精度测量及 Portable v1.1 性能测量；原有服务不变，性能按包内方法使用单独临时 8013 服务并已结束。正式验收状态未变更。
+target:
+  hosts:
+  - PPU-01
+  container_name: minicpm-ocr
+workspace:
+  roots:
+  - host_alias: PPU-01
+    host_root: /mnt/nfs/users/jinghao/MiniCPM-OCR
+    container_root: /mnt/nfs/users/jinghao/MiniCPM-OCR
+deployment:
+  fingerprint: ''
+acceptance_plan: {}
+workflow:
+  architecture:
+    status: not_started
+    evidence: ../../../architecture-and-inference.md
+    last_verified: null
+    blocker: ''
+    verification: {}
+  environment:
+    status: not_started
+    evidence: environment/README.md
+    last_verified: null
+    blocker: ''
+    verification: {}
+  adaptation:
+    status: not_started
+    evidence: adaptation/README.md
+    last_verified: null
+    blocker: ''
+    verification: {}
+  acceptance:
+    status: not_started
+    evidence: acceptance/README.md
+    last_verified: null
+    blocker: ''
+    verification: {}
+    records: {}
+    substeps:
+      execution-mode: not_started
+      sanity: not_started
+      accuracy: not_started
+      performance: not_started
+      evidence: not_started
+      summary: not_started
+  retrospective:
+    status: not_started
+    evidence: acceptance/README.md
+    last_verified: null
+    blocker: ''
+    verification: {}
+evidence_contract: 2
+profile_snapshot:
+  schema_version: 1
+  id: vllm-plugin-fl
+  display_name: vLLM + vllm-plugin-FL + FlagGems
+  profile_version: 7
+  status: active
+  platforms:
+  - nvidia
+  - ppu
+  - metax
+  - ascend
+  - mthreads
+  - hygon
+  components:
+  - role: inference_engine
+    name: vllm
+    required: true
+    mutation_policy: read_only
+  - role: platform_adapter
+    name: vllm-plugin-FL
+    required: true
+    mutation_policy: installed_product_code
+  - role: kernel_library
+    name: FlagGems
+    required: true
+    mutation_policy: installed_product_code
+  - role: vllm_kernel_library
+    name: FlagGems-vllm
+    required: false
+    mutation_policy: installed_product_code
+  source_policy:
+    default: read_only
+    writable_roles:
+    - platform_adapter
+    - kernel_library
+    - vllm_kernel_library
+  execution_modes:
+    required:
+    - eager
+    - graph
+    acceptance_primary: graph
+    graph_policy:
+      preference_order:
+      - full
+      - full-and-piecewise
+      - decode-full
+      - piecewise
+      minimum: piecewise
+      level_checks:
+        full:
+        - full_graph
+        full-and-piecewise:
+        - full_and_piecewise_graph
+        decode-full:
+        - decode_full_graph
+        piecewise:
+        - piecewise_graph
+  service:
+    protocols:
+    - openai-chat
+    - openai-completions
+  acceptance:
+    steps:
+      execution-mode:
+        validator: checks
+        checks:
+        - eager
+        - graph
+        - model_inference
+      sanity:
+        validator: checks
+        checks:
+        - reference_consistency
+        - output_health
+        - performance_sanity
+      accuracy:
+        validator: flageval
+        checks:
+        - service_identity
+        - dataset_provenance
+      performance:
+        validator: vllm-performance
+        checks:
+        - service_identity
+        - accuracy_to_performance_transition
+      evidence:
+        validator: checks
+        checks:
+        - source_review
+        - vllm_unchanged
+        - artifacts_complete
+      summary:
+        validator: checks
+        checks:
+        - launcher_syntax
+        - launcher_readiness
+        - launcher_minimal
+        - launcher_self_contained
+        - installed_component_imports
+        - normal_cache_restored
+    accuracy_adapter: flageval-openai
+    performance_adapter: vllm-bench-serve
+    prefix_caching:
+      non_performance: enabled
+      performance: disabled
+      disable_mechanism: --no-enable-prefix-caching
+  documents:
+    workflow: workflow.md
+    acceptance: acceptance.md
+    detailed_workflow: detailed-workflow.md
+    detailed_workflow_zh: detailed-workflow.zh-CN.md
+profile_sha256: a3795bad2fda5fe53c0e684f7b0d4c88acc78b268ebabad59123d6e3db3e650c

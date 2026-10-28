@@ -1,0 +1,442 @@
+schema_version: 1
+model: MiniCPM-OCR
+platform: ppu
+framework: vllm-ppu
+profile: framework-profiles/vllm-ppu/profile.yml
+profile_version: 2
+status: environment_ready
+validated_hosts:
+- PPU-01
+container_image: egslingjun-registry.cn-wulanchabu.cr.aliyuncs.com/egslingjun/inference-xpu-pytorch:26.04-v2.1.0-vllm0.23.0-torch2.10-cu130-20260710
+last_verified: '2026-10-27'
+blocker: Native FLASH_ATTN performance startup ready with cache disabled by explicit
+  user choice; current correctness/performance acceptance untested.
+control:
+  mode: agent
+  history:
+  - id: parameter-alignment-20261027
+    at: '2026-10-27T08:28:27.012652+00:00'
+    operation: agent-service-change
+    actor: Codex
+    note: User requested alignment with PPU-01 parent start-model.sh; preserve prior
+      verification, revalidate changed deployment.
+    previous_deployment:
+      fingerprint: 95c2a90367feeb90fb704543a220c002557eb0d5c571ab95c83c698ec257ab58
+      model_path: /mnt/nfs/users/jinghao/MiniCPM-OCR/models/merge_rl_mergedp1_7140_hf5_4x
+      tokenizer_path: /mnt/nfs/users/jinghao/MiniCPM-OCR/models/merge_rl_mergedp1_7140_hf5_4x
+      graph_level: full-and-piecewise
+      physical_devices:
+      - 4
+      tensor_parallel_size: 1
+      max_model_len: 32768
+      max_num_seqs: 8
+      max_num_batched_tokens: 16384
+      gpu_memory_utilization: 0.55
+      endpoint: http://127.0.0.1:8014/v1/chat/completions
+    previous_status: functional
+    retired_workflow:
+      architecture:
+        status: passed
+        evidence: ../../../architecture-and-inference.md
+        last_verified: '2026-10-27'
+        blocker: ''
+        verification:
+          run_id: architecture-prerequisite-20261027
+          last_verified: '2026-10-27'
+          evidence: ../../../architecture-and-inference.md
+          evidence_sha256: b8ae8b0028d20438b9eeb08822cecccc7c45cc4f83423cb7ebce58639c322251
+          context_sha256: 8d92c381dbc17689aa9d29ceb40c577727e2a60f3d6dc1506ace12f40069e5c3
+      environment:
+        status: passed
+        evidence: environment/README.md
+        last_verified: '2026-10-27'
+        blocker: ''
+        verification:
+          run_id: environment-20261027
+          last_verified: '2026-10-27'
+          evidence: environment/README.md
+          evidence_sha256: 1ee0ff9f007500217b5124288bb262042e2d714b19f452b625e2aa2cde023898
+          context_sha256: 35ec44032e860fc4747708fa43bcbff4a1c626c979622db45c3df4ed5f5ed481
+          receipts:
+          - host_alias: PPU-01
+            path: 04-runs/environment-20261027/framework-check.json
+            sha256: 9cab289f87a06c4b97c63b408e14b03496d1d6ad5b368c311e729d2cd129c634
+      adaptation:
+        status: passed
+        evidence: adaptation/001-ocr-native-support.md
+        last_verified: '2026-10-27'
+        blocker: ''
+        verification:
+          run_id: adaptation-20261027
+          last_verified: '2026-10-27'
+          evidence: adaptation/001-ocr-native-support.md
+          evidence_sha256: 1c396c67a80e0f4599e08f84b34d386510cc91dfa9c7d3b64cc5902bb7f3b64c
+          context_sha256: a3b9e56e6195a92ef4ee36c909b9620a0f98d3d6b6675d623350b48f4b024e06
+          receipts:
+          - host_alias: PPU-01
+            path: 04-runs/adaptation-20261027/framework-check.json
+            sha256: 9cdbf16111eb6fc6efae9d983998c0adb560aef3db7eb78bf2a5ed6e7e2880e1
+      acceptance:
+        status: blocked
+        evidence: acceptance/README.md
+        last_verified: null
+        blocker: 'All four declared experimental substeps passed. Full formal acceptance
+          is unavailable: profile has no formal accuracy/performance adapters.'
+        verification: {}
+        records:
+          execution-mode:
+            run_id: execution-mode-20261027-final
+            last_verified: '2026-10-27'
+            evidence: acceptance/execution-mode.md
+            evidence_sha256: 307274a75f8a0de9f299125ca4a23d2dea69229facf14a62b54b10bed0d91c51
+            context_sha256: 2127e04a972aa33df01ba68ae5053dd59fcd7cf23ae2676e2b654ab19b9c8ada
+            receipts:
+            - host_alias: PPU-01
+              path: 04-runs/execution-mode-20261027-final/framework-check-complete.json
+              sha256: b9f5752d1dc21f07efaadd92619a95c6c8644babc2990b0f1b7550ffcca9612e
+          sanity:
+            run_id: sanity-native-20261027-final
+            last_verified: '2026-10-27'
+            evidence: acceptance/sanity.md
+            evidence_sha256: d62f148671fdcf51fc7fb15157ddeb22ec6df71f71f2e2570bdfce6e0e558bd5
+            context_sha256: 0d75068e7a8f7988fb4960fc03391185610af6b8adb9d0bd41b5e70bbf2b3347
+            receipts:
+            - host_alias: PPU-01
+              path: 04-runs/sanity-native-20261027-final/framework-check.json
+              sha256: d6ac95544d41565a787257679904f54e4d553294de6948fc899ba95a7511f4c3
+          evidence:
+            run_id: evidence-native-20261027-final
+            last_verified: '2026-10-27'
+            evidence: adaptation/001-ocr-native-support.md
+            evidence_sha256: 1c396c67a80e0f4599e08f84b34d386510cc91dfa9c7d3b64cc5902bb7f3b64c
+            context_sha256: cd0e637dbadcb19cc40b22dffa3d8e698247709e6ebeadd9d5d39318a7564169
+            receipts:
+            - host_alias: PPU-01
+              path: 04-runs/evidence-native-20261027-final/framework-check.json
+              sha256: 9c671edab67c251bd9eb3f1090f9b9de8dbf802e19cead957ec141dee6053ba7
+          summary:
+            run_id: summary-native-20261027-final
+            last_verified: '2026-10-27'
+            evidence: acceptance/summary.md
+            evidence_sha256: 9ab8c08cc9ad4bc8e612ccf8d26e964514e25973039afdbe417fbbbdab4b66ce
+            context_sha256: a492a42cecc9a426890f68006087f913d11222e34b57aa4103a0c290886465f0
+            receipts:
+            - host_alias: PPU-01
+              path: 04-runs/summary-native-20261027-final/framework-check.json
+              sha256: 65c6dd6c3f93235b517a72e0880ce21b482fb7ec0a7a4832a9ddb4d17967f5e9
+        substeps:
+          execution-mode: passed
+          sanity: passed
+          evidence: passed
+          summary: passed
+      retrospective:
+        status: not_started
+        evidence: acceptance/README.md
+        last_verified: null
+        blocker: ''
+        verification: {}
+  - id: native-auto-backend-perf-20261027
+    at: '2026-10-27T08:55:36.199041+00:00'
+    operation: agent-service-change
+    actor: Codex
+    note: User explicitly retained manually edited default prefix-cache-disabled performance
+      launcher and requested native default encoder backend. Preserve human changes
+      and prior evidence.
+    previous_deployment:
+      fingerprint: 035672fd74d7a9a7d9a52188a0443e1ab8244c52260a99dcb1f86c75896720e0
+      model_path: /mnt/nfs/users/jinghao/MiniCPM-OCR/models/merge_rl_mergedp1_7140_hf5_4x
+      tokenizer_path: /mnt/nfs/users/jinghao/MiniCPM-OCR/models/merge_rl_mergedp1_7140_hf5_4x
+      graph_level: full-and-piecewise
+      physical_devices:
+      - 4
+      tensor_parallel_size: 1
+      max_model_len: 262144
+      max_num_seqs: 64
+      max_num_batched_tokens: 8192
+      gpu_memory_utilization: 0.55
+      endpoint: http://127.0.0.1:8014/v1/chat/completions
+      mm_encoder_attn_backend: TORCH_SDPA
+    previous_workflow:
+      architecture:
+        status: passed
+        evidence: ../../../architecture-and-inference.md
+        last_verified: '2026-10-27'
+        blocker: ''
+        verification:
+          run_id: architecture-prerequisite-20261027
+          last_verified: '2026-10-27'
+          evidence: ../../../architecture-and-inference.md
+          evidence_sha256: b8ae8b0028d20438b9eeb08822cecccc7c45cc4f83423cb7ebce58639c322251
+          context_sha256: 8d92c381dbc17689aa9d29ceb40c577727e2a60f3d6dc1506ace12f40069e5c3
+      environment:
+        status: passed
+        evidence: environment/parameter-alignment-20261027.md
+        last_verified: '2026-10-27'
+        blocker: ''
+        verification:
+          run_id: alignment-environment-20261027
+          last_verified: '2026-10-27'
+          evidence: environment/parameter-alignment-20261027.md
+          evidence_sha256: 9f8f07fc0e0a91b3e6b1f1e83b718884fb3989a5584d01a0ba1e699d425fa09a
+          context_sha256: eefdb3c4edb80d7aa7c1f521a59db99ab0e0c006d91c181e6ee75e414ac4d914
+          receipts:
+          - host_alias: PPU-01
+            path: 04-runs/alignment-environment-20261027/framework-check.json
+            sha256: 007f3d1872d3fbfda9e0021671e3e473d630c80cba9c77219517d87824489722
+      adaptation:
+        status: passed
+        evidence: adaptation/003-align-parent-launcher.md
+        last_verified: '2026-10-27'
+        blocker: ''
+        verification:
+          run_id: alignment-adaptation-20261027
+          last_verified: '2026-10-27'
+          evidence: adaptation/003-align-parent-launcher.md
+          evidence_sha256: 297a1545be7c037855fa83e9604b3eef6f316e7862f71d97fdd787e69a0473aa
+          context_sha256: a4e434f03f82614f7fae7e92c38da2ae9d0d9bc152d7bf0ee303bd5c358e3474
+          receipts:
+          - host_alias: PPU-01
+            path: 04-runs/alignment-adaptation-20261027/framework-check.json
+            sha256: f7c612299197bcafb8b665bdbfab66a07d1a4797fc3bcef1e8aa82cc2893f79f
+      acceptance:
+        status: blocked
+        evidence: acceptance/README.md
+        last_verified: null
+        blocker: Declared experimental checks passed for aligned deployment; full
+          formal acceptance unavailable.
+        verification: {}
+        records:
+          execution-mode:
+            run_id: aligned-execution-20261027
+            last_verified: '2026-10-27'
+            evidence: acceptance/parameter-alignment-execution.md
+            evidence_sha256: 07717e72cab7959cb29e8053b7e1ba7441b778a0496cb916f2c37d2c01f617fe
+            context_sha256: 1b8e2749c240e12892e14ed369628267e284d02fa84e53246ec2159647a17e14
+            receipts:
+            - host_alias: PPU-01
+              path: 04-runs/aligned-execution-20261027/framework-check.json
+              sha256: 1d16bdab367b503ba211af11c018b54f577575ada64e9ba7d9c91cf349658ecf
+          sanity:
+            run_id: sanity-aligned-20261027
+            last_verified: '2026-10-27'
+            evidence: acceptance/parameter-alignment-sanity.md
+            evidence_sha256: c2146d1fcb166985da9a9270e346ce21424b847d2b870ee775c8de7296e193d4
+            context_sha256: c7247350e68eb2010e1b830ec99aa66dfb3b82f9a4ebc17da4b11ebf98e71ab8
+            receipts:
+            - host_alias: PPU-01
+              path: 04-runs/sanity-aligned-20261027/framework-check.json
+              sha256: a4701af67a3033910934364207596c6cbad2d1a4d16513620f6f1c6d6b10190b
+          evidence:
+            run_id: alignment-evidence-20261027
+            last_verified: '2026-10-27'
+            evidence: adaptation/003-align-parent-launcher.md
+            evidence_sha256: 297a1545be7c037855fa83e9604b3eef6f316e7862f71d97fdd787e69a0473aa
+            context_sha256: 9d83025114d2764ee4b2c05dd6110a41f07c8e6db510869d15ec10d5bb9481e1
+            receipts:
+            - host_alias: PPU-01
+              path: 04-runs/alignment-evidence-20261027/framework-check.json
+              sha256: 38318d5757164780a6842bf85b05145e1312b682964492dcf458e167aa8d1040
+          summary:
+            run_id: alignment-summary-20261027
+            last_verified: '2026-10-27'
+            evidence: acceptance/parameter-alignment-summary.md
+            evidence_sha256: 1b17e7dbe73dc14372c7537db45378acbb44eb99cc43521b5708a3fd6876a3e5
+            context_sha256: 562d333328fa16eeeec0d4f4875365455595964840df8630fb681e82c6f55efa
+            receipts:
+            - host_alias: PPU-01
+              path: 04-runs/alignment-summary-20261027/framework-check.json
+              sha256: b7a05dd6d5405c636b820e17c2666fd247ec0b28b019ee4bccb238fde10151df
+        substeps:
+          execution-mode: passed
+          sanity: passed
+          evidence: passed
+          summary: passed
+      retrospective:
+        status: not_started
+        evidence: acceptance/README.md
+        last_verified: null
+        blocker: ''
+        verification: {}
+    previous_status: functional
+  note: User explicitly retained default disabled prefix cache as a performance entry.
+    This overrides the normal-launch cache default for this requested entry; no formal
+    performance run requested.
+target:
+  hosts:
+  - PPU-01
+  container_name: minicpm-ocr-ppu-native
+workspace:
+  roots:
+  - host_alias: PPU-01
+    host_root: /mnt/nfs/users/jinghao/MiniCPM-OCR/ppu-native
+    container_root: /mnt/nfs/users/jinghao/MiniCPM-OCR/ppu-native
+deployment:
+  fingerprint: f944121baff4e4df521b3c12a948e0d57264037c181ed407ef7df06f62021148
+  model_path: /mnt/nfs/users/jinghao/MiniCPM-OCR/models/merge_rl_mergedp1_7140_hf5_4x
+  tokenizer_path: /mnt/nfs/users/jinghao/MiniCPM-OCR/models/merge_rl_mergedp1_7140_hf5_4x
+  graph_level: full-and-piecewise
+  physical_devices:
+  - 4
+  tensor_parallel_size: 1
+  max_model_len: 262144
+  max_num_seqs: 64
+  max_num_batched_tokens: 8192
+  gpu_memory_utilization: 0.55
+  endpoint: http://127.0.0.1:8014/v1/chat/completions
+  mm_encoder_attn_backend: auto
+  effective_mm_encoder_attn_backend: FLASH_ATTN
+  prefix_caching: false
+  purpose: user-selected performance startup
+acceptance_plan:
+  execution:
+    max_abs_error: 0
+    comparison: exact generated token IDs against the independent installed Transformers
+      reference on frozen OCR cases
+  sanity_concurrency: 4
+  concurrency_reason: Frozen sanity concurrency4; separate 64-client short-request
+    capacity validation for aligned service.
+  sanity_manifest_sha256: 061c3c0318bdc213ad6600ea76dba42bfa711079f8bb8744f63be5780fe816c6
+  selected_operation: performance startup configuration only; no accuracy or performance
+    measurement selected
+workflow:
+  architecture:
+    status: passed
+    evidence: ../../../architecture-and-inference.md
+    last_verified: '2026-10-27'
+    blocker: ''
+    verification:
+      run_id: architecture-prerequisite-20261027
+      last_verified: '2026-10-27'
+      evidence: ../../../architecture-and-inference.md
+      evidence_sha256: b8ae8b0028d20438b9eeb08822cecccc7c45cc4f83423cb7ebce58639c322251
+      context_sha256: 8d92c381dbc17689aa9d29ceb40c577727e2a60f3d6dc1506ace12f40069e5c3
+  environment:
+    status: passed
+    evidence: environment/native-auto-backend-performance-20261027.md
+    last_verified: '2026-10-27'
+    blocker: ''
+    verification:
+      run_id: native-auto-perf-environment-20261027
+      last_verified: '2026-10-27'
+      evidence: environment/native-auto-backend-performance-20261027.md
+      evidence_sha256: 6d53e0382bb22b641b6664de9061ff070974fc954cf9ce5a01f027924a123de3
+      context_sha256: 18ac5884c88856ddd8bc3aeed14ace74dd1d3d03a3a11032445edfa8fc084af5
+      receipts:
+      - host_alias: PPU-01
+        path: 04-runs/native-auto-perf-environment-20261027/framework-check.json
+        sha256: 1a57427134fa020a2d9799d3f004048ce329d6810203bd41244d5fdc9ba5c013
+  adaptation:
+    status: not_started
+    evidence: adaptation/003-align-parent-launcher.md
+    last_verified: null
+    blocker: Native auto-backend performance startup differs from historical correctness
+      profile; receipts retained in history.
+    verification: {}
+  acceptance:
+    status: not_started
+    evidence: acceptance/README.md
+    last_verified: null
+    blocker: Native auto-backend performance startup differs from historical correctness
+      profile; receipts retained in history.
+    verification: {}
+    records: {}
+    substeps:
+      execution-mode: not_started
+      sanity: not_started
+      evidence: not_started
+      summary: not_started
+  retrospective:
+    status: not_started
+    evidence: acceptance/README.md
+    last_verified: null
+    blocker: ''
+    verification: {}
+evidence_contract: 2
+profile_snapshot:
+  schema_version: 1
+  id: vllm-ppu
+  display_name: T-Head native vLLM on PPU
+  profile_version: 2
+  status: experimental
+  platforms:
+  - ppu
+  components:
+  - role: inference_engine
+    name: T-Head vLLM
+    required: true
+    mutation_policy: installed_product_code
+  - role: model_implementation
+    name: model configuration, processor and weights
+    required: true
+    mutation_policy: read_only
+  - role: platform_runtime
+    name: T-Head driver, SDK, PyTorch and native kernels
+    required: true
+    mutation_policy: read_only
+  source_policy:
+    default: read_only
+    writable_roles:
+    - inference_engine
+  execution_modes:
+    required:
+    - eager
+    - graph
+    acceptance_primary: graph
+    graph_policy:
+      preference_order:
+      - full
+      - full-and-piecewise
+      - decode-full
+      - piecewise
+      minimum: piecewise
+      level_checks:
+        full:
+        - full_graph
+        full-and-piecewise:
+        - full_and_piecewise_graph
+        decode-full:
+        - decode_full_graph
+        piecewise:
+        - piecewise_graph
+  service:
+    protocols:
+    - openai-chat
+    - openai-completions
+  acceptance:
+    steps:
+      execution-mode:
+        validator: checks
+        checks:
+        - eager
+        - graph
+        - model_inference
+      sanity:
+        validator: checks
+        checks:
+        - reference_consistency
+        - output_health
+      evidence:
+        validator: checks
+        checks:
+        - source_review
+        - vllm_revision_and_diff
+        - artifacts_complete
+      summary:
+        validator: checks
+        checks:
+        - launcher_syntax
+        - launcher_readiness
+        - launcher_minimal
+        - normal_cache_restored
+        - limitations_recorded
+    accuracy_adapter: null
+    performance_adapter: null
+    prefix_caching:
+      non_performance: enabled
+      performance: disabled
+      disable_mechanism: --no-enable-prefix-caching
+  documents:
+    workflow: workflow.md
+    acceptance: acceptance.md
+profile_hash_version: 2
+profile_sha256: 632d96491247bcd349b37f23634810c94c43423add9900d561c858d5fc93cf9b

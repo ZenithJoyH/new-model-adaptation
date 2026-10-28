@@ -1,0 +1,354 @@
+schema_version: 1
+model: MiniCPM-OCR
+platform: nvidia
+framework: vllm-plugin-fl
+profile: framework-profiles/vllm-plugin-fl/profile.yml
+profile_version: 7
+status: environment_ready
+validated_hosts:
+- H100-149
+container_image: vllm/vllm-openai:v0.24.0-cu129-ubuntu2404
+last_verified: '2026-10-21'
+blocker: Plugin已同步main 25eddf9a并交付0601420；隔离eager/graph各12请求通过，原8011六请求可用且未重启。完整新checkpoint阶段验收尚未绑定，正式精度/性能待安排。
+control:
+  mode: agent
+  history:
+  - id: 9fd0b452b571426daa86b6f940a75f30
+    at: '2026-10-21T05:55:47.571345+00:00'
+    operation: handoff
+    actor: operator
+    note: 用户要求保留原生8000服务，亲自调整启动脚本显卡；保存后授权Agent按原文件执行。当前8012验证实例保留，8011未启动。
+  - id: d2cd779231074ec39136242d6fabc783
+    at: '2026-10-21T06:07:38.725410+00:00'
+    operation: resume
+    actor: agent
+    note: 用户已自行启动GPU1/8011并交回请求验证；仅检查当前服务，不改脚本、不重启、不操作8000；新checkpoint不继承旧验收。
+    evidence:
+      path: /private/tmp/ocr-8011-human-change-20261021.json
+      sha256: 9eab52211251c727f92c93e11a3bc831cb4564438012494f573af313f589f43f
+    revalidate:
+    - architecture
+    - environment
+    - adaptation
+    - execution-mode
+    - sanity
+    - accuracy
+    - performance
+    - evidence
+    - summary
+    - acceptance
+    - retrospective
+    previous_status: functional
+    retired_records:
+      architecture:
+        status: complete
+        evidence: ../../../architecture-and-inference.md
+        last_verified: '2026-10-20'
+        blocker: ''
+        verification:
+          run_id: architecture-ocr-20261020
+          last_verified: '2026-10-20'
+          evidence: ../../../architecture-and-inference.md
+          evidence_sha256: b8ae8b0028d20438b9eeb08822cecccc7c45cc4f83423cb7ebce58639c322251
+          context_sha256: 8d92c381dbc17689aa9d29ceb40c577727e2a60f3d6dc1506ace12f40069e5c3
+      environment:
+        status: complete
+        evidence: environment/README.md
+        last_verified: '2026-10-20'
+        blocker: ''
+        verification:
+          run_id: environment-maxctx-20261020
+          last_verified: '2026-10-20'
+          evidence: environment/README.md
+          evidence_sha256: e154932a661094e08ba822923332ed9cf322f2512e93dc2fa0bf6127a9d0bc66
+          context_sha256: 2abc5796fa436afd3541d0ae9f6a259467b647239e1f638ad6f7ee06b6c8d0d8
+          receipts:
+          - host_alias: H100-149
+            path: 04-runs/maxctx-receipts-20261020/environment.json
+            sha256: a0e0bff5f13994d6193a8521d9d2358727a448659fd6299947ee4292f965a769
+      adaptation:
+        status: complete
+        evidence: adaptation/008-maximum-context-and-all-gpus.md
+        last_verified: '2026-10-20'
+        blocker: ''
+        verification:
+          run_id: adaptation-maxctx-20261020
+          last_verified: '2026-10-20'
+          evidence: adaptation/008-maximum-context-and-all-gpus.md
+          evidence_sha256: ce419fc13b36fb4d4caad4d8f429737a174b237b37b20e008b216a49f3a73faf
+          context_sha256: 945709192065c9a0aa96771b5528fd0a1c19ea3b23f866b426cee80472651e95
+          receipts:
+          - host_alias: H100-149
+            path: 04-runs/maxctx-receipts-20261020/adaptation.json
+            sha256: 3e8409123d175417e8ddc3e0d4898cc0901e95a79196486cecb6a47cec8c6117
+      execution-mode:
+        status: complete
+        verification:
+          run_id: execution-maxctx-20261020
+          last_verified: '2026-10-20'
+          evidence: acceptance/README.md
+          evidence_sha256: b533494cf0b523d6ffca6c72794ca41b493e3379a38e995f041a44bb9a5a883e
+          context_sha256: 9e26c09c6e89968b697b144528deeea3fc894592e29a75c571aafd07132e59a2
+          receipts:
+          - host_alias: H100-149
+            path: 04-runs/maxctx-receipts-20261020/execution-mode.json
+            sha256: fb7a644a7cc28350c29cb8dcbbd4bfa82315a5111d0826abf03dbe26bc45ca69
+      sanity:
+        status: complete
+        verification:
+          run_id: maxctx-sanity-20261020
+          last_verified: '2026-10-20'
+          evidence: acceptance/README.md
+          evidence_sha256: b533494cf0b523d6ffca6c72794ca41b493e3379a38e995f041a44bb9a5a883e
+          context_sha256: 4d20ccb1f0e649ba9897db41a726022700f6e58ce2d611279e0e60b57a38050e
+          receipts:
+          - host_alias: H100-149
+            path: 04-runs/maxctx-receipts-20261020/sanity.json
+            sha256: a77482ed1a8c0a0bc1837682a210d1e03e2405027b6c1eb4b98861fd4c2a7373
+      accuracy:
+        status: not_started
+        verification: {}
+      performance:
+        status: not_started
+        verification: {}
+      evidence:
+        status: not_started
+        verification: {}
+      summary:
+        status: not_started
+        verification: {}
+      acceptance:
+        status: in_progress
+        evidence: acceptance/README.md
+        last_verified: '2026-10-20'
+        blocker: 本轮所选execution-mode/sanity完成；正式精度/性能、TP8和最终镜像待安排。
+        verification: {}
+      retrospective:
+        status: not_started
+        evidence: acceptance/README.md
+        last_verified: null
+        blocker: ''
+        verification: {}
+    changes:
+    - environment
+    - model
+    - service
+    observed_fields: []
+    changed_files: []
+  operator: agent
+  note: 用户已自行启动GPU1/8011并交回请求验证；仅检查当前服务，不改脚本、不重启、不操作8000；新checkpoint不继承旧验收。
+target:
+  hosts:
+  - H100-149
+  container_name: minicpm-ocr-flagos-public
+workspace:
+  roots:
+  - host_alias: H100-149
+    host_root: /public/flagos/jinghao/MiniCPM-OCR/flagos
+    container_root: /public/flagos/jinghao/MiniCPM-OCR/flagos
+deployment:
+  fingerprint: 27bd037ae1b9f3d1c1676a49596d3b97230dd4332e296d3eaddb538886b26ea1
+  model_path: /public/flagos/jinghao/MiniCPM-OCR/models/merge_rl_mergedp1_7140_hf5_4x
+  identity_evidence: 01-environment/deployment-manual8011-20261021.json
+  identity_scope: Historical observed runtime/checkpoint identity of the unchanged manual
+    8011 process. Installed Plugin source updated subsequently; see adaptation/012-upstream-main-and-source-delivery.md.
+    Full framework acceptance pending.
+acceptance_plan:
+  execution:
+    max_abs_error: 0
+    comparison: generated token ID sequence against frozen independent HF reference;
+      integer-token equality, not a logit tolerance
+  sanity_manifest_sha256: d5781d05d93de9b221973ece29385412591d09c3ccf0dc9cbb62dee9eb86020a
+workflow:
+  architecture:
+    status: not_started
+    evidence: ../../../architecture-and-inference.md
+    last_verified: null
+    blocker: '人工变更后待复核: d2cd779231074ec39136242d6fabc783'
+    verification: {}
+  environment:
+    status: not_started
+    evidence: environment/README.md
+    last_verified: null
+    blocker: '人工变更后待复核: d2cd779231074ec39136242d6fabc783'
+    verification: {}
+  adaptation:
+    status: not_started
+    evidence: adaptation/008-maximum-context-and-all-gpus.md
+    last_verified: null
+    blocker: '人工变更后待复核: d2cd779231074ec39136242d6fabc783'
+    verification: {}
+  acceptance:
+    status: not_started
+    evidence: acceptance/README.md
+    last_verified: null
+    blocker: '人工变更后待复核: d2cd779231074ec39136242d6fabc783'
+    verification: {}
+    records: {}
+    substeps:
+      execution-mode: not_started
+      sanity: not_started
+      accuracy: not_started
+      performance: not_started
+      evidence: not_started
+      summary: not_started
+  retrospective:
+    status: not_started
+    evidence: acceptance/README.md
+    last_verified: null
+    blocker: '人工变更后待复核: d2cd779231074ec39136242d6fabc783'
+    verification: {}
+evidence_contract: 2
+profile_snapshot:
+  schema_version: 1
+  id: vllm-plugin-fl
+  display_name: vLLM + vllm-plugin-FL + FlagGems
+  profile_version: 7
+  status: active
+  platforms:
+  - nvidia
+  - ppu
+  - metax
+  - ascend
+  - mthreads
+  - hygon
+  components:
+  - role: inference_engine
+    name: vllm
+    required: true
+    mutation_policy: read_only
+  - role: platform_adapter
+    name: vllm-plugin-FL
+    required: true
+    mutation_policy: installed_product_code
+  - role: kernel_library
+    name: FlagGems
+    required: true
+    mutation_policy: installed_product_code
+  - role: vllm_kernel_library
+    name: FlagGems-vllm
+    required: false
+    mutation_policy: installed_product_code
+  source_policy:
+    default: read_only
+    writable_roles:
+    - platform_adapter
+    - kernel_library
+    - vllm_kernel_library
+  execution_modes:
+    required:
+    - eager
+    - graph
+    acceptance_primary: graph
+    graph_policy:
+      preference_order:
+      - full
+      - full-and-piecewise
+      - decode-full
+      - piecewise
+      minimum: piecewise
+      level_checks:
+        full:
+        - full_graph
+        full-and-piecewise:
+        - full_and_piecewise_graph
+        decode-full:
+        - decode_full_graph
+        piecewise:
+        - piecewise_graph
+  service:
+    protocols:
+    - openai-chat
+    - openai-completions
+  acceptance:
+    steps:
+      execution-mode:
+        validator: checks
+        checks:
+        - eager
+        - graph
+        - model_inference
+      sanity:
+        validator: checks
+        checks:
+        - reference_consistency
+        - output_health
+        - performance_sanity
+      accuracy:
+        validator: flageval
+        checks:
+        - service_identity
+        - dataset_provenance
+      performance:
+        validator: vllm-performance
+        checks:
+        - service_identity
+        - accuracy_to_performance_transition
+      evidence:
+        validator: checks
+        checks:
+        - source_review
+        - vllm_unchanged
+        - artifacts_complete
+      summary:
+        validator: checks
+        checks:
+        - launcher_syntax
+        - launcher_readiness
+        - launcher_minimal
+        - launcher_self_contained
+        - installed_component_imports
+        - normal_cache_restored
+    accuracy_adapter: flageval-openai
+    performance_adapter: vllm-bench-serve
+    prefix_caching:
+      non_performance: enabled
+      performance: disabled
+      disable_mechanism: --no-enable-prefix-caching
+  documents:
+    workflow: workflow.md
+    acceptance: acceptance.md
+    detailed_workflow: detailed-workflow.md
+    detailed_workflow_zh: detailed-workflow.zh-CN.md
+profile_sha256: a3795bad2fda5fe53c0e684f7b0d4c88acc78b268ebabad59123d6e3db3e650c
+delivery_scope:
+  selected_phases:
+  - environment
+  - adaptation
+  - acceptance
+  functional_validation: 2026-10-21最新Plugin主线加OCR适配通过GPU2隔离eager/graph各12请求和62组处理器零差异；原8011六请求再次通过且未重启；完整新checkpoint验收未完成
+  formal_accuracy: not_selected_by_user
+  formal_performance: not_selected_by_user
+  image_validation: pending
+  acceptance_substeps:
+  - execution-mode
+  - sanity
+runtime_image: minicpm-ocr-flagos:public-snapshot-20261021
+runtime_image_note: 当前/public容器快照；用户启动脚本和checkpoint为外部/public输入，最终镜像打包验证仍pending
+previous_deployments:
+- fingerprint: 99a5bc8bb95f6060516043a15d6b39ab2b77ec738ad23b1f7c0a717d40056320
+  status: functional
+  snapshot: 03-acceptance/control-20261020/models/MiniCPM-OCR/nvidia/frameworks/vllm-plugin-fl/framework.yml
+  reason: 2026-10-20 user requested FlagTree compiler installation; original native
+    results preserved
+- fingerprint: 9f1c110fb4d337c0a16c0b9d8fec07bd405678cc4d14ef0bb3cdcbfee61e051d
+  status: functional
+  snapshot: 03-acceptance/control-flagtree-20261020/models/MiniCPM-OCR/nvidia/frameworks/vllm-plugin-fl/framework.yml
+  reason: 2026-10-20 user requested editable source installations and convergence
+    of Plugin OCR code; old native evidence preserved
+- fingerprint: 708ba1a3d037aeb79d56811b090974785fd78b34e053215a86247ffc351d3038
+  status: functional
+  snapshot: 03-acceptance/control-source-20261020/models/MiniCPM-OCR/nvidia/frameworks/vllm-plugin-fl/framework.yml
+  reason: 2026-10-20 user requested further reduction of duplicated OCR logic, preserving
+    module boundaries; prior native evidence preserved
+- fingerprint: 747aa6b0dabcc07a8047517573329b3cc05c6dda933bd5e749bc5524ed23c8ee
+  status: functional
+  snapshot: 03-acceptance/control-dedup-20261020/models/MiniCPM-OCR/nvidia/frameworks/vllm-plugin-fl/framework.yml
+  reason: User requested maximum262144 context and all8 GPUs visible in new preserved-source
+    container; old native records retained
+- fingerprint: 27581af3bea2ad94f559dd65da49bd84420a65ce0dcf8e4412bc253964ef4940
+  status: functional
+  snapshot: 03-acceptance/control-pre-checkpoint-20261021/models/MiniCPM-OCR/nvidia/frameworks/vllm-plugin-fl/framework.yml
+  reason: Operator changed checkpoint, container and GPU, then manually started8011;
+    original receipts retired through workspace-control resume and retained as historical
+    evidence.
