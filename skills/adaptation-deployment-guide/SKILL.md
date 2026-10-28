@@ -15,12 +15,16 @@ bundled [English template](assets/deployment-guide.md) for the final guide.
 | --- | --- |
 | Deployment guide only, or adaptation completion without a release request | Read existing records and write the guide; no remote commands, packaging, requests or publication. |
 | Package and validate locally, without push | Prepare a release candidate and validate a fresh container; report a local candidate, not a published deployment. |
+| Publish without retaining a formal service | Validate locally, push and verify deployment in task-scoped temporary containers; no formal service is left running. Honor an explicit prohibition on deployment tests and report them unverified. |
 | Publish and deploy the adapted image | Review, package, validate locally, push to the specified registry, verify the published image and retain the requested formal service. |
 | Deploy an existing published image | Verify its identity and prerequisites, then perform the four deployment steps; do not rebuild or republish it. |
 
 Here, local candidate means the selected Docker host's image store, not the
 operator's desktop. Documentation-only requests may produce a clearly labeled
 draft from incomplete records without resolving remote prerequisites.
+Route documentation-only work directly to section 5; package-only work uses
+sections 1–2 and 5; deploying an existing image uses sections 4–5. Full publication
+uses sections 1–5. Load only the prerequisites required for that operation.
 
 Honor narrower instructions such as publish-only, no push, or temporary validation
 without a formal service. A full release request authorizes its ordinary steps
@@ -30,16 +34,22 @@ corresponding mutation. Reading this Skill or generating documentation is not
 release authorization. Do not download weights, push Git or create PRs as part of
 image publication.
 
-Resolve model/weight identity, hardware, framework profile, exact source and target
-SSH aliases, source container ID, approved host/container work roots and registry
-reference from the request and verified records. Do not default to every inventory
-host or guess a registry. Read [remote operations Skill](../remote-operations/SKILL.md)
+For remote work, resolve model/weight identity, hardware, framework profile, exact
+participating SSH aliases and approved host/container work roots. Packaging needs
+the source container ID; existing-image deployment needs the published identity,
+not a source container. A remote registry is needed only for publication or pulling
+an existing image. Recover these inputs from the request and verified records.
+Do not default to every inventory host or guess a registry. Read
+[remote operations Skill](../remote-operations/SKILL.md)
 and its [policy](../../docs/remote-operations.md) before remote actions. Use its
 maintained execution entrypoints and verify mappings for every new container.
 For recoverable long runs, also follow the [execution journal](../../docs/agent-execution.md).
 Respect human takeover and the selected profile's writable components and acceptance
 requirements. Unsupported/draft profiles do not become deployable through this
 Skill; experimental results must retain their actual status.
+The service-launch and four-operation procedure below applies to service-based
+profiles. For Python-API-only work, use the profile's declared validation and mark
+server/request sections not applicable; do not invent an HTTP server or launcher.
 
 Use existing environment/acceptance records and the accepted launcher as inputs.
 Do not rerun unrelated adaptation phases or equate a deployment smoke test with
@@ -57,13 +67,17 @@ formal accuracy/performance acceptance. Do not update `framework.yml` or
   or formal service. Establish the exact task-created temporary cleanup scope;
   preserve formal and source containers. No global pruning, broad deletion or
   automatic cleanup of pre-existing data.
+  Independence includes writable storage: do not clean or write through shared
+  bind mounts, volumes or symlinks into source data. Candidate inputs are read-only
+  or verified task-owned copies; cleanup must remain within candidate-owned paths.
 - Reuse the accepted minimal `start-model.sh`, including the remote root copy and
   a byte-identical image-internal delivery copy when the root is a bind mount.
   Normal startup and deployment checks keep prefix caching enabled; only a
   separately selected performance evaluation uses `--performance` to disable it.
 - The launcher contains only necessary startup settings and the existing cache
-  switch. No extra cache-directory overrides, probes, polling, installs, patching
-  or cleanup. Do not move unnecessary settings into a wrapper. Readiness checks,
+  switch. Preserve justified, accepted cache-path settings; add none when verified
+  defaults suffice. No probes, polling, installs, patching or cleanup. Do not move
+  unnecessary settings into a wrapper or `docker run -e`. Readiness checks,
   logging and session management belong to the deployment procedure outside it.
   Follow the [shared launcher contract](../../docs/remote-operations.md#shared-service-launcher).
 - Do not introduce a second `vllm serve` / SGLang command in the guide. Invoke the
@@ -71,6 +85,12 @@ formal accuracy/performance acceptance. Do not update `framework.yml` or
   effective settings. Changes to script bytes, installed code, model, topology or
   graph mode require affected revalidation, not just a new hash. Never downgrade
   graph mode, shorten context or disable FlagGems to make packaging pass.
+  Check effective configuration as well as script bytes: image ENV/CMD/ENTRYPOINT,
+  `docker run` environment, user, working directory, shell initialization and mounts
+  must not override the tested routing, graph, context or prefix-cache settings.
+  Verify the launcher and referenced runtime files are executable/readable inside
+  the image and not replaced or hidden by deployment mounts. If relocation needs
+  a script edit, revalidate it as a changed launcher before freezing a new hash.
 
 ## 1. Review the runtime and prepare the candidate
 
@@ -79,6 +99,10 @@ modules, component versions/revisions or file hashes, container image, mounts,
 entrypoint, ports and resource use. Recover current facts rather than replaying
 historical commands. Use the selected framework's actual help/configuration;
 vLLM flags or plugin variables must not be copied into SGLang or Torch-FL.
+Before creating a candidate, check the container engine's actual storage and the
+approved work volume for free space/inodes against image layers, copied artifacts
+and build/cache peak use. Record the estimate and headroom; insufficient capacity
+does not authorize global pruning, moving engine storage or deleting old images.
 
 In the approved remote work root, prepare a compact inclusion review:
 `path -> include/exclude -> reason -> hash/source`. Include the tested installed
@@ -93,8 +117,8 @@ Prepare the independent candidate from a verified base and the reviewed installe
 artifacts/build inputs, preserving exact versions and vendor ABI. Freeze the selected
 file/configuration manifest and verify before/after hashes while collecting inputs;
 if another task is changing those inputs, resolve the inconsistency before packaging.
-Do not upgrade
-dependencies during packaging or create a parallel development checkout. Materialize
+Do not upgrade dependencies during packaging or create a parallel development
+checkout. Materialize
 required editable-install targets inside the image or package them using the
 component's supported build/install process; verify the actual interpreter imports
 those image-contained files without `PYTHONPATH`/`sys.path` overlays. Do not delete
@@ -111,9 +135,10 @@ the source instead of stopping it or publishing a partial environment.
 
 ## 2. Commit the candidate and validate locally
 
-Choose a collision-free local reference and complete remote registry/namespace/
-image:tag using the project's verified naming convention. Do not depend on a
-personal Downloads script; use an available reviewed naming tool only if required
+Choose a collision-free local reference; when publication is selected, also resolve
+the complete remote registry/namespace/image:tag using the project's verified
+naming convention. Package-only work does not require a remote registry. Do not
+depend on a personal Downloads script; use an available reviewed naming tool only if required
 and record its version. Record component versions with the actual interpreter;
 never infer them from environment directory names. Do not overwrite an existing
 tag without explicit authorization.
@@ -129,6 +154,11 @@ Create a fresh temporary container from the candidate image with declared device
 read-only weights and approved writable runtime paths. Use fresh dynamic caches,
 not host development code or the source container's cache contents. Necessary
 static tuning configuration must be included and identified in the review.
+Use empty verified default cache paths or isolated mounts at those paths; do not
+add cache-directory environment overrides just for validation. Before each GPU
+validation, check allocation and ports; if necessary stop only the identified
+task-assigned service, preserve its configuration, and verify resources released.
+Keep its source container running. Do not alter tested topology to share occupied GPUs.
 Verify imports, actual framework/plugin routing and the accepted script identity.
 Start that script with normal prefix caching, then perform bounded readiness and
 real generation checks. A health response alone is insufficient: check an expected
@@ -146,8 +176,11 @@ launcher; if it changes execution, recheck the normal delivered configuration.
 Local candidate success permits publication, not a claim of published-image
 verification. On failure, preserve evidence, diagnose and make a bounded repair;
 do not push failed candidates or endlessly restart. A repeated unchanged failure
-or missing resource/permission is a blocker. For package-only requests, stop here
-and write the actual local status; no usable remote Pull command may be invented.
+or missing resource/permission is a blocker. For package-only requests, end remote
+work here: stop the task's temporary validation service and perform only the
+previously authorized temporary-container cleanup. Preserve the candidate image,
+evidence and running source container, report any retained temporary resources,
+then write the actual local status; no usable remote Pull command may be invented.
 
 ## 3. Publish the exact validated image
 
@@ -157,8 +190,10 @@ IDs (`docker tag <validated-local-reference> <remote-reference>` when applicable
 Use `docker push <remote-reference>`, record registry digest and resolve/pull the published
 image to verify identity for the target architecture. A multi-platform manifest
 digest is not a local image ID; record their mapping rather than equating them.
-Check the remote tag still resolves to the recorded digest. Publication failures
-leave the local candidate/evidence intact and the guide explicitly unpublished.
+Check the remote tag still resolves to the recorded digest. If publication fails
+or its outcome is uncertain, retain the candidate/evidence and inspect the remote
+reference before retrying. Record failed versus unknown publication accurately;
+neither permits a verified-release claim.
 
 ## 4. Execute the guide's four deployment steps
 
@@ -172,6 +207,12 @@ Execute the four operations using the draft guide's existing headings:
 `Service Invocation / Invocation Script`. The weight-download section stays
 between image download and container startup as reader instructions, not an
 executed release step. Do not rename the template into a numbered four-step report.
+The four operations may contain auxiliary command blocks (entering the container,
+readiness checks), not a restriction to four shell lines. State execution host/node,
+container and shell for each block; use concrete paths and values, with no hidden
+working-directory assumptions or variables inherited from another terminal.
+For multi-node deployment, provide each node's commands, launch order and coordinator
+request endpoint; verify all participants, not just the HTTP-facing process.
 
 1. **Pull — host:** run `docker pull <remote-reference>` and verify its digest
    and selected image identity. Pull and Create must refer to that same release.
@@ -181,11 +222,17 @@ executed release step. Do not rename the template into a numbered four-step repo
    Use a verified detached lifetime, no automatic deletion for a formal container,
    and give an explicit enter-container command. Do not start a duplicate service
    implicitly through an unchecked image entrypoint.
+   Resolve the release identity again before creation and verify the container's
+   actual image ID. A moved tag blocks deployment until resolved; do not accept
+   the changed image under earlier evidence or silently overwrite the tag.
 3. **Start service — container:** invoke only the image-internal accepted
    `start-model.sh`. Describe the verified session-independent launch mechanism
    outside the script, with logging and bounded readiness checks as separate
    deployment commands. Do not edit the launcher to add those checks. The block
    must return control for the next request; shell/SSH exit must not kill service.
+   Verify the declared writable log paths before redirection. Readiness must check
+   the new task service identity and served model, fail on process exit or timeout,
+   and prevent the request step on failure; another service's HTTP 200 is not proof.
 4. **Real generation — declared host or container:** run a complete request with
    the verified endpoint, served model name, timeout and generation parameters.
    Check the known answer, finish reason, logs and service survival. Disconnect
@@ -201,6 +248,8 @@ approved remote `03-acceptance/` / `04-runs/` paths. A changed deployment comman
 requires repeating the affected four-step deployment in a fresh container; a
 changed image requires candidate validation and a new tag before doing so.
 Editorial updates or evidence links alone do not require restarting services.
+Freeze the executed command blocks and preconditions; link the immutable guide
+snapshot/hash from acceptance records. Do not embed a guide's own hash in itself.
 
 Retain the verified formal container/service when requested. If testing used a
 temporary container, release its assigned resources and repeat the same deployment
@@ -209,6 +258,10 @@ explicitly authorized task-created temporary containers by verified IDs; never
 include the source or formal service. Keep evidence and rollback references. On
 failure report published-but-unverified or deployment-failed honestly; no automatic
 source-container restart or unrequested restoration of the old service.
+In-place stop/restart of this task's assigned formal service for a bounded repair
+is distinct from temporary-container deletion; preserve the formal container and
+do not stop unrelated services. Report which old service remains stopped and which
+new service is running. Publish-only temporary checks must not leave a formal service.
 
 ## 5. Write the English guide and report status
 
@@ -229,6 +282,11 @@ The bundled template is the maintained source; the original Downloads file is
 not a runtime dependency. Keep release readiness and limitations as concise notes
 in existing sections. Do not add top-level release-status, coverage, evidence or
 cleanup reports, or move weight-download instructions out of Operation Steps.
+Within Consistency Validation, state documentation readiness, candidate validation,
+publication, published-image verification and formal-service status in a short
+paragraph, with an acceptance-record link. The detailed role/cleanup report stays
+in internal records and the task response. A readable guide with deployment marked
+pending is a documentation deliverable, not a verified deployment.
 
 Treat the reference as a formatting example, not runtime facts: do not inherit
 its model identity, license, benchmark claims, host paths, `PYTHONPATH`, diagnostic
@@ -238,6 +296,8 @@ language from verified provenance and actual document languages; omit an unknown
 license field and explain the missing evidence in License. Adapt component
 subheadings to the actual framework (for example SGLang-FL), omit unused optional
 component sections and unverified contribution links, and avoid invented baselines.
+These explicitly permitted component substitutions/omissions do not authorize
+reorganizing the main README sections. Keep the other headings and their order.
 For unpublished/draft outputs, replace unavailable runnable blocks with pending
 prose while retaining their section positions.
 
@@ -247,6 +307,12 @@ not Plugin README/docs. Add one link to the workspace README where useful. Keep
 accuracy/performance results bound to their measured code/image/configuration;
 old adaptation results do not automatically validate a repackaged image. Missing
 measurements are `Not measured` or `Pending verification`, never zero or pass.
+Before handoff, check frontmatter validity, English prose, absence of unresolved
+placeholders, balanced command fences and local links. Cross-check the weight
+download destination against the read-only mount source, image references and
+digest, container paths, per-node topology, model name and request endpoint.
+Validate each concrete shell block's syntax with its declared shell; this does
+not authorize running commands in documentation-only mode or prove remote success.
 
 Report documentation readiness, local candidate validation, publication identity,
 published-image four-step verification and formal-service status separately.

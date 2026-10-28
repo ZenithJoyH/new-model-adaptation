@@ -15,6 +15,7 @@ language:
 ### Consistency Validation
 
 {{ACTUAL_ACCURACY_PERFORMANCE_AND_DEPLOYMENT_VALIDATION_SCOPE}}
+{{CONCISE_DOCUMENT_CANDIDATE_PUBLICATION_DEPLOYMENT_AND_FORMAL_SERVICE_STATUS}}
 {{BRIEF_VERIFICATION_DATE_LIMITATIONS_AND_ACCEPTANCE_RECORD_LINK}}
 
 # Evaluation Results
@@ -48,12 +49,13 @@ Environment Setup
 
 {{REQUIRED_ACCESS_WEIGHTS_MOUNTS_PORTS_PERMISSIONS_AND_MULTI_NODE_TOPOLOGY}}
 {{PREREQUISITE_CHECK_COMMANDS_AND_PASSING_CONDITIONS_FOR_THE_DECLARED_TARGET}}
+{{IMAGE_INTERNAL_REQUIRED_FILES_AND_ACCEPTED_EFFECTIVE_RUNTIME_SETTINGS}}
 
 ## Operation Steps
 
 ### Download FlagOS Image
 
-Execution: host, {{SHELL}}.
+Execution: {{TARGET_HOST_OR_NODE}}, {{SHELL}}.
 Published image and verified digest: {{COMPLETE_REMOTE_REFERENCE_AND_DIGEST_OR_UNPUBLISHED}}.
 
 ```bash
@@ -70,13 +72,14 @@ These download instructions are for the reader; the release workflow does not ex
 ```
 
 {{HOST_WEIGHT_PATH_CONTAINER_READ_ONLY_PATH_AND_INTEGRITY_REQUIREMENTS}}
+{{CONFIRMED_DOWNLOAD_DESTINATION_MATCHING_THE_CONTAINER_MOUNT_SOURCE}}
 
 ### Start the Container
 
-Execution: host, {{SHELL}}. {{VERIFIED_TARGET_AND_CONTAINER_ROLE}}
+Execution: {{TARGET_HOST_OR_NODE}}, {{SHELL}}. {{VERIFIED_TARGET_AND_CONTAINER_ROLE}}
 
 ```bash
-{{SINGLE_COMPLETE_DOCKER_RUN_COMMAND_WITH_VERIFIED_DEVICES_MOUNTS_AND_PUBLISHED_IMAGE}}
+{{COMPLETE_DOCKER_RUN_FOR_THIS_NODE_WITH_VERIFIED_DEVICES_MOUNTS_AND_SAME_PULLED_IMAGE}}
 ```
 
 Enter the created container from the host:
@@ -89,7 +92,7 @@ Enter the created container from the host:
 
 ### Start the Server
 
-Execution: inside the created container, {{SHELL}}.
+Execution: {{TARGET_NODE_AND_CREATED_CONTAINER}}, {{SHELL}}.
 Accepted launcher: {{IMAGE_INTERNAL_START_MODEL_SH_PATH}}; SHA-256: {{LAUNCHER_SHA256}}.
 
 ```bash
@@ -103,6 +106,7 @@ Readiness checks run outside the launcher:
 ```
 
 {{LOG_LOCATION_TERMINAL_SWITCH_INSTRUCTIONS_AND_VERIFIED_SERVICE_LIFETIME}}
+{{EXPECTED_EFFECTIVE_MODEL_GRAPH_CONTEXT_TOPOLOGY_AND_PREFIX_CACHE_STATE}}
 Normal startup keeps prefix caching enabled where supported. Only a separately
 requested performance evaluation uses the same launcher with `--performance`.
 
@@ -110,7 +114,7 @@ requested performance evaluation uses the same launcher with `--performance`.
 
 ### Invocation Script
 
-Execution: {{HOST_OR_CONTAINER_AND_SHELL}}. {{VERIFIED_ENDPOINT_MODEL_AND_MODALITY}}
+Execution: {{EXACT_HOST_OR_CONTAINER_AND_SHELL}}. {{VERIFIED_COORDINATOR_ENDPOINT_MODEL_AND_MODALITY}}
 
 ```bash
 {{COMPLETE_VERIFIED_CURL_OR_PROFILE_API_REQUEST}}
