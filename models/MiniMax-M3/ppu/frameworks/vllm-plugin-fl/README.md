@@ -4,6 +4,12 @@
 
 [整理依据、原始快照与人工接续](../../../_shared/local-record-maintenance.md)。
 
+## 2026-10-15：PPU-07 根目录启动脚本
+
+按用户要求，在 `PPU-07` 的宿主机及容器同路径 `/mnt/nfs/users/jinghao/minimaxM3-new/start-model.sh` 新增可执行脚本（0755），SHA-256 `3ff5fc5d2255963c84e4aabe46b103dc04f730eadb3e626f9548e1f41f5a0554`。从已验证的 `01-environment/start-validation-graph-target.sh decode-piecewise` 重建为单一 `FULL_AND_PIECEWISE` 启动入口；移除了模式选择、诊断日志防覆盖、已与默认值重复的 `--gpu-memory-utilization 0.90` 和未证明是生产必需的 1800 秒超时设置。保留 TP16、BF16、65,536 上下文、block size 128、32 序列及 8192 批量 token 上限，以维持已测服务的设备与资源边界；保留端口 8024、localhost 绑定及 `MiniMax-M3-validation` 服务名以维持已有客户端身份。编译配置固定为已测通的图模式及 capture sizes。
+
+脚本保留 PPU SDK/OpenMPI 路径、16 卡可见集、spawn、TP 通信网卡设置和 `FLAGTREE_AABS=0`，与原已测通服务相同；缓存与临时文件定向到 `06-cache/`、`05-tmp/`，日志追加至 `04-runs/model-service.log`。启动前检查端口/同名服务进程，不自动停止其他服务；正常启动不带性能专用的前缀缓存禁用参数。2026-10-15 检查时模型容器仍运行、8024 未监听；Ansible `--check --diff` 和单 Host 复制完成，宿主机/容器内 SHA-256 一致，容器内 `bash -n` 通过。**本次未执行该脚本或验证服务就绪**，不据此标记正式 summary/launcher 验收通过。当前 `/mnt` 是 bind mount，脚本不属于镜像内部；如需镜像交付，仍须另行验证镜像内副本和新容器启动。
+
 ## 整理前工作记录（原文保留）
 
 2026-09-24：新容器的算子、Plugin 设备测试、整模 eager 与目标 graph 实推已验证；全量 GPQA 198 题诊断 strict 178/198＝89.90%，高于用户当前指定的 88%。据此，**PPU-07 本轮新代码重新适配的功能与 GPQA 目标判定通过**。固定 GPQA 十题 strict 9/10，未通过逐题全对 sanity；原生 runner 回执因配置字段冲突失败，framework 前置阶段亦未完成。因此本次判定不等于项目正式验收通过，也不证明其他平台已验证。
