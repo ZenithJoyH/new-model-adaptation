@@ -1,0 +1,390 @@
+schema_version: 1
+model: Qwen3.8-Flash-Next
+platform: metax
+framework: vllm-plugin-fl
+profile: framework-profiles/vllm-plugin-fl/profile.yml
+profile_version: 7
+status: functional
+validated_hosts:
+- mx-101
+container_image: harbor.baai.ac.cn/flagos-inner-models-release/metax-plugin0240-base:latest
+last_verified: '2026-10-27'
+blocker: 启动脚本精简与normal回归已验证；完整精度/性能保留2026-10-25原实例结果，不声明完整v2性能门禁或optimized。
+control:
+  mode: agent
+  history: []
+target:
+  hosts:
+  - mx-101
+  container_name: qwen3.8-flash
+workspace:
+  roots:
+  - host_alias: mx-101
+    host_root: /public-flash/jinghao/qwen3.8-flash
+    container_root: /public-flash/jinghao/qwen3.8-flash
+deployment:
+  fingerprint: 7d11fb14052581da5757d4ef52b71eda288d65a91a4daf1668a7a10a23b800ef
+task_results:
+  user_selected_scope: complete
+  last_verified: '2026-10-27'
+  formal_acceptance_claimed: false
+  performance_measurement:
+    status: measured
+    mode: graph
+    evidence: acceptance/performance-graph-100k.md
+    evidence_sha256: 75b05aee6d0e5fdbdd499904ca78fb08fd45e58e61a2ce5b3a9320f721388baa
+    run_id: performance-graph-ninecases-20261024
+    cases: 9
+    runs: 27
+    requests: 756
+    failed_requests: 0
+    preemptions: 12
+    business_performance_graded: false
+    receipt:
+      host_alias: mx-101
+      path: 04-runs/performance-graph-ninecases-20261024/measurement-validation.json
+      sha256: 3fc3e14627d38dd108d0d738b81adb2ac43991d7be8e6a6780dc3b7eaf3d45a1
+  final_launcher:
+    status: verified
+    last_verified: '2026-10-27'
+    evidence: acceptance/launcher-default-db-20261027.md
+    evidence_sha256: 1552e2c0bd6963306b29039f62f7fea1f5b1ae7c0ec217e9fec8373dd9763737
+    run_id: launcher-default-db-normal-20261027
+    host_path: /public-flash/jinghao/qwen3.8-flash/start-model.sh
+    container_path: /public-flash/jinghao/qwen3.8-flash/start-model.sh
+    internal_delivery_path: /opt/qwen3.8-flash-delivery/start-model.sh
+    sha256: c207cc11bfba76819ec04510cd34c8647ecc5fec92492dd48e8ba1eff6e3eda3
+    service_running_at_verification: true
+    image_validation: pending
+    environment_exports: 2
+    uses_default_runtime_caches: true
+    formal_accuracy_and_performance_rerun: false
+    performance_branch_validation: fresh_shell_argv_environment_and_prior_unchanged_argv_engineargs_only
+    receipt:
+      host_alias: mx-101
+      path: 04-runs/launcher-default-db-normal-20261027/launcher-verification.json
+      sha256: 8ab5eb61568c040e06fc9ce8f19feabd3b3b205d9102aaa7bf7025d0e029da79
+    uses_default_local_databases: true
+    latency_diagnostic:
+      status: measured
+      requests_per_arm: 24
+      concurrency: 1
+      formal_performance: false
+      evidence: 04-runs/launcher-default-db-normal-20261027/latency-comparison.json
+  final_launcher_history:
+  - status: verified
+    evidence: acceptance/adaptation-summary.md
+    evidence_sha256: 52501b777ffcc0c98755299dcada8b282e2298afdb76843cd02f6a37a7aef4f9
+    run_id: final-launcher-100k-20261024
+    host_path: /public-flash/jinghao/qwen3.8-flash/start-model.sh
+    container_path: /public-flash/jinghao/qwen3.8-flash/start-model.sh
+    internal_delivery_path: /opt/qwen3.8-flash-delivery/start-model.sh
+    sha256: cd9f4a4d2e56628597b636892e5834e6d64a9d9357c21f98184b9e51703d07b6
+    service_running_at_verification: true
+    image_validation: pending
+    receipt:
+      host_alias: mx-101
+      path: 04-runs/final-launcher-100k-20261024/delivery-check.json
+      sha256: 79e83b40c70e95a7de8e7a7e72cb5be1e05f5460c62d7025a1eb591490abec04
+    internal_file_verification:
+      path: 04-runs/final-launcher-100k-20261024/delivery-self-contained-check.json
+      sha256: da805c761fda091b3e1376902b85ddaf1aab29df5f00a30904bf317dea1ad158
+    superseded_on: '2026-10-27'
+    backup_script: 04-runs/launcher-minimal-controller-20261027/previous-start-model.sh
+    backup_internal: 04-runs/launcher-minimal-controller-20261027/previous-internal/
+  - status: verified
+    last_verified: '2026-10-27'
+    evidence: acceptance/launcher-minimal-20261027.md
+    evidence_sha256: 91403250b34696e488e9ad295262ccd2e6bd1a2ef9241d5dc201de721ad55600
+    run_id: launcher-minimal-normal-20261027
+    host_path: /public-flash/jinghao/qwen3.8-flash/start-model.sh
+    container_path: /public-flash/jinghao/qwen3.8-flash/start-model.sh
+    internal_delivery_path: /opt/qwen3.8-flash-delivery/start-model.sh
+    sha256: 66fa71fd3523354e5a1d0f8b9702bb3f6818dedb37e7f58b79812ad9cdbcc2db
+    service_running_at_verification: true
+    image_validation: pending
+    formal_accuracy_and_performance_rerun: false
+    performance_branch_validation: shell_and_engine_config_preflight_only
+    receipt:
+      host_alias: mx-101
+      path: 04-runs/launcher-minimal-normal-20261027/launcher-verification.json
+      sha256: f7702dc935efb4f1d5cb1006e874623246e2c432745a849e4ba40f4dc40e547c
+    superseded_on: '2026-10-27'
+    superseded_reason: user requested default runtime caches
+    backup_script: 04-runs/launcher-default-cache-controller-20261027/previous-start-model.sh
+    backup_internal: 04-runs/launcher-default-cache-controller-20261027/previous-internal/
+  - status: verified
+    last_verified: '2026-10-27'
+    evidence: acceptance/launcher-default-cache-20261027.md
+    evidence_sha256: 84ad0caae9b6edc15e3b9176a475c8b40242d75ecdfcc2895228cd66f95e6931
+    run_id: launcher-default-cache-normal-20261027
+    host_path: /public-flash/jinghao/qwen3.8-flash/start-model.sh
+    container_path: /public-flash/jinghao/qwen3.8-flash/start-model.sh
+    internal_delivery_path: /opt/qwen3.8-flash-delivery/start-model.sh
+    sha256: 1550bacb0b7d219c283170fd6e3667b27b6c87d42bff01cb9bc51d045cbf6e91
+    service_running_at_verification: true
+    image_validation: pending
+    environment_exports: 3
+    uses_default_runtime_caches: true
+    formal_accuracy_and_performance_rerun: false
+    performance_branch_validation: argv_comparison_to_prior_engine_config_preflight_only
+    receipt:
+      host_alias: mx-101
+      path: 04-runs/launcher-default-cache-normal-20261027/launcher-verification.json
+      sha256: 20699ef4833a3ac83f45675bb5407a63de2ca183c3129b9e668eb20790cfb366
+    superseded_on: '2026-10-27'
+    superseded_reason: user requested default local SQLite database
+    backup_script: 04-runs/launcher-default-db-controller-20261027/previous-start-model.sh
+    backup_internal: 04-runs/launcher-default-db-controller-20261027/previous-internal/
+acceptance_plan:
+  execution:
+    max_abs_error: 0.02
+  performance_measurement_only: true
+  performance_modes:
+  - graph
+  performance_cases:
+  - - 1024
+    - 128
+    - 1
+    - 4
+  - - 1024
+    - 128
+    - 8
+    - 16
+  - - 1024
+    - 128
+    - 32
+    - 64
+  - - 1024
+    - 1024
+    - 1
+    - 4
+  - - 1024
+    - 1024
+    - 8
+    - 16
+  - - 1024
+    - 1024
+    - 32
+    - 64
+  - - 8192
+    - 1024
+    - 1
+    - 4
+  - - 8192
+    - 1024
+    - 8
+    - 16
+  - - 8192
+    - 1024
+    - 32
+    - 64
+  accuracy_config_sha256: 6d831a4d81837c44d89cebf620c846102e5a8d675290e35851b87d2be6e65b64
+  sanity_manifest_sha256: 9b694773a0c065fa5b3113c6d711dbb825878d4dddf102d0a0b40eb75755e816
+  performance_request_sha256: a732ab9ca8d8782a135f85d1bccf6069a074992e6289ea1ab1896d736d2957cf
+workflow:
+  architecture:
+    status: passed
+    evidence: ../../../architecture-and-inference.md
+    last_verified: '2026-10-23'
+    blocker: ''
+    verification:
+      run_id: architecture-mx101-20261023
+      last_verified: '2026-10-23'
+      evidence: ../../../architecture-and-inference.md
+      evidence_sha256: a2a4a85b46e119a97c90d2dfb0c704186394336cd9fdd765aca02ec58ddcc6c0
+      context_sha256: 285a145d5b38d7c9a380b1d3e7c9e41d6f1dea54ef5bc8ffd8a0a18c580dd561
+  environment:
+    status: passed
+    evidence: environment/README.md
+    last_verified: '2026-10-24'
+    blocker: ''
+    verification:
+      run_id: environment-mx101-acceptance100k-20261024
+      last_verified: '2026-10-24'
+      evidence: environment/README.md
+      evidence_sha256: 0bac31f2a62d5cf682e54fc2942dbab1f2de624e5aacab23bb8112a291780b99
+      context_sha256: 370d297119dfc64b77ab292511db2610d0f192bb7a841dc622c56e4fe4240d5d
+      receipts:
+      - host_alias: mx-101
+        path: 04-runs/environment-mx101-acceptance100k-20261024/framework-check.json
+        sha256: b784229f820fcf70423cb9608d571d17eba85bad21dc927fe5f12beeb4d6643a
+  adaptation:
+    status: passed
+    evidence: adaptation/010-stage-verification.md
+    last_verified: '2026-10-24'
+    blocker: ''
+    verification:
+      run_id: adaptation-mx101-acceptance100k-20261024
+      last_verified: '2026-10-24'
+      evidence: adaptation/010-stage-verification.md
+      evidence_sha256: af66400b69e1ef2f9172db42b537d612c491ef2fe68dc509c306e22256b625f3
+      context_sha256: 5b9ee2067fe481f068766fd8da0af0fdccfe6ae92bd2973053d884bc0d95721a
+      receipts:
+      - host_alias: mx-101
+        path: 04-runs/adaptation-mx101-acceptance100k-20261024/framework-check.json
+        sha256: ae2bcf716fcaeff53ffc3ac3fa8bb54920cc0004bafb3d69666e2f96eb17a3ba
+  acceptance:
+    status: in_progress
+    evidence: acceptance/README.md
+    last_verified: '2026-10-27'
+    blocker: 完整精度/九场景为2026-10-25原实例结果；2026-10-27脚本精简、配置对照与normal启动回归已通过，不声明formal业务性能门禁通过。
+    verification: {}
+    records:
+      execution-mode:
+        run_id: execution-mode-mx101-acceptance100k-20261024
+        last_verified: '2026-10-24'
+        evidence: acceptance/execution-mode-100k.md
+        evidence_sha256: 72896133c7f27f5d60dc271fe12ea7d023a83c52bd39930c9f6eb2d8a1eb4087
+        context_sha256: 841f03e82e7f05384710cd3b8a201203d1f16eb73d8e8f11555118672b9bba98
+        receipts:
+        - host_alias: mx-101
+          path: 04-runs/execution-mode-mx101-acceptance100k-20261024/framework-check.json
+          sha256: 57809407c258d8f12ce9cd530b84109c399e36346af773d0ae519cff7db8595e
+      sanity:
+        run_id: sanity-c8-100k-20261024
+        last_verified: '2026-10-24'
+        evidence: acceptance/sanity-100k.md
+        evidence_sha256: 2d862dac79b8d4a619323fd0b35fafc2a1be772e2792f0d9a5fdb62c5997160a
+        context_sha256: b66005a62e8fdb9c9c516906f0089dec9829feb9dd1d3c134849b76eb2915a41
+        receipts:
+        - host_alias: mx-101
+          path: 04-runs/sanity-c8-100k-20261024/framework-check.json
+          sha256: 63af7361771d367536689e8a6a2c4d818ed9ededfd118ceb6034935e2378610e
+      accuracy:
+        run_id: gpqa-full198-c2-100k-20261024
+        last_verified: '2026-10-25'
+        evidence: acceptance/accuracy-gpqa-100k.md
+        evidence_sha256: b65de0922e27155a796efd30657c38f7a71d1486597d9075f5138b55de02804f
+        context_sha256: 4b812d459ea41de9f75c4889be84e423026c0b150386eb26146faf90eb8550ea
+        receipts:
+        - host_alias: mx-101
+          path: 04-runs/gpqa-full198-c2-100k-20261024/framework-check.json
+          sha256: ea7d7bd6a3248c59b1fd5698db5dcf5f5b59253b1eb7a527ba714dec4c23d4b2
+    substeps:
+      execution-mode: passed
+      sanity: passed
+      accuracy: passed
+      performance: not_started
+      evidence: not_started
+      summary: not_started
+  retrospective:
+    status: not_started
+    evidence: acceptance/README.md
+    last_verified: null
+    blocker: ''
+    verification: {}
+evidence_contract: 2
+profile_snapshot:
+  schema_version: 1
+  id: vllm-plugin-fl
+  display_name: vLLM + vllm-plugin-FL + FlagGems
+  profile_version: 7
+  status: active
+  platforms:
+  - nvidia
+  - ppu
+  - metax
+  - ascend
+  - mthreads
+  - hygon
+  components:
+  - role: inference_engine
+    name: vllm
+    required: true
+    mutation_policy: read_only
+  - role: platform_adapter
+    name: vllm-plugin-FL
+    required: true
+    mutation_policy: installed_product_code
+  - role: kernel_library
+    name: FlagGems
+    required: true
+    mutation_policy: installed_product_code
+  - role: vllm_kernel_library
+    name: FlagGems-vllm
+    required: false
+    mutation_policy: installed_product_code
+  source_policy:
+    default: read_only
+    writable_roles:
+    - platform_adapter
+    - kernel_library
+    - vllm_kernel_library
+  execution_modes:
+    required:
+    - eager
+    - graph
+    acceptance_primary: graph
+    graph_policy:
+      preference_order:
+      - full
+      - full-and-piecewise
+      - decode-full
+      - piecewise
+      minimum: piecewise
+      level_checks:
+        full:
+        - full_graph
+        full-and-piecewise:
+        - full_and_piecewise_graph
+        decode-full:
+        - decode_full_graph
+        piecewise:
+        - piecewise_graph
+  service:
+    protocols:
+    - openai-chat
+    - openai-completions
+  acceptance:
+    steps:
+      execution-mode:
+        validator: checks
+        checks:
+        - eager
+        - graph
+        - model_inference
+      sanity:
+        validator: checks
+        checks:
+        - reference_consistency
+        - output_health
+        - performance_sanity
+      accuracy:
+        validator: flageval
+        checks:
+        - service_identity
+        - dataset_provenance
+      performance:
+        validator: vllm-performance
+        checks:
+        - service_identity
+        - accuracy_to_performance_transition
+      evidence:
+        validator: checks
+        checks:
+        - source_review
+        - vllm_unchanged
+        - artifacts_complete
+      summary:
+        validator: checks
+        checks:
+        - launcher_syntax
+        - launcher_readiness
+        - launcher_minimal
+        - launcher_self_contained
+        - installed_component_imports
+        - normal_cache_restored
+    accuracy_adapter: flageval-openai
+    performance_adapter: vllm-bench-serve
+    prefix_caching:
+      non_performance: enabled
+      performance: disabled
+      disable_mechanism: --no-enable-prefix-caching
+  documents:
+    workflow: workflow.md
+    acceptance: acceptance.md
+    detailed_workflow: detailed-workflow.md
+    detailed_workflow_zh: detailed-workflow.zh-CN.md
+profile_hash_version: 2
+profile_sha256: 79515b8fbaecbed4c16e17b94607da0da521a69c4745d30ee9691d2e9d9fc72a

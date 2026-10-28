@@ -1,0 +1,9 @@
+# 100K整模型执行模式验收
+
+mx-101 / qwen3.8-flash；部署指纹7d11fb14052581da5757d4ef52b71eda288d65a91a4daf1668a7a10a23b800ef。相同已安装源码、BF16文本TP8、上下文100000、prefill6400、max_num_seqs32、prefix align、qwen3 parser。
+
+运行04-runs/model-eager-acceptance100k-20261024与model-graph-acceptance100k-20261024。10组/105token输出及token序列全部一致，生成token logprob最大绝对差0.0029179351404309273≤预定0.02；包含短问、8730token长前缀真实命中、前缀变化/隔离/再命中及流式重叠请求。没有进行全词表logits比较。
+
+显式FULL_AND_PIECEWISE已完成图捕获并实际重放FULL和PIECEWISE；大prefill超过capture尺寸使用已编译NONE分支。纯FULL同源码更高档尝试因GDN静态UNIFORM_BATCH支持被原生自动改为混合图。更高档尝试为50K且无qwen3 parser，未声称100K纯FULL实际运行；静态backend能力限制未随上下文改变。保留限制、处置和退出条件：只有原生backend提供完整支持且独立纯FULL整模验证通过，才切换更高档。
+
+当前技术验收通过，不代替正式GPQA或性能结论。冻结的server-verification-snapshot.log保留捕获、实际运行模式和重放证据。

@@ -1,0 +1,19 @@
+# 011：长推理精度并发与KV容量
+
+范围为mx-101 / qwen3.8-flash，已验证100K混合图；本项只调整评测客户端并发，不改产品源码或服务参数。
+
+首次正式尝试gpqa-full198-c8-100k-20261024实际暴露KV容量压力：graph可用167702token（满长约1.68x），并发8长推理逐渐填满缓存，产生23次抢占/重算，重算阶段吞吐约4token/s。短前缀并发探针不足以代表96000生成预算，故该轮未完成，不作为精度成绩。按启动身份优雅终止评测客户端，退出143；服务PID1526001及容器未停止。24条已完成响应完整备份于04-runs/gpqa-full198-c8-100k-20261024/responses-partial.sqlite，SHA256 dbdbf5cba13fcf92db2f4b7e7b52c4d3f09be6f70dbf35dcfd4aadd19a7d8136；termination-summary.json及原生日志/失败报告均保留。没有挑选或合并成绩。
+
+改用C2前运行两条各61038token真实长输入，全部返回56正确答案；实际客户端/服务并发峰值均2，探针236.12秒通过。证据04-runs/capacity-c2-long-20261024/capacity.json。C2仍不保证两题同时生成96000时绝无抢占（最大约1.2倍容量），后续独立记录本轮新增抢占及错误，不将服务累计计数误认作新轮计数。
+
+新的独立全量运行gpqa-full198-c2-100k-20261024，配置03-acceptance/gpqa-full198-c2-100k-20261024-config.json，SHA256 6d831a4d81837c44d89cebf620c846102e5a8d675290e35851b87d2be6e65b64。198题全部重新请求，缓存命中0；strict-match≥0.88、xhigh、96000生成预算、temperature1/top_p0.95/top_k20和零重试均不变。仅关闭已知不兼容的可选中途分数显示器，正式lm-eval与项目校验器未修改。逐请求HTTP超时在获得并发槽位后计时，不包含本地等待；timeout仍21600秒。
+
+C2监控器首次早于日志/owner创建启动，随后修正等待条件，保留失败监控记录，评测没有因此重启。当前控制目录04-runs/completion-control-c2-resume1-20261024；完整精度通过后才执行原定九场景性能测量，再验证最终脚本。性能场景1/8/32并发保持原计划，精度客户端C2不改变性能场景。
+
+在89条响应完成时发现1条生成达到96000 token、finish_reason=length、content=null。原生并发适配器将其转为`<TIMEOUT>`，按既定allow_timeouts=true保留在198题内并计错；不重试、不剔除。独立中途观察器不能解码缓存None，因此该次中途分数不可用，不影响原生完整评分；后续不据该观察器声称精度通过。证据位于本轮`null-answer-native-handling-1792855503922447692.json`，包含原生解析源码哈希、截断响应usage和原始缓存快照；89条缓存备份`responses-progress-1792855503922447692.sqlite`的SHA256为d1706cefc272e2b0e1cc781cb36215ff846abaa24979f6082376e76d5adcce1a。产品源码、正式评测器、当前请求与原缓存均未因此修改。
+
+2026-10-25核对原生evaluator.py后，修正尚未执行的阶段绑定辅助脚本：该版本每个过滤器各写198行，不能将JSONL总行数限定为198。现在要求唯一题号和strict记录均完整覆盖0–197，并校验strict逐题计分与汇总一致；timeout按唯一题目计数。396行/198题、缺题、缺strict、重复strict、非二值计分及语法校验通过，现有原生样本契约24项回归通过。仅修改未纳入活动journal冻结源码的外部绑定辅助脚本，备份保留；正式runner、冻结控制快照和请求未变。前后SHA256为0c5272fd6d38f6c873f9dd70fa70323dbe75311adb8b500bb6e6930b7f20c255 / c840547f8246b0f6af23365027dee511772831660136cd41468d1c99adb42a73，部署证据`03-acceptance/finalizer-filter-rows-deployment-20261025.json`。这项修正不表示完整精度已经通过。
+
+全量推理完成后，绑定脚本的read_text().splitlines()误将JSON字符串内的Unicode分隔符拆开，改为UTF-8文件逐行读取；原始JSONL没有损坏。同时确认该评测器evaluator.py第823–825行排除timeout样本的聚合，原生显示183/197=92.89%，不符合本次全198题分母。保留原始报告和396行原始逐题记录，额外强制核对198条strict、183条正确、15条错误（含1条timeout），完整指标183/198=92.42%≥88%，并要求至少175题正确；没有重评答案、剔除样本或重新推理。回归包含Unicode分隔符，以及174/197达到88%但174/198应失败的防误判样例。辅助脚本SHA256更新为201e47626d759633afa6ad6e29517dc8ede33693dcd63dc5ebe91d002f7befb3，部署证明`03-acceptance/finalizer-all198-deployment-20261025.json`；正式runner和冻结控制快照保持原样。
+
+完成恢复控制器为`04-runs/completion-control-c2-resume2-20261025/`，仅恢复结果绑定及既定后续步骤。`all198-criterion-verification.json`的SHA256为b94001a8b96dea0143f6e11e39d2be0ec8471097ce843c90b52595cb1a52c21c，原生accuracy回执ea7d7bd6a3248c59b1fd5698db5dcf5f5b59253b1eb7a527ba714dec4c23d4b2通过，原journal以198完成量验证通过。精度证据正文已冻结为b65de0922e27155a796efd30657c38f7a71d1486597d9075f5138b55de02804f，后续性能结果另行记录，不改写该正文。

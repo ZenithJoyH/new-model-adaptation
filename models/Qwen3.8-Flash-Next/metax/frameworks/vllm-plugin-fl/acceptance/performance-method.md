@@ -1,0 +1,17 @@
+# 性能测量方法与冻结输入
+
+用户选择仅测量报告，不判定业务达标。2026-10-25进一步明确取消eager端到端性能，仅测graph。BF16文本TP8、100K上下文，显式FULL_AND_PIECEWISE测九场景：1024/128、1024/1024、8192/1024输入/输出长度，分别客户端并发上限1/8/32；请求数4/16/64。每场景一次warmup及两次无profiler测量，共27轮。所有轮次均校验退出码、请求成功数、失败数、固定输出token数、指标及原始stdout/stderr/CSV摘要；不按结果选轮次。原eager部分产物保留，不再补跑或给出完整模式性能比；先前整模数值一致性结果继续有效。
+
+原生request完整指纹a732ab9ca8d8782a135f85d1bccf6069a074992e6289ea1ab1896d736d2957cf，冻结文件03-acceptance/performance-request-c2-20261024.json。性能前置绑定C2 full198正式精度回执及journal verified；性能服务显式--no-enable-prefix-caching，取证实际进程与监听端口；完成后恢复普通prefix-enabled graph。采集1Hz服务运行数/排队/KV/抢占及设备前后状态；并发数字表示客户端上限，不代表满上下文同时活跃数。
+
+预检确认现场vLLM以两位小数打印duration和Req/s，慢速完整工况可显示0.00。维护的perf_common仅对此增加严格舍入核验：成功数须等于冻结请求数，且N/(打印耗时−0.005)严格位于(0,0.005)。原始0.00/报告/CSV保留，不伪造另一个测量值；失败请求、token不足、非正耗时或其他非正吞吐仍拒绝；SGLang不使用此例外。40项本地mock回归通过，覆盖边界、失败、原始产物复核与紧凑回执导出；这不是现场性能通过证明。
+
+独立工具包03-acceptance/performance-tools-20261024，归档SHA256 8933c5fef9a427e4cf762ca3135fba38b5aa37d08194836850a025781f42b375，perf_common生产者SHA256 3a0a70a385f3a1fa9dedd487c2acc6da9eff7b5b11cba3502d23d8b546602545。原精度控制快照03-acceptance/control-20261024保持未变，当前精度journal上下文复核无异常。vLLM只读打印源码证据保存在performance-rounded-rate-cli-format-20261024.json。
+
+切换前后复核真实组件路径/版本、FlagTree两个二进制、各Git完整差异/新增集合、模型五个配置/tokenizer文件哈希和131分片索引/大小；分片内容哈希未宣称完成。性能数据生成后使用同一维护工具的validate_report及perf_acceptance导出测量回执；不填写虚假performance_targets，不标记framework performance passed或optimized。
+
+当前状态：完整精度已通过；旧eager客户端、控制器及服务已停止。graph九场景27轮完整测量和原生产物校验已完成，正常prefix-enabled最终脚本已实际启动验证通过。结果与包装层canonical修复见[性能报告](performance-graph-100k.md)，交付见[最终记录](adaptation-summary.md)。原生accuracy gate在切换时再次通过。停止服务工具首次因回执路径不在服务自身目录而拒绝，随后使用正确路径执行成功，未放宽身份/路径检查。
+
+本轮控制器为远端03-acceptance/complete-validation-graph-only-20261025.py，SHA256 4d26da42c6e37a5e33a20731058f884a7a759d77445636614f513163366196eb；状态、进程身份与范围变更在04-runs/completion-graph-only-20261025/。最终交付包装为03-acceptance/deliver-final-launcher-graph-only-20261025.py，SHA256 dae697f3370821c586e270ce361e4b836afb7615ed70f12cd218d9cecc40a985，只调整为核验完整graph报告。原九场景request及工具内容未变；原精度控制快照未改写。
+
+停止eager服务的已验证回执为04-runs/model-eager-performance100k-20261024/stop-user-graph-only-20261025.json，SHA256 4c0c743f835eb0157148f4e50add8ce0d87b9e624dbbab6ad28c4bb1504482b3。当前请求指纹保持a732ab9c，执行模式缩小单独记录于新控制器scope-change.json，不修改旧run冻结输入。
