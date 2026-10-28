@@ -48,6 +48,11 @@ python3 test/perf_test/vllm_perf.py \
 显式 failed requests 非零、关键指标缺失/重复/非有限/非法，均使 case 失败。
 失败 case 不生成 `SUMMARY` 或 `PROFILE_SUMMARY`，任一失败使 CLI 非零退出。
 缺失可选 peak throughput、failed requests 不伪造为 0；若出现非法值则拒绝。
+vLLM 的 duration 和 request throughput 打印两位小数；慢速完整工况可能显示 `0.00 req/s`。
+仅在成功请求数等于冻结请求数，且按打印耗时的最短可能值（耗时减0.005秒）计算的
+真实请求速率仍严格落在 `(0, 0.005)` 时，接受该舍入显示。原始输出、报告和CSV保留0；
+不将它改写成另一个测量值。请求失败、token不足、非正耗时及其他非正吞吐仍拒绝，
+此规则不适用于SGLang，也不代表通过任何业务性能目标。
 SGLang 的额外 E2EL 指标按其输出保留；未出现则不臆造，不将此适配器用于 AISBench。
 
 随机长度范围固定为 0.0，vLLM 显式固定请求 prefix 长度 0 并 ignore EOS，SGLang native

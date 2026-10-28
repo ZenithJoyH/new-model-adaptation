@@ -140,6 +140,26 @@ class PerformanceHardeningTests(unittest.TestCase):
                                       "Peak output token throughput (tok/s): invalid")
         self.assertTrue(perf.metric_errors(perf.extract_metrics(invalid), 128))
 
+    def test_vllm_rounded_zero_request_rate_requires_proven_slow_completion(self):
+        slow = dict(perf.extract_metrics(GOOD_OUTPUT), successful_requests=4,
+                    total_output_tokens=4096, benchmark_duration=2000.0,
+                    request_throughput=0.0)
+        self.assertEqual(perf.metric_errors(slow, 4, 4096), [])
+        # The reported zero is preserved; counts/duration prove a positive rate.
+        self.assertEqual(slow["request_throughput"], 0)
+        for duration, accepted in ((800.0, False), (800.01, True), (100.0, False),
+                                   (0, False), (-1, False), (float("inf"), False)):
+            with self.subTest(duration=duration):
+                errors = perf.metric_errors(dict(slow, benchmark_duration=duration), 4, 4096)
+                self.assertEqual(not errors, accepted)
+        for changes in ({"successful_requests": 3}, {"successful_requests": 0},
+                        {"successful_requests": None}, {"failed_requests": 1},
+                        {"total_output_tokens": 4095}, {"output_throughput": 0},
+                        {"total_token_throughput": 0}):
+            with self.subTest(changes=changes):
+                self.assertTrue(perf.metric_errors(dict(slow, **changes), 4, 4096))
+        self.assertTrue(perf.metric_errors(slow, 4, 4096, engine="sglang"))
+
     def test_scientific_notation_and_exact_success_label(self):
         output = GOOD_OUTPUT.replace("Benchmark duration (s): 10.0", "Benchmark duration (s): 1e1")
         self.assertEqual(perf.extract_metrics(output)["benchmark_duration"], 10.0)

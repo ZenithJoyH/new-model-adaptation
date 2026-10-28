@@ -93,6 +93,25 @@ class EntrypointTests(unittest.TestCase):
                     rows = list(csv.DictReader(stream))
                 self.assertFalse(any("SUMMARY" in row["Run"] for row in rows))
 
+    def test_slow_vllm_printed_zero_rate_round_trips_without_rewriting_stdout(self):
+        slow = (GOOD.replace("Benchmark duration (s): 10.0", "Benchmark duration (s): 2000.00")
+                    .replace("Request throughput (req/s): 0.4", "Request throughput (req/s): 0.00")
+                    .replace("Output token throughput (tok/s): 409.6", "Output token throughput (tok/s): 2.05")
+                    .replace("Total token throughput (tok/s): 2048.0", "Total token throughput (tok/s): 10.24"))
+        with tempfile.TemporaryDirectory() as directory:
+            rc, report, path, _ = self.run_entry(
+                "vllm_perf", directory, [subprocess.CompletedProcess([], 0, slow, "")] * 3)
+            self.assertEqual(rc, 0)
+            self.assertEqual(perf.validate_report(report, path), [])
+            case = report["cases"][0]
+            self.assertEqual(case["summary"]["Req/s"], 0)
+            self.assertEqual(case["summary"]["Benchmark Duration (s)"], 2000)
+            for run in case["runs"]:
+                self.assertEqual((path.parent / run["stdout"]["path"]).read_text(), slow)
+            tampered = copy.deepcopy(report)
+            tampered["cases"][0]["runs"][0]["metrics"]["benchmark_duration"] = 10
+            self.assertTrue(perf.validate_report(tampered, path))
+
     def test_timeout_and_missing_executable_are_recorded_failures(self):
         for failure in (FileNotFoundError("missing executable"),
                         subprocess.TimeoutExpired("benchmark", 1, output=b"partial output")):

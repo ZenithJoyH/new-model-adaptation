@@ -256,6 +256,19 @@ def extract_metrics(output_text, engine="vllm"):
     return result
 
 
+def _vllm_request_rate_rounds_to_zero(metrics, expected_requests, engine):
+    # vLLM prints duration and req/s with two decimal places. Use the
+    # shortest duration consistent with that printout, so a genuine zero or
+    # an ambiguous rounding boundary cannot pass as a completed slow run.
+    duration = metrics.get("benchmark_duration")
+    successful = metrics.get("successful_requests")
+    return (engine == "vllm" and type(expected_requests) is int and expected_requests > 0
+            and type(successful) in (int, float) and math.isfinite(successful)
+            and successful == expected_requests
+            and type(duration) in (int, float) and math.isfinite(duration)
+            and duration > 0.005 and 0 < expected_requests / (duration - 0.005) < 0.005)
+
+
 def metric_errors(metrics, expected_requests, expected_output_tokens=None, engine="vllm"):
     if not isinstance(metrics, dict):
         return ["metrics must be a mapping"]
@@ -268,6 +281,9 @@ def metric_errors(metrics, expected_requests, expected_output_tokens=None, engin
             errors.append(f"missing or nonfinite metric: {key}")
         elif value < 0 or (key in COUNT_METRICS and (value <= 0 or not float(value).is_integer())):
             errors.append(f"invalid metric: {key}={value}")
+        elif (key == "request_throughput" and value == 0
+              and _vllm_request_rate_rounds_to_zero(metrics, expected_requests, engine)):
+            continue
         elif key in {"benchmark_duration", "request_throughput", "output_throughput", "total_token_throughput"} and value <= 0:
             errors.append(f"metric must be positive: {key}")
     if metrics.get("successful_requests") != expected_requests:

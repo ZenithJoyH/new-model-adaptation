@@ -100,6 +100,27 @@ class PerformanceEvidenceTests(unittest.TestCase):
         self.assertLess(len(serialized), 12000)
         self.assertEqual(self.compact["source_report"]["sha256"], workflow.file_sha256(self.report_path))
 
+    def test_rounded_zero_rate_exports_with_counts_and_duration_intact(self):
+        slow = (GOOD_OUTPUT.replace("Successful requests: 128", "Successful requests: 4")
+                           .replace("Benchmark duration (s): 10.0", "Benchmark duration (s): 2000.00")
+                           .replace("Total input tokens: 524288", "Total input tokens: 16384")
+                           .replace("Total generated tokens: 131072", "Total generated tokens: 4096")
+                           .replace("Request throughput (req/s): 12.8", "Request throughput (req/s): 0.00")
+                           .replace("Output token throughput (tok/s): 13107.2", "Output token throughput (tok/s): 2.05")
+                           .replace("Total token throughput (tok/s): 65536.0", "Total token throughput (tok/s): 10.24"))
+        argv = BASE_ARGS[:-1] + ["4096,1024,1,4"]
+        output = self.root / "slow-benchmark"
+        with patch.object(perf_common.subprocess, "run", return_value=subprocess.CompletedProcess([], 0, slow, "")), \
+             patch("sys.stdout", io.StringIO()):
+            self.assertEqual(perf_common.main(argv + ["--output-dir", str(output)]), 0)
+        self.report_path = next(output.rglob("benchmark-result.json"))
+        self.report = json.loads(self.report_path.read_text())
+        compact = self.export()
+        self.assertEqual(compact["cases"][0]["summary"]["Req/s"], 0)
+        self.assertEqual(compact["cases"][0]["summary"]["Successful Requests"], 4)
+        self.assertEqual(compact["cases"][0]["summary"]["Benchmark Duration (s)"], 2000)
+        self.assertEqual(self.verify(compact), [])
+
     def test_local_gate_needs_no_raw_remote_files(self):
         remote_dir = self.report_path.parent
         remote_dir.rename(remote_dir.with_name(remote_dir.name + "-offline"))
