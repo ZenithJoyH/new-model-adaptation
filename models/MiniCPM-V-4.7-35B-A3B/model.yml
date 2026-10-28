@@ -1,0 +1,17 @@
+---
+name: MiniCPM-V-4.7-35B-A3B
+source:
+  modelscope_id: ''
+  huggingface_id: openbmb/MiniCPM-V-4.7
+  revision: local config SHA-256 3973e7ad0bd9f96887341cb134173118b0e445695014a73e736de48e9a9b5646; checkpoint index
+    SHA-256 9908f05c01616fdcce1a5f6b60e5cbfceb8f6bf908ca80552cb39954b6aa2a27; upstream revision not verified
+architecture: MiniCPMV4_7ForConditionalGeneration
+parameter_count: 35212875824 checkpoint parameters, including vision tower and lm_head
+active_parameter_count: 35B-A3B variant label; active parameter count not yet verified from execution
+estimated_weight_size_gb: 70.43
+remote_weight_path: /data/models/MiniCPM-V-4.7/weights/35b-a3b
+status: in_progress
+notes: 模型别名合并于 2026-10-12；参数量、BF16 大小和哈希来自 2026-09-28 H100-149 的本地 checkpoint 检查。NVIDIA Plugin、原生 vLLM 与 PPU 两框架保留独立记录；上游
+  revision、实际活跃参数量及各框架正式验收仍需按对应记录核实。
+aliases:
+- MiniCPM-V-4.7-35B

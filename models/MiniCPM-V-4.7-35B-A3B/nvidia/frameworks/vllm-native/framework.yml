@@ -1,0 +1,293 @@
+schema_version: 1
+model: MiniCPM-V-4.7-35B-A3B
+platform: nvidia
+framework: vllm-native
+profile: framework-profiles/vllm-native/profile.yml
+profile_version: 3
+status: blocked
+validated_hosts: []
+container_image: sha256:7f698705b6ed1805f16b26634e94c25f7369a8d043b777e610f7001f4d2899e4
+last_verified: '2026-10-01'
+blocker: '人工变更后待复核: architecture, environment, adaptation, execution-mode, sanity,
+  accuracy, performance, evidence, summary, acceptance, retrospective'
+target:
+  hosts:
+  - H100-149
+  container_name: MinicpmV4.7-35B-native
+workspace:
+  roots:
+  - host_alias: H100-149
+    host_root: /public/flagos/jinghao/MiniCPMV4.7-35B/native
+    container_root: /public/flagos/jinghao/MiniCPMV4.7-35B/native
+deployment:
+  fingerprint: 04853be964c0768e8af1937e8f3d2ae3ea63185f7723608ce2a61e9326808426
+acceptance_plan: {}
+workflow:
+  architecture:
+    status: not_started
+    evidence: ../../../architecture-and-inference.md
+    last_verified: null
+    blocker: '人工变更后待复核: 6c0ebedb27064f5d911da15350359196'
+    verification: {}
+  environment:
+    status: not_started
+    evidence: environment/README.md
+    last_verified: null
+    blocker: '人工变更后待复核: 6c0ebedb27064f5d911da15350359196'
+    verification: {}
+  adaptation:
+    status: not_started
+    evidence: adaptation/001-native-registration-and-moe.md
+    last_verified: null
+    blocker: '人工变更后待复核: 6c0ebedb27064f5d911da15350359196'
+    verification: {}
+  acceptance:
+    status: not_started
+    evidence: acceptance/command-scoped-pythonpath.md
+    last_verified: null
+    blocker: '人工变更后待复核: 6c0ebedb27064f5d911da15350359196'
+    verification: {}
+    records: {}
+    substeps:
+      execution-mode: not_started
+      sanity: not_started
+      accuracy: not_started
+      performance: not_started
+      evidence: not_started
+      summary: not_started
+  retrospective:
+    status: not_started
+    evidence: acceptance/README.md
+    last_verified: null
+    blocker: '人工变更后待复核: 6c0ebedb27064f5d911da15350359196'
+    verification: {}
+control:
+  mode: agent
+  history:
+  - id: 97fe994f2c3140cd84a265bf74291815
+    at: '2026-10-12T08:04:32.536164+00:00'
+    operation: handoff
+    actor: agent/local-record-maintenance
+    note: 用户要求按最新流程整理模型记录；仅进行本地目录和契约维护，不操作远端或重启任务。
+  - id: 6c0ebedb27064f5d911da15350359196
+    at: '2026-10-12T08:04:32.619134+00:00'
+    operation: upgrade
+    actor: agent/local-record-maintenance
+    note: 显式采用当前 v2 契约；旧状态与回执保留在 control.history 和本地完整快照，不据此声明新验收通过。
+    previous_contract:
+      evidence_contract: null
+      profile_version: 1
+      profile_snapshot: null
+      profile_sha256: null
+    revalidate:
+    - architecture
+    - environment
+    - adaptation
+    - execution-mode
+    - sanity
+    - accuracy
+    - performance
+    - evidence
+    - summary
+    - acceptance
+    - retrospective
+    previous_status: functional
+    retired_records:
+      architecture:
+        status: complete
+        evidence: ../../../architecture-and-inference.md
+        last_verified: '2026-09-28'
+        blocker: ''
+        verification:
+          run_id: architecture-native-tp2-20260928
+          last_verified: '2026-09-28'
+          evidence: ../../../architecture-and-inference.md
+          evidence_sha256: 7226a68b67b7752a52675a02100649a9eb94917e35ba25c3bf315cb11ccaf00c
+          context_sha256: cebe26f4269a50b5ff38e7c7cb68178757ac2549a50a6851721d91f4fb570a61
+      environment:
+        status: complete
+        evidence: environment/README.md
+        last_verified: '2026-10-01'
+        blocker: ''
+        verification:
+          run_id: environment-native-tp2-pythonpath-scope-20261001
+          last_verified: '2026-10-01'
+          evidence: environment/README.md
+          evidence_sha256: c787b61ff80fb0c66270e654cd4a969eaccf06e720f20f689dc04808041ebad4
+          context_sha256: 6ed2a136fc288f4bec2bb2cf9ea151553de9675fc3e41bad0d9ba7988d7fe1ee
+          receipts:
+          - host_alias: H100-149
+            path: 04-runs/framework-functional-pythonpath-scope-20261001/environment-check.json
+            sha256: 8f225c48ae8932860e5ab174b49ca2601dee2b27351cbde20981a40bf63c3a43
+      adaptation:
+        status: complete
+        evidence: adaptation/001-native-registration-and-moe.md
+        last_verified: '2026-10-01'
+        blocker: ''
+        verification:
+          run_id: adaptation-native-tp2-pythonpath-scope-20261001
+          last_verified: '2026-10-01'
+          evidence: adaptation/001-native-registration-and-moe.md
+          evidence_sha256: f3475333161e00b84328dc09306a3acc475f75bf85af121a35900850fa504381
+          context_sha256: 87132a34de02496b4fa33aae2e160db3e5729c96bd10a3cf149f4034ade9b5e9
+          receipts:
+          - host_alias: H100-149
+            path: 04-runs/framework-functional-pythonpath-scope-20261001/adaptation-check.json
+            sha256: 05c6676f847cc6ea67735453b359c0a93bc4efc155551cea30d1da32e34cfb8f
+      execution-mode:
+        status: passed
+        verification:
+          run_id: execution-mode-native-tp2-pythonpath-scope-20261001
+          last_verified: '2026-10-01'
+          evidence: acceptance/command-scoped-pythonpath.md
+          evidence_sha256: 830c0404e405e9e9d2acff5caba2126da1d6c5fb1998a245c700318ef817dccf
+          context_sha256: 2e425f167dddb9cf792713138ea6808515afa5183f00c8b4656ab2b1226b905b
+          service_instance_id: d4b68bdbb6e9:33319:8020
+          receipts:
+          - host_alias: H100-149
+            path: 04-runs/framework-functional-pythonpath-scope-20261001/execution-mode-check.json
+            sha256: 56d8b5127cb04b7f22cd08b33d9dc18609682a41a5e2c42e0500035f5654f929
+      sanity:
+        status: not_started
+        verification: {}
+      accuracy:
+        status: not_started
+        verification: {}
+      performance:
+        status: not_started
+        verification: {}
+      evidence:
+        status: not_started
+        verification: {}
+      summary:
+        status: not_started
+        verification: {}
+      acceptance:
+        status: in_progress
+        evidence: acceptance/command-scoped-pythonpath.md
+        last_verified: '2026-10-01'
+        blocker: 固定 GPQA sanity、正式精度与性能尚未请求；当前用户脚本日志位置和其他缓存路径未按最终 launcher 规范收敛。
+        verification: {}
+      retrospective:
+        status: not_started
+        evidence: acceptance/README.md
+        last_verified: null
+        blocker: ''
+        verification: {}
+  - id: a09076446c7443a399619155ac3fcfcc
+    at: '2026-10-12T08:04:32.707682+00:00'
+    operation: resume
+    actor: agent/local-record-maintenance
+    note: 本地契约整理完成；没有远端变更。未选择新的适配或评测，历史人工完成结论保持有效。
+    changes:
+    - none
+    observed_fields: []
+    changed_files: []
+  operator: agent/local-record-maintenance
+  note: 本地契约整理完成；没有远端变更。未选择新的适配或评测，历史人工完成结论保持有效。
+evidence_contract: 2
+profile_snapshot:
+  schema_version: 1
+  id: vllm-native
+  display_name: Native vLLM on NVIDIA
+  profile_version: 3
+  status: active
+  platforms:
+  - nvidia
+  components:
+  - role: inference_engine
+    name: vllm
+    required: true
+    mutation_policy: editable_product_code
+  - role: model_implementation
+    name: model configuration, processor and weights
+    required: true
+    mutation_policy: read_only
+  - role: platform_runtime
+    name: NVIDIA driver, CUDA and PyTorch
+    required: true
+    mutation_policy: read_only
+  source_policy:
+    default: read_only
+    writable_roles:
+    - inference_engine
+  execution_modes:
+    required:
+    - eager
+    - graph
+    acceptance_primary: graph
+    graph_policy:
+      preference_order:
+      - full
+      - full-and-piecewise
+      - decode-full
+      - piecewise
+      minimum: piecewise
+      level_checks:
+        full:
+        - full_graph
+        full-and-piecewise:
+        - full_and_piecewise_graph
+        decode-full:
+        - decode_full_graph
+        piecewise:
+        - piecewise_graph
+  service:
+    protocols:
+    - openai-chat
+    - openai-completions
+  acceptance:
+    steps:
+      execution-mode:
+        validator: checks
+        checks:
+        - eager
+        - graph
+        - model_inference
+      sanity:
+        validator: checks
+        checks:
+        - reference_consistency
+        - output_health
+        - performance_sanity
+      accuracy:
+        validator: flageval
+        checks:
+        - service_identity
+        - dataset_provenance
+      performance:
+        validator: vllm-performance
+        checks:
+        - service_identity
+        - accuracy_to_performance_transition
+      evidence:
+        validator: checks
+        checks:
+        - source_review
+        - vllm_revision_and_diff
+        - artifacts_complete
+      summary:
+        validator: checks
+        checks:
+        - launcher_syntax
+        - launcher_readiness
+        - launcher_minimal
+        - normal_cache_restored
+    accuracy_adapter: flageval-openai
+    performance_adapter: vllm-bench-serve
+    prefix_caching:
+      non_performance: enabled
+      performance: disabled
+      disable_mechanism: --no-enable-prefix-caching
+  documents:
+    workflow: workflow.md
+    acceptance: acceptance.md
+profile_sha256: e5d0e33cfcf9460d7c692c2f750d007c019f98becad7f5a6f70c4e6425e24036
+record_maintenance:
+  date: '2026-10-12'
+  scope: local-layout-and-contract-only
+  remote_verified: false
+  historical_snapshot: .local/adaptation-history/20261012-model-layout-080344/snapshot/models/MiniCPM-V-4.7-35B-A3B/nvidia/frameworks/vllm-native/framework.yml
+  previous_status: functional
+  project_completion_preserved: false
+  note: 当前阶段状态仅表示 v2 回执尚未重新建立；历史结果、失败与用户完成确认均保留。本次不安排远端复验。

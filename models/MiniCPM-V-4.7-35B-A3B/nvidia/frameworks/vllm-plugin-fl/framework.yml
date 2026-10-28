@@ -1,0 +1,292 @@
+schema_version: 1
+model: MiniCPM-V-4.7-35B-A3B
+platform: nvidia
+framework: vllm-plugin-fl
+profile: framework-profiles/vllm-plugin-fl/profile.yml
+profile_version: 7
+status: blocked
+validated_hosts: []
+container_image: sha256:36fe2dcc73d074f6a35e7111f5bc597d7830ae4ba44e0e436623cb71ad44ddeb
+last_verified: '2026-09-28'
+blocker: '人工变更后待复核: architecture, environment, adaptation, execution-mode, sanity,
+  accuracy, performance, evidence, summary, acceptance, retrospective'
+target:
+  hosts:
+  - H100-149
+  container_name: MinicpmV4.7-35B
+workspace:
+  roots:
+  - host_alias: H100-149
+    host_root: /public/flagos/jinghao/MiniCPMV4.7-35B/flagos
+    container_root: /public/flagos/jinghao/MiniCPMV4.7-35B/flagos
+deployment:
+  fingerprint: 9512802d2bbae8a972e02b1818019597b1417695f21db2e80d9c49b916bdb3f9
+acceptance_plan: {}
+workflow:
+  architecture:
+    status: not_started
+    evidence: ../../../architecture-and-inference.md
+    last_verified: null
+    blocker: '人工变更后待复核: 55acaebdb24c4d7b9492f5c098f8cce3'
+    verification: {}
+  environment:
+    status: not_started
+    evidence: environment/README.md
+    last_verified: null
+    blocker: '人工变更后待复核: 55acaebdb24c4d7b9492f5c098f8cce3'
+    verification: {}
+  adaptation:
+    status: not_started
+    evidence: adaptation/README.md
+    last_verified: null
+    blocker: '人工变更后待复核: 55acaebdb24c4d7b9492f5c098f8cce3'
+    verification: {}
+  acceptance:
+    status: not_started
+    evidence: acceptance/README.md
+    last_verified: null
+    blocker: '人工变更后待复核: 55acaebdb24c4d7b9492f5c098f8cce3'
+    verification: {}
+    records: {}
+    substeps:
+      execution-mode: not_started
+      sanity: not_started
+      accuracy: not_started
+      performance: not_started
+      evidence: not_started
+      summary: not_started
+  retrospective:
+    status: not_started
+    evidence: acceptance/README.md
+    last_verified: null
+    blocker: '人工变更后待复核: 55acaebdb24c4d7b9492f5c098f8cce3'
+    verification: {}
+control:
+  mode: agent
+  history:
+  - id: 6afb0d555c764132beca9a6eb1abc4a4
+    at: '2026-10-12T08:04:32.262387+00:00'
+    operation: handoff
+    actor: agent/local-record-maintenance
+    note: 用户要求按最新流程整理模型记录；仅进行本地目录和契约维护，不操作远端或重启任务。
+  - id: 55acaebdb24c4d7b9492f5c098f8cce3
+    at: '2026-10-12T08:04:32.346210+00:00'
+    operation: upgrade
+    actor: agent/local-record-maintenance
+    note: 显式采用当前 v2 契约；旧状态与回执保留在 control.history 和本地完整快照，不据此声明新验收通过。
+    previous_contract:
+      evidence_contract: null
+      profile_version: 4
+      profile_snapshot: null
+      profile_sha256: null
+    revalidate:
+    - architecture
+    - environment
+    - adaptation
+    - execution-mode
+    - sanity
+    - accuracy
+    - performance
+    - evidence
+    - summary
+    - acceptance
+    - retrospective
+    previous_status: environment_ready
+    retired_records:
+      architecture:
+        status: passed
+        evidence: ../../../architecture-and-inference.md
+        last_verified: '2026-09-28'
+        blocker: ''
+        verification:
+          run_id: arch-h100149-minicpm47-35b-20260928
+          last_verified: '2026-09-28'
+          evidence: ../../../architecture-and-inference.md
+          evidence_sha256: 4b3d11117fd6347b2e94021dfcb27236383d0760f1a978353091be820078d189
+          context_sha256: 279c62359ffc3fdcaf8c317e7d81910f24a8d8c7bb1c1d2b049ac14fd2643292
+      environment:
+        status: passed
+        evidence: environment/README.md
+        last_verified: '2026-09-28'
+        blocker: ''
+        verification:
+          run_id: env-h100149-minicpm47-35b-20260928
+          last_verified: '2026-09-28'
+          evidence: environment/README.md
+          evidence_sha256: cbbd6da67243c9797e35a89d9fac402960157cfd39d70bc4123270900934b19e
+          context_sha256: be00d37d1176312558b3c171b7ef84e4b199f887e315f7cb18189da3867076fe
+          receipts:
+          - host_alias: H100-149
+            path: 04-runs/env-h100149-minicpm47-35b-20260928/framework-check.json
+            sha256: 00102385594c58185ee822f5872e5af4db5f49bcd29b1b1bc34f2e37d6b42e7b
+      adaptation:
+        status: in_progress
+        evidence: adaptation/README.md
+        last_verified: '2026-10-01'
+        blocker: Current no-PYTHONPATH TP2 service is functionally verified at short
+          text/image length, but the user-edited launcher lacks resource guards and
+          approved cache/log placement; full mixed graph is blocked by GDN backend
+          and video/long-context/formal evidence remain open.
+        verification: {}
+      execution-mode:
+        status: not_started
+        verification: {}
+      sanity:
+        status: not_started
+        verification: {}
+      accuracy:
+        status: not_started
+        verification: {}
+      performance:
+        status: not_started
+        verification: {}
+      evidence:
+        status: not_started
+        verification: {}
+      summary:
+        status: not_started
+        verification: {}
+      acceptance:
+        status: not_started
+        evidence: acceptance/README.md
+        last_verified: null
+        blocker: ''
+        verification: {}
+      retrospective:
+        status: not_started
+        evidence: acceptance/README.md
+        last_verified: null
+        blocker: ''
+        verification: {}
+  - id: e5cdeb1d185f4d23bbda5f8d816c157d
+    at: '2026-10-12T08:04:32.437537+00:00'
+    operation: resume
+    actor: agent/local-record-maintenance
+    note: 本地契约整理完成；没有远端变更。未选择新的适配或评测，历史人工完成结论保持有效。
+    changes:
+    - none
+    observed_fields: []
+    changed_files: []
+  operator: agent/local-record-maintenance
+  note: 本地契约整理完成；没有远端变更。未选择新的适配或评测，历史人工完成结论保持有效。
+evidence_contract: 2
+profile_snapshot:
+  schema_version: 1
+  id: vllm-plugin-fl
+  display_name: vLLM + vllm-plugin-FL + FlagGems
+  profile_version: 7
+  status: active
+  platforms:
+  - nvidia
+  - ppu
+  - metax
+  - ascend
+  - mthreads
+  - hygon
+  components:
+  - role: inference_engine
+    name: vllm
+    required: true
+    mutation_policy: read_only
+  - role: platform_adapter
+    name: vllm-plugin-FL
+    required: true
+    mutation_policy: installed_product_code
+  - role: kernel_library
+    name: FlagGems
+    required: true
+    mutation_policy: installed_product_code
+  - role: vllm_kernel_library
+    name: FlagGems-vllm
+    required: false
+    mutation_policy: installed_product_code
+  source_policy:
+    default: read_only
+    writable_roles:
+    - platform_adapter
+    - kernel_library
+    - vllm_kernel_library
+  execution_modes:
+    required:
+    - eager
+    - graph
+    acceptance_primary: graph
+    graph_policy:
+      preference_order:
+      - full
+      - full-and-piecewise
+      - decode-full
+      - piecewise
+      minimum: piecewise
+      level_checks:
+        full:
+        - full_graph
+        full-and-piecewise:
+        - full_and_piecewise_graph
+        decode-full:
+        - decode_full_graph
+        piecewise:
+        - piecewise_graph
+  service:
+    protocols:
+    - openai-chat
+    - openai-completions
+  acceptance:
+    steps:
+      execution-mode:
+        validator: checks
+        checks:
+        - eager
+        - graph
+        - model_inference
+      sanity:
+        validator: checks
+        checks:
+        - reference_consistency
+        - output_health
+        - performance_sanity
+      accuracy:
+        validator: flageval
+        checks:
+        - service_identity
+        - dataset_provenance
+      performance:
+        validator: vllm-performance
+        checks:
+        - service_identity
+        - accuracy_to_performance_transition
+      evidence:
+        validator: checks
+        checks:
+        - source_review
+        - vllm_unchanged
+        - artifacts_complete
+      summary:
+        validator: checks
+        checks:
+        - launcher_syntax
+        - launcher_readiness
+        - launcher_minimal
+        - launcher_self_contained
+        - installed_component_imports
+        - normal_cache_restored
+    accuracy_adapter: flageval-openai
+    performance_adapter: vllm-bench-serve
+    prefix_caching:
+      non_performance: enabled
+      performance: disabled
+      disable_mechanism: --no-enable-prefix-caching
+  documents:
+    workflow: workflow.md
+    acceptance: acceptance.md
+    detailed_workflow: detailed-workflow.md
+    detailed_workflow_zh: detailed-workflow.zh-CN.md
+profile_sha256: a3795bad2fda5fe53c0e684f7b0d4c88acc78b268ebabad59123d6e3db3e650c
+record_maintenance:
+  date: '2026-10-12'
+  scope: local-layout-and-contract-only
+  remote_verified: false
+  historical_snapshot: .local/adaptation-history/20261012-model-layout-080344/snapshot/models/MiniCPM-V-4.7-35B/nvidia/frameworks/vllm-plugin-fl/framework.yml
+  previous_status: environment_ready
+  project_completion_preserved: false
+  note: 当前阶段状态仅表示 v2 回执尚未重新建立；历史结果、失败与用户完成确认均保留。本次不安排远端复验。

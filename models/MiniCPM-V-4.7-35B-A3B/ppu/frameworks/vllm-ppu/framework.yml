@@ -1,0 +1,272 @@
+schema_version: 1
+model: MiniCPM-V-4.7-35B-A3B
+platform: ppu
+framework: vllm-ppu
+profile: framework-profiles/vllm-ppu/profile.yml
+profile_version: 2
+status: blocked
+validated_hosts: []
+container_image: sha256:9168c1a258c5ef3d5a3d3dfdc6dfa32436c5765174d220c527980e0157bd2eca
+last_verified: '2026-10-08'
+blocker: '人工变更后待复核: architecture, environment, adaptation, execution-mode, sanity,
+  evidence, summary, acceptance, retrospective'
+target:
+  hosts:
+  - PPU-13
+  container_name: minicpmV4.7-ppu
+workspace:
+  roots:
+  - host_alias: PPU-13
+    host_root: /mnt/nfs/users/jinghao/MiniCPMV4.7-ppu
+    container_root: /mnt/nfs/users/jinghao/MiniCPMV4.7-ppu
+deployment:
+  fingerprint: a3795ef75fe1514fa2e919d1e06d31567c226151400c6c809fa8e394599ca6eb
+acceptance_plan: {}
+workflow:
+  architecture:
+    status: not_started
+    evidence: ../../../architecture-and-inference.md
+    last_verified: null
+    blocker: '人工变更后待复核: 7d470acb059c4309bd15c5da0eeaabc9'
+    verification: {}
+  environment:
+    status: not_started
+    evidence: environment/001-native-container.md
+    last_verified: null
+    blocker: '人工变更后待复核: 7d470acb059c4309bd15c5da0eeaabc9'
+    verification: {}
+  adaptation:
+    status: not_started
+    evidence: adaptation/001-native-47.md
+    last_verified: null
+    blocker: '人工变更后待复核: 7d470acb059c4309bd15c5da0eeaabc9'
+    verification: {}
+  acceptance:
+    status: not_started
+    evidence: acceptance/README.md
+    last_verified: null
+    blocker: '人工变更后待复核: 7d470acb059c4309bd15c5da0eeaabc9'
+    verification: {}
+    records: {}
+    substeps:
+      execution-mode: not_started
+      sanity: not_started
+      evidence: not_started
+      summary: not_started
+  retrospective:
+    status: not_started
+    evidence: acceptance/README.md
+    last_verified: null
+    blocker: '人工变更后待复核: 7d470acb059c4309bd15c5da0eeaabc9'
+    verification: {}
+control:
+  mode: agent
+  history:
+  - id: 6424e6133d9b498fb3b7c6177e6ece15
+    at: '2026-10-12T08:04:33.086197+00:00'
+    operation: handoff
+    actor: agent/local-record-maintenance
+    note: 用户要求按最新流程整理模型记录；仅进行本地目录和契约维护，不操作远端或重启任务。
+  - id: 7d470acb059c4309bd15c5da0eeaabc9
+    at: '2026-10-12T08:04:33.181674+00:00'
+    operation: upgrade
+    actor: agent/local-record-maintenance
+    note: 显式采用当前 v2 契约；旧状态与回执保留在 control.history 和本地完整快照，不据此声明新验收通过。
+    previous_contract:
+      evidence_contract: null
+      profile_version: 1
+      profile_snapshot: null
+      profile_sha256: null
+    revalidate:
+    - architecture
+    - environment
+    - adaptation
+    - execution-mode
+    - sanity
+    - evidence
+    - summary
+    - acceptance
+    - retrospective
+    previous_status: functional
+    retired_records:
+      architecture:
+        status: complete
+        evidence: ../../../architecture-and-inference.md
+        last_verified: '2026-10-08'
+        blocker: ''
+        verification:
+          run_id: native-ppu-architecture-reuse-20261008
+          last_verified: '2026-10-08'
+          evidence: ../../../architecture-and-inference.md
+          evidence_sha256: 7226a68b67b7752a52675a02100649a9eb94917e35ba25c3bf315cb11ccaf00c
+          context_sha256: d3d80a86b2d44442430b0757419c2ddc914433e5e52b781fff3538f1299e079a
+      environment:
+        status: complete
+        evidence: environment/001-native-container.md
+        last_verified: '2026-10-08'
+        blocker: ''
+        verification:
+          run_id: native-ppu-environment-20261008
+          last_verified: '2026-10-08'
+          evidence: environment/001-native-container.md
+          evidence_sha256: a788941d9fe5dc80d5068879e209eb50ca0206ca010a7a6217cf1523cea916d2
+          context_sha256: 140f0cc272d04cfe0c805d5a2709cf2510a6ffc6e05e3b1f8958f1b14eae98db
+          receipts:
+          - host_alias: PPU-13
+            path: 04-runs/bringup-20261008/environment-framework-check.json
+            sha256: 758d092ce8b9d54e69eaa5ddf9d8ede098c5438518416c0d35e1fa889dfaeb18
+      adaptation:
+        status: complete
+        evidence: adaptation/001-native-47.md
+        last_verified: '2026-10-08'
+        blocker: ''
+        verification:
+          run_id: native-ppu-adaptation-20261008
+          last_verified: '2026-10-08'
+          evidence: adaptation/001-native-47.md
+          evidence_sha256: 9ddc0e6496e872fca189bc56bc8d61f2ac0b2abcb193695981a537c9cf776219
+          context_sha256: 5715ebbfe596c32fa4eb35db5f181bf348862c11ba09938e666648ec074b0fce
+          receipts:
+          - host_alias: PPU-13
+            path: 04-runs/bringup-20261008/adaptation-framework-check.json
+            sha256: d619501508cca421c1c34c12288d0a08cf310c17efcb8bf3193c5c2ec3863199
+      execution-mode:
+        status: complete
+        verification:
+          run_id: native-ppu-execution-mode-20261008
+          last_verified: '2026-10-08'
+          evidence: acceptance/functional-20261008.md
+          evidence_sha256: 395d35b67c17f83972edbfa75ae56b91f2d11d97b6af72783b120478209153dd
+          context_sha256: 5848a2d86fef778911e91d4e053d1f740c1bf54903483671dc8d69900be8cac3
+          receipts:
+          - host_alias: PPU-13
+            path: 04-runs/bringup-20261008/execution-mode-framework-check.json
+            sha256: 1b42e74474b2d2ebd4275e34d0dcf35b3f68f3bd6fc93369ac38f8cecf233e7f
+      sanity:
+        status: not_started
+        verification: {}
+      evidence:
+        status: not_started
+        verification: {}
+      summary:
+        status: not_started
+        verification: {}
+      acceptance:
+        status: not_started
+        evidence: acceptance/README.md
+        last_verified: null
+        blocker: ''
+        verification: {}
+      retrospective:
+        status: not_started
+        evidence: acceptance/README.md
+        last_verified: null
+        blocker: ''
+        verification: {}
+  - id: 186df4f51ce94c18bc0019a690b6de9a
+    at: '2026-10-12T08:04:33.273856+00:00'
+    operation: resume
+    actor: agent/local-record-maintenance
+    note: 本地契约整理完成；没有远端变更。未选择新的适配或评测，历史人工完成结论保持有效。
+    changes:
+    - none
+    observed_fields: []
+    changed_files: []
+  operator: agent/local-record-maintenance
+  note: 本地契约整理完成；没有远端变更。未选择新的适配或评测，历史人工完成结论保持有效。
+evidence_contract: 2
+profile_snapshot:
+  schema_version: 1
+  id: vllm-ppu
+  display_name: T-Head native vLLM on PPU
+  profile_version: 2
+  status: experimental
+  platforms:
+  - ppu
+  components:
+  - role: inference_engine
+    name: T-Head vLLM
+    required: true
+    mutation_policy: installed_product_code
+  - role: model_implementation
+    name: model configuration, processor and weights
+    required: true
+    mutation_policy: read_only
+  - role: platform_runtime
+    name: T-Head driver, SDK, PyTorch and native kernels
+    required: true
+    mutation_policy: read_only
+  source_policy:
+    default: read_only
+    writable_roles:
+    - inference_engine
+  execution_modes:
+    required:
+    - eager
+    - graph
+    acceptance_primary: graph
+    graph_policy:
+      preference_order:
+      - full
+      - full-and-piecewise
+      - decode-full
+      - piecewise
+      minimum: piecewise
+      level_checks:
+        full:
+        - full_graph
+        full-and-piecewise:
+        - full_and_piecewise_graph
+        decode-full:
+        - decode_full_graph
+        piecewise:
+        - piecewise_graph
+  service:
+    protocols:
+    - openai-chat
+    - openai-completions
+  acceptance:
+    steps:
+      execution-mode:
+        validator: checks
+        checks:
+        - eager
+        - graph
+        - model_inference
+      sanity:
+        validator: checks
+        checks:
+        - reference_consistency
+        - output_health
+      evidence:
+        validator: checks
+        checks:
+        - source_review
+        - vllm_revision_and_diff
+        - artifacts_complete
+      summary:
+        validator: checks
+        checks:
+        - launcher_syntax
+        - launcher_readiness
+        - launcher_minimal
+        - normal_cache_restored
+        - limitations_recorded
+    accuracy_adapter: null
+    performance_adapter: null
+    prefix_caching:
+      non_performance: enabled
+      performance: disabled
+      disable_mechanism: --no-enable-prefix-caching
+  documents:
+    workflow: workflow.md
+    acceptance: acceptance.md
+profile_sha256: 460683921d64250dbc9c1db1f1edb3085beb8047220d86dfe9e1a36e53423192
+record_maintenance:
+  date: '2026-10-12'
+  scope: local-layout-and-contract-only
+  remote_verified: false
+  historical_snapshot: .local/adaptation-history/20261012-model-layout-080344/snapshot/models/MiniCPM-V-4.7-35B-A3B/ppu/frameworks/vllm-ppu/framework.yml
+  previous_status: functional
+  project_completion_preserved: false
+  note: 当前阶段状态仅表示 v2 回执尚未重新建立；历史结果、失败与用户完成确认均保留。本次不安排远端复验。
