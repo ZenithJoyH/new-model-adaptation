@@ -1,6 +1,7 @@
 # Plugin / FlagGems / FlagGems-vllm 修改设计审查与 PR 准备
 
 > 按仓库 `docs/plugin-contribution-policy.md` 审查真实代码；模板存在不代表审查通过。
+> 同时按 `docs/inference-plugin-development-v1.md` 的任务索引落实全部适用条款。
 > 此材料属于 environment/，不包含源码、补丁或临时脚本。产品代码留在对应组件的已核实安装源码。
 > 以下版本与 diff 信息逐个被改组件填写；未修改的组件明确注明，不为填表制造改动。
 
@@ -34,9 +35,22 @@
 
 - dtype/shape/layout/device、量化/cache、out/in-place/alias、边界输入契约：
 - lazy import、可选 SDK、初始化、spawn、幂等注册、缓存失效：
-- 新旧 backend 的实际命中证据及生产 fallback：
+- 新旧 backend 的实际命中、执行前能力选择及执行开始后错误传播证据（禁止换实现重试）：
 - 默认配置/公共行为是否变化、理由和影响：
 - workaround 的触发条件、最小作用域、性能代价、上游关联和移除条件：
+
+## 开发规范条款核对
+
+复用已有测试与问题证据；适用的【必须】未满足时不得标记规范审查通过，偏离【应该】须
+说明原因和验证方式。不适用项写明依据，不能用未验证代替不适用。
+
+| 条款编号 | 适用组件/场景或不适用依据 | 实现/测试证据 | 结果、缺口或 SHOULD 偏离理由 |
+|---|---|---|---|
+
+- A1/A3/D3：数值算子与 metadata 归属、公开 API/测试交付顺序、固定公开版本/SHA：
+- F1–F4/F6：真实分发、独立数值参考、改变输入的 capture/replay、当前环境与 CI 证据及未验证项：
+- F7/G1/G2：格式/lint/pre-commit、英文注释与日志、新模型/厂商 README 支持列表及可运行 example：
+- PR/CI 验证结果位置（目标 Plugin README/docs 不放一次性验收报告；本地适配记录按本仓库保留）：
 
 ## 回归矩阵与结果
 

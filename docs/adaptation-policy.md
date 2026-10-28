@@ -137,6 +137,15 @@ for independent invocation, draft handling and phase isolation.
 
 ## Framework implementation and PR quality
 
+- For vLLM/SGLang plugins, the supplied
+  [development standard v1](inference-plugin-development-v1.md) applies throughout
+  planning, implementation, testing and PR preparation. Read the overview, then
+  all task-indexed applicable clauses; record clause IDs, evidence, unmet MUSTs
+  and justified SHOULD deviations in the existing plan/review. New numerical
+  implementations belong to FlagGems or the framework-specific operator library
+  via public APIs; framework metadata remains framework-owned under A3. This
+  supersedes older guidance to add missing numerical Triton kernels in Plugin.
+  It does not authorize a new component, unsupported profile or remote operation.
 - Treat changes as maintainable contributions to a multi-model, multi-platform
   framework. Before editing, read the selected profile, its workflow and
   acceptance documents, and the target source tree's design, contribution and

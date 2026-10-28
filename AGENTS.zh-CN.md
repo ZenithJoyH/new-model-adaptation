@@ -19,6 +19,11 @@
 - 代码按正式 PR 的质量标准修改，只解决有证据的适配需求。动手前限定组件、文件/符号和
   测试范围；增删代码须有依据，不夹带无关重构，最终逐块审查 diff。`vllm-plugin-fl` 下
   Plugin、FlagGems、FlagGems-vllm 的每个被改组件均遵守[贡献标准](docs/plugin-contribution-policy.md)。
+- `vllm-plugin-FL`、`sglang-plugin-FL` 的整个适配和 PR 准备过程遵循用户提供的
+  [推理框架插件开发规范 v1](docs/inference-plugin-development-v1.md)。修改前阅读综述及任务
+  索引对应条款；适用的【必须】均为硬性要求，偏离【应该】须说明原因及验证方式。新增数值
+  kernel 归对应算子库，不放入 Plugin；按 A3 区分框架 metadata。以 PR 交付为目标准备改动，
+  但不扩大源码写入权限，也不自动提交或发布。
 - 最终服务脚本只保留必要启动指令与设置，删除非必要的缓存目录环境变量。服务验收前准备
   最小 `start-model.sh`，小批量、精度、性能和交付复用同一脚本；仅性能启动关闭前缀缓存，
   普通/精度启动保持开启。遵循[统一服务启动入口](docs/remote-operations.zh-CN.md#统一服务启动入口)。
@@ -45,7 +50,7 @@
 | 适配中涉及远端操作 | 首次远端操作前追加读取远程操作 Skill。 |
 | 精度或性能评测 | 追加读取[项目契约](docs/skills-project-contract.md)及其仓库内 Skill，明确选择操作。 |
 | 需要恢复记录的长任务 | 追加读取[执行记录](docs/agent-execution.md)。 |
-| 框架代码实现或 PR 审查 | 追加读取目标源码规范；`vllm-plugin-fl` 还需读取[Plugin 贡献标准](docs/plugin-contribution-policy.md)。 |
+| 框架代码实现或 PR 审查 | 追加读取目标源码规范；vLLM/SGLang 插件必读[开发规范 v1](docs/inference-plugin-development-v1.md)，`vllm-plugin-fl` 另读[Plugin 贡献标准](docs/plugin-contribution-policy.md)。 |
 
 远程 Skill 是按路径读取的项目内入口。用自然语言说明主机与操作即可使用，
 无需安装全局 Skill；纯本地任务不会自动启动远端检查。

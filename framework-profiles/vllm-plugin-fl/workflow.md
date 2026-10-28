@@ -3,6 +3,8 @@
 本 profile 继承仓库通用五阶段、安全、远端目录和证据规则，并补充以下强制要求：
 
 实施前必读 [详细流程](detailed-workflow.md)（[中文](detailed-workflow.zh-CN.md)）。
+全程遵循[推理框架插件开发规范 v1](../../docs/inference-plugin-development-v1.md)，
+按任务索引检查适用条款，并在已有计划和最终审查中记录条款与验证证据。
 任何产品代码增改删前，按[贡献标准](../../docs/plugin-contribution-policy.md#0-改前限定范围改中控制增删)
 在已有计划/问题中列明各组件的必要文件/符号、变更理由和测试，实施中核对增量 diff。
 不能因允许修改三个组件而同时修改三个组件；最终逐块审查所有被改组件的 diff。
@@ -19,8 +21,11 @@
    不扩大到 vLLM 或未声明组件。
 3. 模型语义和平台能力通过 Plugin 现有模型注册、OOT、dispatch、backend、量化、attention、
    worker 或 compilation 扩展点接入，不得临时直接调用绕过 Plugin 架构。
-4. FlagGems 已有兼容算子时补齐 Plugin dispatch/backend/注册或平台绑定。FlagGems 缺失兼容
-   实现时，在 Plugin 内新增 Triton 实现并通过相同 dispatch 接入，记录检索 revision 和缺失证据。
+4. FlagGems 已有兼容算子时补齐 Plugin dispatch/backend/注册或平台绑定。缺失兼容数值
+   实现时，通用算子归 FlagGems，vLLM 专用算子归 FlagGems-vllm；先交付算子公开 API 和
+   测试，再通过 Plugin dispatch 接入。记录检索 revision、缺失证据和公开依赖的固定版本/SHA。
+   仅修改已声明且核实可写的组件；不得将数值 kernel 临时放入 Plugin。A3 所述框架 metadata
+   处理仍归框架侧，不因采用 Triton 就迁入算子库。
 5. Triton 实现必须兼容 graph capture/replay，避免 capture 阶段主机同步、不支持的动态分配、
    依赖数据的主机控制流以及不稳定 shape 或地址，并单独覆盖 eager 与 graph 测试。
 6. 一次性诊断脚本留在远端 `02-issues/` 或 `05-tmp/`；Plugin 只接收必要产品代码和可维护测试。

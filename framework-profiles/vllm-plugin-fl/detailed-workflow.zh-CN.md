@@ -10,7 +10,8 @@
       plugin 路径及目标平台能力。在平台环境分析或对应编号适配问题中建立差距清单，
       逐项写明需要修改的 plugin 位置、算子来源、对 `eager`/`graph` 的影响、
       依赖、风险和计划验证方式。该文档属于适配准备上下文，不属于问题记录。
-      选型前阅读 `docs/plugin-contribution-policy.md` 和各目标组件当前的设计/贡献
+      选型前阅读[开发规范 v1](../../docs/inference-plugin-development-v1.md)的综述及适用条款、
+      `docs/plugin-contribution-policy.md` 和各目标组件当前的设计/贡献
       规范。说明职责归属、接口契约、替代方案、共享调用方、可选依赖、守卫、默认行为及
       有依据的代表性回归范围。
       修改前限定负责组件、文件/符号、计划增改删、必要性与测试。Plugin、FlagGems、
@@ -40,6 +41,8 @@
       普通安装没有 Git checkout 时，记录安装版本/文件身份和上游算子对比，允许直接修复
       当前安装组件。需要升级时，保留本地修复，按组件支持的安装流程更新同一环境；
       不得为满足同步要求另建 checkout，也不得使用导入路径覆盖。
+      交付时按 D3 将公开算子库依赖固定到版本或 commit SHA；为检索同步最新代码不代表
+      最终 PR 可以依赖浮动分支或私有实现。
    4. **接入 FlagGems 已有算子。** 对 plugin 尚未调用或不支持的每个算子，检查 plugin
       的 dispatch/backend 设计和同步后的 FlagGems revision。如果 FlagGems 已有兼容
       实现，应遵循 plugin 现有架构补齐 dispatch、backend、注册或平台绑定，不得以临时
@@ -47,7 +50,10 @@
       缺口或故障时，在 `adaptation/` 下对应的编号 Markdown 问题记录中写明 FlagGems
       符号、revision、plugin 入口、支持约束、解决方法和测试结果。
    5. **实现 FlagGems 缺失算子。** 如果同步后的 FlagGems revision 没有兼容实现，
-      则在 plugin 内新增 Triton 算子，并通过相同的 plugin dispatch 框架接入。Triton
+      通用数值算子在 FlagGems 实现，vLLM 专用数值契约在 FlagGems-vllm 实现；先交付
+      算子公开 API 和测试，再通过现有 plugin dispatch 接入。仅修改已声明且核实可写的
+      组件；缺少写入范围时报告阻塞，不得将数值 kernel 临时放入 Plugin。A3 所述框架
+      metadata 仍归框架侧，包括采用 Triton 的 metadata 实现。Triton
       实现必须兼容 `graph` capture/replay，而不能只支持 `eager`；应避免 capture 阶段
       的主机同步、不受支持的动态内存分配、依赖数据的主机控制流，以及不稳定的张量
       shape 或地址。补充数值、dtype、shape、layout、设备、边界条件和执行模式测试，

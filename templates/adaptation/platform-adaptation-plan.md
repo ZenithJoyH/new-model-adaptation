@@ -8,6 +8,7 @@
 - Plugin、FlagGems、适用时 FlagGems-vllm、只读 vLLM baseline：
 - 已阅读的各目标组件设计/dispatch/贡献规范和现有测试入口（路径与 revision）：
 - 设计与 PR 标准：仓库 `docs/plugin-contribution-policy.md`
+- 开发规范：`docs/inference-plugin-development-v1.md`；本任务适用条款及计划验证：
 
 ## 修改边界
 
@@ -29,8 +30,9 @@
 | ID | 模型组件/阶段 | Plugin 当前路径 | 平台能力 | 算子来源 | eager 影响 | graph 影响 | 修改计划 | 最小验证 | 状态 |
 |---|---|---|---|---|---|---|---|---|---|
 
-算子来源必须明确为：Plugin 已支持、FlagGems 兼容实现、Plugin 内新增 Triton 实现，
-或尚未确认。不能使用临时直接调用绕过 Plugin dispatch。
+算子来源必须明确为：既有支持路径、FlagGems/框架专用算子库的兼容公开 API、
+对应算子库新增数值实现，或尚未确认。按 A3 单列框架 metadata；数值 kernel 不得放入
+Plugin，不能使用临时直接调用绕过 Plugin dispatch。
 
 ## 设计选择与共享影响
 
@@ -59,6 +61,7 @@
 - fast-forward-only 同步命令：
 - 同步后 revision/status：
 - 算子检索范围和结果：
+- 新增算子公开 API/测试、Plugin 接入顺序及公开依赖固定版本/SHA：
 
 ## 运行配置
 

@@ -16,7 +16,9 @@ Applies only to this profile. Inherit the [common workflow](../../docs/model-ada
       changes, operator source, `eager` and `graph` impact, dependencies, risks,
       and planned verification for each item. This plan is preparation context,
       not an issue record.
-      Read `docs/plugin-contribution-policy.md` and each target component's
+      Read the overview and applicable clauses of
+      [development standard v1](../../docs/inference-plugin-development-v1.md),
+      `docs/plugin-contribution-policy.md` and each target component's
       current design/contribution guidance before choosing changes. Explain
       ownership, interface contracts, alternatives, shared callers, optional
       dependencies, guards, defaults and representative regression coverage.
@@ -67,6 +69,9 @@ Applies only to this profile. Inherit the [common workflow](../../docs/model-ada
       preserve local fixes and update the same installed environment through its
       supported installation process. Do not create a replacement checkout or
       use an import-path override to satisfy synchronization.
+      For delivery, pin public operator-library dependencies to a fixed version
+      or commit SHA under D3; synchronizing for discovery does not permit a
+      floating or private dependency in the resulting PR.
    4. **Integrate operators already available in FlagGems.** For each operator
       the plugin does not invoke or support, inspect the plugin's
       dispatch/backend design and the synchronized FlagGems revision. When
@@ -78,8 +83,13 @@ Applies only to this profile. Inherit the [common workflow](../../docs/model-ada
       supported constraints, solution, and results in the corresponding numbered
       Markdown issue record under `adaptation/`.
    5. **Implement operators missing from FlagGems.** When the synchronized FlagGems
-      revision has no compatible implementation, add a plugin-owned Triton
-      operator and connect it through the same plugin dispatch framework. The
+      revision has no compatible implementation, implement generic numerical
+      operators in FlagGems and vLLM-specific numerical contracts in
+      FlagGems-vllm. Deliver the public operator API and tests first, then
+      integrate through the existing plugin dispatch framework. Only modify
+      declared, verified writable components; report a scope blocker instead of
+      placing numerical kernels in the Plugin. Framework metadata remains on
+      the framework side under A3, including metadata implemented with Triton. The
       Triton implementation must support `graph` capture/replay, not only `eager`
       execution. Avoid capture-time host synchronization, unsupported dynamic
       allocation, data-dependent host control flow, and unstable tensor shapes or

@@ -24,6 +24,14 @@ agents; [AGENTS.zh-CN.md](AGENTS.zh-CN.md) is the human-readable Chinese version
   and deletions, exclude unrelated refactors, and review each final diff hunk.
   For Plugin, FlagGems and FlagGems-vllm under `vllm-plugin-fl`, apply the
   [contribution policy](docs/plugin-contribution-policy.md) to every changed component.
+- For `vllm-plugin-FL` and `sglang-plugin-FL` work, follow the supplied
+  [inference plugin development standard v1](docs/inference-plugin-development-v1.md)
+  throughout adaptation and PR preparation. Read its overview and task-indexed
+  clauses before edits; all applicable MUST clauses are binding, and departures
+  from SHOULD clauses need rationale and verification. New numerical kernels
+  belong in the appropriate operator library, not the Plugin; preserve the A3
+  distinction for framework metadata. Prepare changes for PR delivery without
+  broadening source permissions or automatically committing/publishing them.
 - Final service launchers contain only necessary startup commands/settings.
   Omit unnecessary cache-directory environment overrides. Prepare the minimal
   `start-model.sh` before service acceptance and reuse the same script for sanity,
@@ -61,7 +69,7 @@ Load unrelated workflows only if the user expands the task.
 | Adaptation involving remote work | Also read the remote operations Skill before the first remote action. |
 | Accuracy/performance evaluation | Also read [project contract](docs/skills-project-contract.md) and its repository-local Skill; select an explicit operation. |
 | Recoverable long-running execution | Also read [execution journal](docs/agent-execution.md). |
-| Framework implementation or PR review | Also read the target source guidance; for `vllm-plugin-fl`, [plugin contribution policy](docs/plugin-contribution-policy.md). |
+| Framework implementation or PR review | Also read the target source guidance; for vLLM/SGLang plugins, [development standard v1](docs/inference-plugin-development-v1.md); for `vllm-plugin-fl`, also [plugin contribution policy](docs/plugin-contribution-policy.md). |
 
 The remote Skill is a repository-local entry read by path. A natural-language
 request naming the hosts and intended operation is sufficient; no global Skill

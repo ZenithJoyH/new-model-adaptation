@@ -86,6 +86,12 @@ draft/不完整 profile 只允许模型分析和只读调查；experimental 允�
 
 ## 框架实现与 PR 质量
 
+- vLLM/SGLang 插件从计划、实现、测试到 PR 准备均遵循用户提供的
+  [开发规范 v1](inference-plugin-development-v1.md)。先读综述，再按任务索引读取全部适用条款；
+  在已有计划/审查中记录条款编号、证据、未满足的【必须】及偏离【应该】的理由。新增数值实现
+  放在 FlagGems 或框架专用算子库，通过公开 API 接入；框架 metadata 按 A3 保留在框架侧。
+  这取代旧的“缺失数值 Triton kernel 放 Plugin 内”要求，不授权新增可写组件、未支持 profile
+  或远端操作。
 - 将修改按多模型、多平台框架的可维护贡献来设计。修改前阅读选定 profile、其工作流与验收
   文档，以及目标 checkout 的设计、贡献和测试规范。选择 `vllm-plugin-fl` 时还必须遵守
   [Plugin 修改与 PR 标准](plugin-contribution-policy.md)。

@@ -17,7 +17,7 @@
 
 - Plugin 修改和接入路径：
 - FlagGems 算子及 revision：
-- Plugin 内新增 Triton 算子、约束和 graph 支持：
+- 算子库新增数值算子的实现位置、公开 API/revision、约束和 graph 支持：
 - vLLM 未修改证据：
 - 职责归属、复用的框架扩展点、共享模型/平台影响与实际回归范围：
 - 当前 HEAD / dirty diff 对应的设计审查结论：

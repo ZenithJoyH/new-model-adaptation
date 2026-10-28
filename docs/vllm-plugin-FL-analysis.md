@@ -17,7 +17,8 @@ vLLM 保持只读；FlagGems 同步遵循工作流，plugin 分支/版本调整�
 本报告中的文件位置和结论不得代替目标适配镜像中的实际检查结果。
 
 实际修改和最终 diff 审查同时遵守 [Plugin 修改与 PR 交付标准](plugin-contribution-policy.md)，
-其中明确多模型/多平台影响、职责归属、回归矩阵和 PR 准备要求。
+以及[推理框架插件开发规范 v1](inference-plugin-development-v1.md)。下文对历史源码的描述
+不构成新增代码的许可；后续改动以当前规范的职责归属、分发和交付要求为准。
 
 ## 2. 核心结论
 
@@ -40,8 +41,8 @@ vLLM 保持只读；FlagGems 同步遵循工作流，plugin 分支/版本调整�
 3. 缺少高层算子入口：通过 vLLM OOT operator 或工厂/注册接口把调用导入 plugin；
 4. plugin 已有入口但缺少实现：通过 `CachedOp → OpManager → OpRegistry` 接入 FlagGems、
    reference 和必要的 vendor backend；
-5. FlagGems 没有兼容实现：在 plugin 内实现兼容 eager 与 graph capture/replay 的 Triton
-   算子，再通过同一 dispatch 框架注册；
+5. FlagGems 没有兼容实现：在已获准的 FlagGems 或 FlagGems-vllm 中按职责实现数值算子，
+   覆盖 eager 与 graph capture/replay，通过公开 API 接入同一 dispatch；
 6. 只有确实无法通过现有扩展点解决时，才增加最小、幂等、可检测、可回退的 runtime
    patch；仍然禁止改写 vLLM 源文件。
 
@@ -207,8 +208,10 @@ epoch 清理缓存，并在进程 fork 后重置状态。
 7. 在平台 YAML 中设置明确的 `op_backends`、blacklist/whitelist；
 8. 增加 unit、functional、eager 和 graph capture/replay 测试。
 
-如果 FlagGems 缺失该算子，应把 Triton 实现放在 plugin 拥有的路径下并通过相同的
-`OpManager` 接入，不得从模型代码临时直接调用。FlagGems 算子异常或精度问题的最小复现
+如果 FlagGems 缺失该数值算子，应按 A1 在已获准的 FlagGems 或 FlagGems-vllm 中实现，
+先交付公开 API 和测试，再通过 `OpManager` 接入并固定公开依赖版本/SHA；不得在 Plugin
+复制 kernel 或从模型代码临时直接调用。A3 所述框架 metadata 不属此数值算子迁移范围。
+FlagGems 算子异常或精度问题的最小复现
 统一保存在工作根 `07-bugs/`，并通过已核实的容器对应路径原地执行；已有用例不再复制到
 `/bug`。算子缺失时保留检索证据。
 
@@ -366,7 +369,8 @@ smoke 目的，不得直接复制为本项目正式服务配置。
 1. 先关闭 FlagGems 或固定 reference/vendor，确认是模型层还是 operator 层问题；
 2. 再使用 strict policy、per-op policy、FlagGems whitelist 和 dispatch debug 缩小到具体算子；
 3. 对精度问题启用 I/O dump，比较第一处产生数值分歧的 layer/operator；
-4. 对异常 fallback，核对日志中最终命中的 `impl_id`；
+4. 核对最终命中的 `impl_id`；若历史路径在执行报错后换实现，按 B4 定位并修复当前涉及的
+   链路，验证错误向上传播，不能把换实现后的成功作为目标实现通过；
 5. 对 graph-only 问题，分别比较 warmup、capture 和 replay，不混为一次服务失败。
 
 ### 阶段 C：选择正确扩展点
@@ -378,7 +382,7 @@ smoke 目的，不得直接复制为本项目正式服务配置。
 | vLLM 高层层类需替换 | `ops/` 的 OOT class 或正式 registry | OOT whitelist/blacklist 与集成测试 |
 | FlagGems 已有算子但 plugin 未接入 | flaggems adapter + backend + register_ops | reference、policy、数值、graph 测试 |
 | FlagGems 算子报错或精度异常 | 工作根 `07-bugs/<issue>/` 最小复现及容器对应路径 | plugin 临时 policy、问题记录 |
-| FlagGems 缺少算子 | plugin-owned Triton + dispatch | eager/graph、dtype/shape/layout 测试 |
+| FlagGems 缺少数值算子 | 对应算子库公开 API + Plugin dispatch | eager/graph、dtype/shape/layout 测试 |
 | attention 类型或 metadata 不兼容 | attention backend/impl | prefill/decode/KV-cache/graph 测试 |
 | MoE routing 或 experts 不兼容 | `ops/fused_moe/`、quantization、dispatch | router/expert/combine/EP 测试 |
 | 平台实现差异 | `vendor/<platform>/` 和平台 YAML | 平台 CI、容差和 fallback 测试 |
@@ -402,6 +406,8 @@ smoke 目的，不得直接复制为本项目正式服务配置。
 
 默认 `strict: false` 能提高可用性，但可能把 FlagGems 异常静默转为 vendor/reference 路径。
 验收必须保存实际 op/impl 命中记录，并对目标实现做 strict 验证。
+这是上述历史 revision 的行为描述；执行开始后换实现不符合开发规范 B4，不能作为新代码
+的设计依据。当前任务涉及该路径时须按规范修正并测试错误传播。
 
 ### 11.3 精度错误不会自动 fallback
 
@@ -420,8 +426,9 @@ wrapper 也包含 NPU 路径，测试矩阵还混合了 eager/graph 用例。这
 Iluvatar 的 `patch_triton_chained_or_for_iluvatar()` 会定位并原地改写 vLLM 安装目录中的
 Triton 源文件，还会删除相应 `__pycache__`。参见
 [`iluvatar.py`](https://github.com/flagos-ai/vllm-plugin-FL/blob/ba52028ae1627f2d277138fc283ebc23b8087e12/vllm_fl/dispatch/backends/vendor/iluvatar/iluvatar.py#L67-L148)。
-这与本项目“不得修改 vLLM 源码”的规则冲突，后续适配不得复制该方式。应改为 plugin-owned
-kernel、import-time symbol wrapper、正式 dispatch/OOT 扩展，或升级不需要该改写的 Triton。
+这与本项目“不得修改 vLLM 源码”的规则冲突，后续适配不得复制该方式。应在授权范围内选择
+对应算子库公开 API、限定作用域的 symbol wrapper、正式 dispatch/OOT 扩展，或兼容的依赖
+升级；数值 kernel 归算子库，patch 仍须满足规范 C2/C3 的作用域、幂等与原子安装要求。
 
 ### 11.6 部分路径绕过统一 dispatch
 
