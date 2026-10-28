@@ -129,8 +129,12 @@ check is not a packaging pass. Commit/push still requires a user request.
 - Never commit weights, secrets, complete logs, or bulky raw benchmarks.
 
 After technical completion, the Agent invokes the
-[deployment guide Skill](../skills/adaptation-deployment-guide/SKILL.md) for the
-English local `acceptance/deployment-guide.md` before handoff. Its bundled template
+[image release and deployment Skill](../skills/adaptation-deployment-guide/SKILL.md) for the
+English local `acceptance/deployment-guide.md` before handoff. Use documentation-only
+mode unless the task already includes image release/deployment. When requested,
+the same Skill handles candidate validation, publication and fresh published-image
+deployment using the accepted launcher, without stopping the adaptation source
+container. Release status is separate from adaptation acceptance. Its bundled template
 includes weight-download instructions only; do not execute them. Follow the
 [completion handoff](model-adaptation-workflow.md#completion-handoff-english-deployment-guide)
 for independent invocation, draft handling and phase isolation.

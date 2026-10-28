@@ -137,8 +137,10 @@ require a relevant user request.
 After each adaptation completes its required acceptance and any selected
 retrospective, the Agent must invoke
 [adaptation-deployment-guide](../skills/adaptation-deployment-guide/SKILL.md)
-before the final handoff. This is a document task within completion, not a sixth
-phase or permission to run unselected phases. Write English
+before the final handoff. The Skill now also handles requested image release and
+deployment; default completion handoff remains documentation-only unless those
+operations are already in scope. This does not add a sixth adaptation phase or
+permission to run unselected phases. Write English
 `acceptance/deployment-guide.md` in the exact local framework workspace (or the
 existing legacy platform workspace), using only the template bundled in that Skill.
 The guide is user-facing; retain the internal adaptation summary separately.
@@ -146,8 +148,15 @@ Keep model-weight download instructions without performing downloads. Deployment
 startup, evaluation, packaging, release and license statements must reflect the
 available verified evidence; unresolved facts stay explicitly pending.
 
-The same Skill can be called independently to generate or refresh this document
-from existing records. It must not change workflow status or rerun missing tests.
+The same Skill can be called independently for documentation-only work, local
+packaging/validation, publication/deployment, or deployment of an existing image.
+Documentation-only work reads existing records without remote actions or tests.
+Release work follows the Skill's review, independent candidate, local validation,
+publication and published-image four-step deployment sequence within the selected
+scope. Preserve the running source container and accepted minimal `start-model.sh`;
+keep session management/readiness outside the script. Record candidate, publication,
+deployment and formal-service status separately. Release smoke checks do not
+replace formal accuracy/performance or authorize workflow status changes.
 Partial/experimental work can have an explicitly labeled draft, not a claim of
 complete acceptance. A missing or draft guide leaves documentation handoff
 incomplete without rewriting technical acceptance results. This is an Agent

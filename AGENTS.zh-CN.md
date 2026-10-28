@@ -44,7 +44,7 @@
 | 当前任务 | 必须读取的入口 |
 | --- | --- |
 | 本地文档、代码审查或控制工具维护 | 相关文件及其测试/契约；只有涉及下列范围时才追加对应规则。 |
-| 适配完成交付或单独生成部署文档 | [部署文档 Skill](skills/adaptation-deployment-guide/SKILL.md) 及其内置英文模板。 |
+| 镜像发布/部署、适配完成交付或单独生成部署文档 | [镜像发布与部署 Skill](skills/adaptation-deployment-guide/SKILL.md) 及其内置英文模板；执行前按请求选择操作。 |
 | 远端检查/变更，或 inventory、组变量、Ansible 入口、playbook 维护 | [远程操作 Skill](skills/remote-operations/SKILL.md) 及其引用细则；中文版为[远程操作细则](docs/remote-operations.zh-CN.md)。 |
 | 任一选定模型适配阶段 | [适配细则](docs/adaptation-policy.zh-CN.md)、所选 profile 的 workflow/acceptance 文档，再读[详细五阶段流程](docs/model-adaptation-workflow.zh-CN.md)。 |
 | 适配中涉及远端操作 | 首次远端操作前追加读取远程操作 Skill。 |
@@ -77,7 +77,9 @@
 - 验证后才能更新 `framework.yml`（历史记录为 `platform.yml`）。
   `./scripts/audit-workspace` 用于本地布局检查，warning 不能证明远端成功；
   使用旧版门禁前先读适配细则。
-- 每次适配完成后，调用仓库内[部署文档 Skill](skills/adaptation-deployment-guide/SKILL.md)，
-  在本地对应框架工作区生成英文 `acceptance/deployment-guide.md`。该 Skill 也可单独调用，
+- 每次适配完成后，调用仓库内[镜像发布与部署 Skill](skills/adaptation-deployment-guide/SKILL.md)，
+  在本地对应框架工作区生成英文 `acceptance/deployment-guide.md`。除非任务已要求镜像发布/部署，
+  默认只生成文档。同一 Skill 可按明确范围完成打包、推送及已发布镜像的部署验证；保留适配
+  源容器运行，复用已验收的最小 `start-model.sh`。该 Skill 也可单独调用，
   模板只在 Skill 内维护。保留模型权重下载章节作为使用说明，但不执行下载。
   该交付文档不替代验收证据，也不触发未选择的适配阶段。

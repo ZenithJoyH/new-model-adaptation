@@ -80,8 +80,10 @@ draft/不完整 profile 只允许模型分析和只读调查；experimental 允�
   才能标记 `optimized`。
 - 不得提交权重、密钥、完整日志或大型原始 benchmark。
 
-技术适配完成后、最终交付前，Agent 调用[部署文档 Skill](../skills/adaptation-deployment-guide/SKILL.md)
-生成本地英文 `acceptance/deployment-guide.md`。模板在 Skill 内维护，权重下载仅写使用说明，
+技术适配完成后、最终交付前，Agent 调用[镜像发布与部署 Skill](../skills/adaptation-deployment-guide/SKILL.md)
+生成本地英文 `acceptance/deployment-guide.md`。除非任务已包含镜像发布/部署，否则只生成文档。
+有明确请求时，同一 Skill 完成候选验证、推送及已发布镜像的全新容器部署，复用已验收启动
+脚本且不停止适配源容器；发布状态与技术适配验收分开记录。模板在 Skill 内维护，权重下载仅写使用说明，
 不执行下载。单独调用、草稿处理和阶段隔离见[完成交付](model-adaptation-workflow.zh-CN.md#完成交付英文部署文档)。
 
 ## 框架实现与 PR 质量

@@ -1,63 +1,60 @@
-# {{MODEL_NAME}} on {{PLATFORM}} — {{FRAMEWORK}} Deployment Guide
-
-> Documentation status: {{READY_OR_DRAFT_AND_LIMITATIONS}}
-> Adaptation scope: {{MODEL_WEIGHT_ID_PLATFORM_FRAMEWORK_AND_HOST_SCOPE}}
-> Evidence date: {{DATE}}. Image packaging / fresh-container validation: {{STATUS}}.
+---
+license: "{{VERIFIED_LICENSE_ID_OR_REMOVE_UNCONFIRMED_FIELD}}"
+language:
+- en
+---
 
 # Introduction
 
-## Integrated Deployment
+### Integrated Deployment
 
-{{VERIFIED_SUPPORTED_CAPABILITIES_IMAGE_AND_TESTED_LAUNCHER}}
+- {{VERIFIED_MODEL_PLATFORM_FRAMEWORK_AND_SUPPORTED_CAPABILITIES}}
+- {{PUBLISHED_IMAGE_AVAILABILITY_OR_EXPLICIT_UNPUBLISHED_STATUS}}
+- {{ACCEPTED_IMAGE_INTERNAL_LAUNCHER_AND_DEPLOYMENT_SCOPE}}
 
-## Validation Scope
+### Consistency Validation
 
-{{ACTUAL_ACCEPTANCE_SCOPE_EXECUTION_MODE_AND_UNTESTED_LIMITATIONS}}
+{{ACTUAL_ACCURACY_PERFORMANCE_AND_DEPLOYMENT_VALIDATION_SCOPE}}
+{{BRIEF_VERIFICATION_DATE_LIMITATIONS_AND_ACCEPTANCE_RECORD_LINK}}
 
 # Evaluation Results
 
-## Accuracy
+## Benchmark Result
 
-| Dataset / split | Metric | Minimum threshold | Observed result | Samples | Status |
-| --- | --- | --- | --- | --- | --- |
-| {{DATASET}} | {{METRIC}} | {{THRESHOLD}} | {{RESULT}} | {{SAMPLE_COUNT}} | {{STATUS}} |
+| Metrics | {{MODEL_NATIVE_BASELINE_LABEL}} | {{MODEL_PLATFORM_FLAGOS_LABEL}} |
+| --- | --- | --- |
+| {{DATASET_AND_METRIC}} | {{BASELINE_RESULT_OR_NOT_MEASURED}} | {{RESULT_WITH_SAMPLE_COUNT_AND_STATUS}} |
 
-{{EVALUATOR_VERSION_CONFIGURATION_DATE_AND_EVIDENCE_REFERENCE}}
-Prefix caching during service accuracy evaluation: enabled where supported.
+{{ACCURACY_THRESHOLD_EVALUATOR_CONFIGURATION_DATE_AND_EVIDENCE}}
 
-## Performance
-
-| Workload / input-output lengths | Concurrency | Metric | Value and unit | Baseline, if measured |
+| Workload / input-output lengths | Concurrency | Metric | {{NATIVE_BASELINE_LABEL}} | {{FLAGOS_LABEL}} |
 | --- | --- | --- | --- | --- |
-| {{WORKLOAD}} | {{CONCURRENCY}} | {{METRIC}} | {{VALUE_AND_UNIT}} | {{BASELINE_OR_NOT_MEASURED}} |
+| {{WORKLOAD}} | {{CONCURRENCY}} | {{METRIC_AND_UNIT}} | {{BASELINE_OR_NOT_MEASURED}} | {{MEASURED_RESULT_OR_NOT_MEASURED}} |
 
-{{GRAPH_MODE_TOPOLOGY_PRECISION_MEASUREMENT_CONDITIONS_AND_EVIDENCE_REFERENCE}}
-Prefix caching during service performance evaluation: disabled where supported.
-{{COMPARABILITY_LIMITATIONS_AND_UNMEASURED_ITEMS}}
+{{MEASURED_IMAGE_CODE_PRECISION_GRAPH_TOPOLOGY_AND_COMPARABILITY_LIMITS}}
+{{ACCURACY_PREFIX_CACHE_ENABLED_AND_PERFORMANCE_PREFIX_CACHE_DISABLED_WHERE_SUPPORTED}}
 
 # User Guide
 
-## Environment Setup
+Environment Setup
 
-| Item | Verified configuration / version |
+| Item | Version |
 | --- | --- |
-| Hardware and device count | {{HARDWARE}} |
-| Operating system | {{OS}} |
-| Container runtime | {{CONTAINER_RUNTIME}} |
-| Driver / accelerator runtime | {{DRIVER_RUNTIME}} |
-| Python / PyTorch / inference framework | {{FRAMEWORK_VERSIONS}} |
-| Used FlagOS components | {{COMPONENT_VERSIONS_OR_REVISIONS}} |
-| Model weights / tokenizer / precision | {{WEIGHT_AND_TOKENIZER_IDENTITY}} |
-| Required resources and topology | {{RESOURCE_REQUIREMENTS}} |
+| Docker Version | {{VERIFIED_DOCKER_VERSION}} |
+| Operating System | {{VERIFIED_OS_VERSION}} |
+| Accelerator / device count | {{VERIFIED_HARDWARE_AND_RESOURCES}} |
+| Driver / device runtime | {{VERIFIED_VERSIONS}} |
+| Python / framework / FlagOS components | {{VERIFIED_VERSIONS_OR_REVISIONS}} |
+
+{{REQUIRED_ACCESS_WEIGHTS_MOUNTS_PORTS_PERMISSIONS_AND_MULTI_NODE_TOPOLOGY}}
+{{PREREQUISITE_CHECK_COMMANDS_AND_PASSING_CONDITIONS_FOR_THE_DECLARED_TARGET}}
 
 ## Operation Steps
 
-The commands below are user instructions. Document generation does not execute
-downloads, installation, container startup, service startup or evaluation.
-
 ### Download FlagOS Image
 
-Image identity and availability: {{IMAGE_REFERENCE_DIGEST_AND_RELEASE_STATUS}}
+Execution: host, {{SHELL}}.
+Published image and verified digest: {{COMPLETE_REMOTE_REFERENCE_AND_DIGEST_OR_UNPUBLISHED}}.
 
 ```bash
 {{VERIFIED_IMAGE_PULL_COMMAND}}
@@ -65,64 +62,91 @@ Image identity and availability: {{IMAGE_REFERENCE_DIGEST_AND_RELEASE_STATUS}}
 
 ### Download Open-source Model Weights
 
-Source, revision, access conditions and license reference: {{VERIFIED_WEIGHT_SOURCE}}
-Checkpoint/quantization required by this deployment: {{EXACT_CHECKPOINT}}
+{{VERIFIED_SOURCE_REVISION_CHECKPOINT_LICENSE_AND_ACCESS_CONDITIONS}}
+These download instructions are for the reader; the release workflow does not execute them.
 
 ```bash
-{{VERIFIED_WEIGHT_DOWNLOAD_INSTRUCTIONS_FOR_THE_READER_ONLY}}
+{{VERIFIED_WEIGHT_DOWNLOAD_INSTRUCTIONS}}
 ```
 
-{{HOST_WEIGHT_LOCATION_AND_CONTAINER_MOUNT_CONTRACT}}
+{{HOST_WEIGHT_PATH_CONTAINER_READ_ONLY_PATH_AND_INTEGRITY_REQUIREMENTS}}
 
 ### Start the Container
 
-{{REQUIRED_DEVICES_MOUNTS_NETWORK_AND_PLATFORM_SPECIFIC_PREREQUISITES}}
+Execution: host, {{SHELL}}. {{VERIFIED_TARGET_AND_CONTAINER_ROLE}}
 
 ```bash
-{{VERIFIED_CONTAINER_LAUNCH_COMMAND}}
+{{SINGLE_COMPLETE_DOCKER_RUN_COMMAND_WITH_VERIFIED_DEVICES_MOUNTS_AND_PUBLISHED_IMAGE}}
 ```
+
+Enter the created container from the host:
+
+```bash
+{{VERIFIED_ENTER_CONTAINER_COMMAND}}
+```
+
+{{MULTI_NODE_ORDER_IF_APPLICABLE_AND_SESSION_INDEPENDENT_CONTAINER_LIFETIME}}
 
 ### Start the Server
 
-Use the tested launcher included at the documented container-internal path.
-Launcher SHA-256: {{LAUNCHER_SHA256}}.
+Execution: inside the created container, {{SHELL}}.
+Accepted launcher: {{IMAGE_INTERNAL_START_MODEL_SH_PATH}}; SHA-256: {{LAUNCHER_SHA256}}.
 
 ```bash
-{{VERIFIED_DEFAULT_LAUNCHER_INVOCATION}}
+{{VERIFIED_SESSION_INDEPENDENT_INVOCATION_OF_ACCEPTED_START_MODEL_SH_WITH_LOGGING}}
 ```
 
-Normal and accuracy startup keep prefix caching enabled. For a separately
-authorized performance run, use the same script with `--performance`, then return
-to its default invocation before further non-performance work. This switch does
-not run an evaluation or stop an existing service automatically.
+Readiness checks run outside the launcher:
 
-{{VERIFIED_PERFORMANCE_INVOCATION_OR_PROFILE_NOT_APPLICABLE}}
-{{IMAGE_INTERNAL_FILES_EXTERNAL_INPUTS_AND_PACKAGING_LIMITATIONS}}
+```bash
+{{VERIFIED_BOUNDED_READINESS_COMMANDS}}
+```
+
+{{LOG_LOCATION_TERMINAL_SWITCH_INSTRUCTIONS_AND_VERIFIED_SERVICE_LIFETIME}}
+Normal startup keeps prefix caching enabled where supported. Only a separately
+requested performance evaluation uses the same launcher with `--performance`.
 
 ## Service Invocation
 
-Endpoint, served model name and supported request types: {{VERIFIED_API_CONTRACT}}
-Example verification status: {{VERIFIED_OR_NOT_TESTED}}
+### Invocation Script
+
+Execution: {{HOST_OR_CONTAINER_AND_SHELL}}. {{VERIFIED_ENDPOINT_MODEL_AND_MODALITY}}
 
 ```bash
-{{MATCHING_CURL_OR_PROFILE_API_EXAMPLE_WITHOUT_CREDENTIALS}}
+{{COMPLETE_VERIFIED_CURL_OR_PROFILE_API_REQUEST}}
 ```
+
+{{EXPECTED_ANSWER_ACTUAL_RESULT_FINISH_REASON_AND_SESSION_RECONNECT_RESULT}}
+{{DEPLOYMENT_VERIFICATION_DATE_AND_CONCISE_ACCEPTANCE_RECORD_LINK}}
 
 # Technical Overview
 
-{{ONLY_USED_COMPONENTS_AND_THEIR_VERIFIED_ROLES}}
+{{CONCISE_DESCRIPTION_OF_THE_ACTUALLY_USED_FLAGOS_STACK}}
 
-# Known Limitations
+## FlagGems
 
-{{UNSUPPORTED_FEATURES_PENDING_CHECKS_AND_SCOPE_LIMITS}}
+{{VERIFIED_ROLE_AND_ACTIVATION_OR_NOT_USED}}
+{{OPTIONAL_OBSERVED_OPERATOR_COUNTS_LIST_AND_BLACKLIST_REASONS_WITH_DEFINED_SCOPE_AND_EVIDENCE}}
 
-# Evidence References
+## FlagTree
 
-{{CONCISE_ENVIRONMENT_ACCEPTANCE_LAUNCHER_AND_RESULT_REFERENCES}}
+{{VERIFIED_ROLE_AND_ACTIVATION_OR_NOT_USED}}
+
+## FlagScale and vllm-plugin-fl
+
+{{VERIFIED_FRAMEWORK_INTEGRATION_RENAME_THIS_HEADING_FOR_SGLANG_FL_OR_OTHER_ACTUAL_STACK}}
+
+## **FlagCX**
+
+{{VERIFIED_COMMUNICATION_COMPONENT_ROLE_OR_NOT_USED}}
+
+## **FlagEval Evaluation Framework**
+
+{{ACTUAL_EVALUATION_METHOD_DATASETS_AND_VERSION_OR_NOT_USED}}
 
 # Contributing
 
-{{VERIFIED_PROJECT_SUPPORT_OR_CONTRIBUTION_CHANNELS_OR_OMIT_SECTION}}
+{{VERIFIED_PROJECT_SUPPORT_CHANNELS_AND_CONTRIBUTION_LINKS}}
 
 # License
 
