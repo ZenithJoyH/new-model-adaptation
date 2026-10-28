@@ -1,40 +1,39 @@
----
 platform: metax
 inventory_group: metax
 accelerator_query: mx-smi
 status: not_started
 validated_hosts: []
-engine: ""
-engine_version: ""
-container_image: ""
+engine: ''
+engine_version: ''
+container_image: ''
 last_verified: null
-blocker: ""
+blocker: ''
 workflow:
   architecture:
     verification: {}
     status: not_started
     evidence: ../architecture-and-inference.md
     last_verified: null
-    blocker: ""
+    blocker: ''
   environment:
     verification: {}
     status: not_started
     evidence: environment/environment-analysis.md
     last_verified: null
-    blocker: ""
+    blocker: ''
   adaptation:
     verification: {}
     status: not_started
     evidence: adaptation/README.md
     last_verified: null
-    blocker: ""
+    blocker: ''
   acceptance:
     records: {}
     verification: {}
     status: not_started
     evidence: acceptance/adaptation-summary.md
     last_verified: null
-    blocker: ""
+    blocker: ''
     substeps:
       execution-mode: not_started
       sanity: not_started
@@ -47,4 +46,8 @@ workflow:
     status: not_started
     evidence: acceptance/adaptation-retrospective.md
     last_verified: null
-    blocker: ""
+    blocker: ''
+frameworks:
+  vllm-plugin-fl:
+    workspace: frameworks/vllm-plugin-fl/framework.yml
+    profile: framework-profiles/vllm-plugin-fl/profile.yml

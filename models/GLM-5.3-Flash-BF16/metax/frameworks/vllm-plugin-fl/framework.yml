@@ -1,0 +1,266 @@
+schema_version: 1
+model: GLM-5.3-Flash-BF16
+platform: metax
+framework: vllm-plugin-fl
+profile: framework-profiles/vllm-plugin-fl/profile.yml
+profile_version: 7
+status: functional
+validated_hosts:
+- mx-101
+- mx-102
+container_image: local/glm5.3-flash:mainline-20261027
+last_verified: '2026-10-28'
+blocker: 正式四并发sanity及双机现场绑定通过；GPQA198/88%运行中，性能测量及镜像验证待完成。
+control:
+  mode: agent
+  history: []
+target:
+  hosts:
+  - mx-101
+  - mx-102
+  container_name: glm5.3-flash
+workspace:
+  roots:
+  - host_alias: mx-101
+    host_root: /public-flash/jinghao/glm5.3-flash
+    container_root: /public-flash/jinghao/glm5.3-flash
+  - host_alias: mx-102
+    host_root: /public-flash/jinghao/glm5.3-flash
+    container_root: /public-flash/jinghao/glm5.3-flash
+deployment:
+  fingerprint: ed8b2a8a5ee91fcb8279b479db55661be9c5ed5c86cab249a1a49eb4df9728f7
+acceptance_plan:
+  execution:
+    max_abs_error: 0.05
+  sanity_manifest_sha256: d930cf9a5c95bc01942612c03758b4566a58561a92f84a95a1c4ab3e46d7b4f6
+  accuracy_config_sha256: cc1f6a7e92f735e302c7b509332a2b237c1b3b9d00cf6c91a59d954d6587d642
+workflow:
+  architecture:
+    status: passed
+    evidence: ../../../architecture-and-inference.md
+    last_verified: '2026-10-27'
+    blocker: ''
+    verification:
+      run_id: glm53-metax-architecture-20261027
+      last_verified: '2026-10-27'
+      evidence: ../../../architecture-and-inference.md
+      evidence_sha256: 68b621517e84e61ad904d38cc311c2740946cd9a1eb9028da46a6ffdee827baf
+      context_sha256: b19d6a1d7eb9ec86451b2a855e8625f17f587663824105b215e1474edd172b9f
+  environment:
+    status: passed
+    evidence: environment/environment-identity-final-v14.md
+    last_verified: '2026-10-28'
+    blocker: ''
+    verification:
+      run_id: glm53-metax-environment-final-v14-20261028
+      last_verified: '2026-10-28'
+      evidence: environment/environment-identity-final-v14.md
+      evidence_sha256: 8c19febc8badcb6bcdc8c5b384262d0dd4d8b676abad8bf7cc8540341ba5c21b
+      context_sha256: 94b8ff09fee8e0bf170acd70b11c5219a79a4253db17324518c37e57c2bd211e
+      receipts:
+      - host_alias: mx-101
+        path: 04-runs/glm53-metax-environment-final-v14-20261028/mx-101/framework-check.json
+        sha256: fd67a8b627a69e84c512d34be36b2cad15d2bcbe90dbc8ed72c0fba3b0f045d1
+      - host_alias: mx-102
+        path: 04-runs/glm53-metax-environment-final-v14-20261028/mx-102/framework-check.json
+        sha256: 130f81f4b4be24262cf5011706b104ea014ac4c149a27d164300ece7c14bc1aa
+  adaptation:
+    status: passed
+    evidence: adaptation/010-source-review.md
+    last_verified: '2026-10-28'
+    blocker: ''
+    verification:
+      run_id: glm53-metax-adaptation-final-v14-20261028
+      last_verified: '2026-10-28'
+      evidence: adaptation/010-source-review.md
+      evidence_sha256: 42879b4ca694314883d5e67b47718719b76e748d4e0fac1c4d77b713f28aba47
+      context_sha256: 61300d060a52fbb422ff1bb395cd536a17b82a6329ece1a7e8b0b572ab241376
+      receipts:
+      - path: 04-runs/glm53-metax-adaptation-final-v14-20261028/mx-101/framework-check.json
+        sha256: 9a18a36d577ad40baa56c65ed885e98d83ea59075afd0e2fde96ee9ed52b3e84
+        host_alias: mx-101
+      - path: 04-runs/glm53-metax-adaptation-final-v14-20261028/mx-102/framework-check.json
+        sha256: 1e031e03d3ecd0caa8e880f1eef643e32c8134ca8684b508804c5117e52c94fb
+        host_alias: mx-102
+  acceptance:
+    status: in_progress
+    evidence: acceptance/README.md
+    last_verified: null
+    blocker: ''
+    verification: {}
+    records:
+      execution-mode:
+        run_id: glm53-metax-execution-final-v14-20261028
+        last_verified: '2026-10-28'
+        evidence: acceptance/execution-mode-final-v14.md
+        evidence_sha256: 58fd96ec710b1683d05f4212cee41b20d25f8472bdfb05e8df86fe9251f1c5f7
+        context_sha256: d2451a10c28724ae536672a8012e1a79cfc6920b76d169e4a7bd9958f4d15d94
+        receipts:
+        - path: 04-runs/glm53-metax-execution-final-v14-20261028/mx-101/framework-check.json
+          sha256: bf9cb2960d926a5246f9f0ff6d8ddc116fafa534eebacc2ed20cb8630b3438d9
+          host_alias: mx-101
+        - path: 04-runs/glm53-metax-execution-final-v14-20261028/mx-102/framework-check.json
+          sha256: de6db9e75d8ac0acd5dbcd6d373bebf9185e3de0e40fccb55e430cf6ce2ec855
+          host_alias: mx-102
+      sanity:
+        run_id: glm-sanity-final-v14-20261028
+        last_verified: '2026-10-28'
+        evidence: acceptance/sanity-final-v14.md
+        evidence_sha256: e0faafcd332dccd9b3e6977924b856f2390c8149e6b1070e3b0cd8128d0d2921
+        context_sha256: e9256414592d900a873afe62cc68d5d1c6dd823a2191a1be5db5965ec6048286
+        receipts:
+        - path: /public-flash/jinghao/glm5.3-flash/04-runs/glm-sanity-final-v14-20261028/mx-101/framework-check.json
+          sha256: 9762dcd96f7e5c445b961e51601969dd44d847e27272c7760b9d084de3348449
+          host_alias: mx-101
+        - path: /public-flash/jinghao/glm5.3-flash/04-runs/glm-sanity-final-v14-20261028/mx-102/framework-check.json
+          sha256: eb0787189bc07bf24075a04c8d03b4ffd98d2d8f5147ba3aea784e23c0d8f233
+          host_alias: mx-102
+    substeps:
+      execution-mode: passed
+      sanity: passed
+      accuracy: in_progress
+      performance: not_started
+      evidence: not_started
+      summary: not_started
+  retrospective:
+    status: not_started
+    evidence: acceptance/README.md
+    last_verified: null
+    blocker: ''
+    verification: {}
+evidence_contract: 2
+profile_snapshot:
+  schema_version: 1
+  id: vllm-plugin-fl
+  display_name: vLLM + vllm-plugin-FL + FlagGems
+  profile_version: 7
+  status: active
+  platforms:
+  - nvidia
+  - ppu
+  - metax
+  - ascend
+  - mthreads
+  - hygon
+  components:
+  - role: inference_engine
+    name: vllm
+    required: true
+    mutation_policy: read_only
+  - role: platform_adapter
+    name: vllm-plugin-FL
+    required: true
+    mutation_policy: installed_product_code
+  - role: kernel_library
+    name: FlagGems
+    required: true
+    mutation_policy: installed_product_code
+  - role: vllm_kernel_library
+    name: FlagGems-vllm
+    required: false
+    mutation_policy: installed_product_code
+  source_policy:
+    default: read_only
+    writable_roles:
+    - platform_adapter
+    - kernel_library
+    - vllm_kernel_library
+  execution_modes:
+    required:
+    - eager
+    - graph
+    acceptance_primary: graph
+    graph_policy:
+      preference_order:
+      - full
+      - full-and-piecewise
+      - decode-full
+      - piecewise
+      minimum: piecewise
+      level_checks:
+        full:
+        - full_graph
+        full-and-piecewise:
+        - full_and_piecewise_graph
+        decode-full:
+        - decode_full_graph
+        piecewise:
+        - piecewise_graph
+  service:
+    protocols:
+    - openai-chat
+    - openai-completions
+  acceptance:
+    steps:
+      execution-mode:
+        validator: checks
+        checks:
+        - eager
+        - graph
+        - model_inference
+      sanity:
+        validator: checks
+        checks:
+        - reference_consistency
+        - output_health
+        - performance_sanity
+      accuracy:
+        validator: flageval
+        checks:
+        - service_identity
+        - dataset_provenance
+      performance:
+        validator: vllm-performance
+        checks:
+        - service_identity
+        - accuracy_to_performance_transition
+      evidence:
+        validator: checks
+        checks:
+        - source_review
+        - vllm_unchanged
+        - artifacts_complete
+      summary:
+        validator: checks
+        checks:
+        - launcher_syntax
+        - launcher_readiness
+        - launcher_minimal
+        - launcher_self_contained
+        - installed_component_imports
+        - normal_cache_restored
+    accuracy_adapter: flageval-openai
+    performance_adapter: vllm-bench-serve
+    prefix_caching:
+      non_performance: enabled
+      performance: disabled
+      disable_mechanism: --no-enable-prefix-caching
+  documents:
+    workflow: workflow.md
+    acceptance: acceptance.md
+    detailed_workflow: detailed-workflow.md
+    detailed_workflow_zh: detailed-workflow.zh-CN.md
+profile_hash_version: 2
+profile_sha256: 79515b8fbaecbed4c16e17b94607da0da521a69c4745d30ee9691d2e9d9fc72a
+task_results:
+  user_selected_scope: complete
+  accuracy_operation: formal-full
+  accuracy_dataset: gpqa_diamond_generative_cot
+  accuracy_expected_samples: 198
+  accuracy_minimum: 0.88
+  performance_operation: full-suite
+  performance_targets_status: not_frozen
+  formal_acceptance_claimed: false
+  container_mapping_verified_hosts:
+  - mx-101
+  - mx-102
+  pending_container_hosts: []
+  container_ids:
+    mx-101: d73d1bc917e3651b04b965c02c495c46096873280997f8de9870abd13e15172f
+    mx-102: cdf5ee8ab707acc5f7d1ab7285aad4ae43cd655d314d6dca6fb36045ee1769a6
+  current_bringup_run: glm-api-graph-final-v13-20261028
+  current_source_manifest: 01-environment/glm-model-integration-source-manifest-v13.json
+  dependency_publication_exception: User authorized public base SHAs plus complete
+    frozen patches/file hashes and validated image; publication deferred, no commit/push.
+  current_accuracy_run: glm-gpqa-final-v14-20261028
+  current_full_source_manifest: 03-acceptance/delivery-v14/source-manifest.json

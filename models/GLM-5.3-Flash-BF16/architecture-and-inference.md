@@ -1,5 +1,51 @@
 # GLM-5.3-Flash-BF16 模型结构与推理链路分析
 
+## 2026-10-27 MetaX 双机复核
+
+本次范围为 `mx-101`、`mx-102`，目标权重为两机共享 NFS 的
+`/public-flash/models/GLM-5.3-Flash-BF16`。现场配置与索引 SHA-256 分别为
+`33e63ec7fe607658be712bd6dd3c16c6549960d8e7f0483d34b939881b55f943`、
+`e6007bd58fb7e07f9fe69544257ee2713f252ef5855bbf685b48c991d524ef0f`，
+与下述历史 BF16 快照一致；120 个分片完整，索引权重大小为 642646653816 bytes
+（约 598.5 GiB）。两机各有 8 张 64 GiB C550；仅权重就超过单机总显存，需双机布局。
+16 卡平均权重约 37.4 GiB/卡只是容量估算，不能代替加载、通信、状态缓存与图模式验证。
+
+本次安装基线 Plugin 主线 `4e23ae8f` 尚无 `glm5_next` 模型目录或其注册入口；已有
+`GlmMoeDsa` 接入不等于支持本模型。FlagGems-vllm `ddce1d66` 已包含 KDA、KPool、mHC
+及 GLM 数值测试，须逐项核对参数/缓存/状态契约及 MetaX 实现后复用。现有 HY4 路径也
+只能作为可复用接口的候选，不能把该模型当作 HY4 的改名版本。
+
+本次初始上下文按配置最大值 1048576 和流程约束取 50000，后续以真实加载和验证结果
+确定并行布局。eager/graph、多模态、MTP、正式精度及性能均未在本次 MetaX 范围内验收。
+以下 2026-09 的实现、路径和运行结论属于 PPU 历史，不作为本次通过证据；本次进展见
+[MetaX framework 工作区](metax/frameworks/vllm-plugin-fl/README.md)。
+
+### MetaX模型编排与组件验证（2026-10-27）
+
+本次双机采用TP8/PP2进入加载，真实worker rank为PP0/PP1各8卡；每rank KDA和MLA
+各8个head。KDA conv按实际SD/DS缓存方向形成 `[slots,3×8×128,3]` 的逻辑view；
+recurrent state为dense HVK、FP32 `[slots,8,128,128]`，允许slot间page padding。
+混合batch的decode先用自身slot/CU走recurrent，prefill再用框架已有prefill_*与64-token
+chunk metadata走bounded-gate scan，不把只覆盖prefill的chunk索引用到decode。
+
+Indexer保留模型32×128投影与KPool4；当前库公共协议为FP8 E4M3值及FP32 scale的132字节
+slot，压缩页32/64条，尾部为独立BF16 K/score ring。Q和压缩K在相同Hadamard基底，
+Q逐头scale恰好折入weights一次，prefill gather读取真实scale。池top-k通过现有融合
+`expand_pools_and_append_tail` 还原token级候选并加入因果尾部。主MLA缓存仍BF16，
+压缩Q/K宽512；head8由正式vendor adapter补至64，复用既有稀疏数学kernel，输出裁回8头。
+MetaX资源候选按64KiB共享内存选16×16/stage1，未据此宣称性能最优。
+
+mHC在每层保留4路残差；PP边界先完成出站层post mix，再将 `[T,4,4096]` flatten为
+16384宽的一个IntermediateTensor，下一stage恢复4路后进入其首层pre。此协议避免丢弃
+post/comb；已用实际mHC运算对三种切分与完整执行进行数值/变输入graph对照。
+
+实际Plugin通过惰性registry接入conditional/text配置和模型，视觉权重/processor保留，
+没有将checkpoint改成纯文本架构。两机各28项组合回归包含配置、非目标选择隔离、
+packed KDA、PP mHC、主KV/sparse adapter及已有Qwen注册；此前库级算子对照另见对应问题。
+它们是组件/编排证据，不是整模服务验收。图像/视频整模和MTP尚未验证；当前GLM bounded
+KDA对spec metadata显式拒绝，不以未实现的state路由静默运行。完整eager/graph、GPQA198
+及性能结论须以MetaX工作区后续原生证据为准。
+
 ## 2026-09-06 当前快照复核
 
 此前文档中的“当前插件不含 GLM 文件”已经被后续适配事实取代，不能继续作为 architecture
