@@ -23,13 +23,15 @@ def producer(report):
 def service_binding(reader, binding, report, cfg, host):
     from service_observation import validate_identity
     require(isinstance(binding, dict), "缺少原生 service_binding")
+    distributed = binding.get("distributed")
+    coordinator = binding.get("host_alias") if distributed is not None else host
     for key, expected in (("service_instance_id", report.get("service_instance_id")),
                           ("deployment_fingerprint", cfg["deployment"]["fingerprint"]),
-                          ("host_alias", host)):
+                          ("host_alias", coordinator)):
         require(isinstance(expected, str) and bool(expected) and binding.get(key) == expected,
                 "原生服务绑定不匹配: " + key)
     observed = reader.json(binding["observation"])
-    require(observed.get("run_id") == report["run_id"] and observed.get("host_alias") == host,
+    require(observed.get("run_id") == report["run_id"] and observed.get("host_alias") == coordinator,
             "服务 observation 不属于本轮 run/Host")
     require(observed.get("status") == "verified" and
             observed.get("service_instance_id") == binding["service_instance_id"],
@@ -47,6 +49,124 @@ def service_binding(reader, binding, report, cfg, host):
             "当前 observation 仅证明共享 host-network 的 IPv4 localhost 服务，不能绑定其他主机")
     require(observed.get("listening_port") == (endpoint.port or (443 if endpoint.scheme == "https" else 80)),
             "服务 observation 监听端口与请求不匹配")
+    if distributed is not None:
+        pipeline_participants(reader, binding, observed, report, cfg, host)
+
+
+def pipeline_participants(reader, binding, api_observation, report, cfg, host):
+    """Bind one observed API to all live headless pipeline participants.
+
+    These are cooperative observations, not signed attestations. A specialized
+    collector must verify /proc identities, ancestry and socket ownership on
+    each host; reciprocal connection tuples prevent relabelling one API as two.
+    """
+    import hashlib
+    import ipaddress
+    from service_observation import validate_identity
+
+    distributed = binding["distributed"]
+    require(isinstance(distributed, dict) and distributed.get("kind") == "pipeline_parallel",
+            "unsupported distributed service binding")
+    hosts = cfg["target"]["hosts"]
+    coordinator = binding["host_alias"]
+    require(len(hosts) > 1 and host in hosts and coordinator in hosts,
+            "pipeline binding requires the exact target hosts")
+    refs = distributed.get("participants")
+    require(isinstance(refs, list) and len(refs) == len(hosts)
+            and all(isinstance(r, dict) for r in refs)
+            and {r.get("host_alias") for r in refs} == set(hosts),
+            "pipeline participants must cover every target host exactly once")
+    records, launches = {}, {}
+    for ref in refs:
+        alias = ref["host_alias"]
+        observed = reader.json(ref["observation"])
+        require(observed.get("kind") == "pipeline_process_observation"
+                and observed.get("schema_version") == 1 and observed.get("status") == "verified",
+                "missing verified pipeline process observation")
+        for key, expected in (("host_alias", alias), ("run_id", report["run_id"]),
+                              ("service_instance_id", binding["service_instance_id"]),
+                              ("deployment_fingerprint", cfg["deployment"]["fingerprint"]),
+                              ("coordinator_nonce", api_observation["nonce"])):
+            require(observed.get(key) == expected, "pipeline observation mismatch: " + key)
+        require(isinstance(observed.get("nonce"), str)
+                and re.fullmatch(r"[a-f0-9]{64}", observed["nonce"]), "pipeline challenge missing")
+        identity = observed.get("process_identity")
+        validate_identity(identity)
+        require(identity == ref.get("process_identity"), "pipeline process identity changed")
+        pid = observed.get("pid")
+        require(type(pid) is int and pid > 0, "pipeline PID missing")
+        processes = observed.get("processes")
+        require(isinstance(processes, list) and processes
+                and all(isinstance(p, dict) and type(p.get("pid")) is int for p in processes),
+                "pipeline owned process tree missing")
+        tree = {p["pid"]: p for p in processes}
+        require(len(tree) == len(processes) and pid in tree, "pipeline process tree is duplicated/incomplete")
+        for process in processes:
+            require(type(process.get("start_ticks")) is int and process["start_ticks"] > 0
+                    and isinstance(process.get("cmdline_sha256"), str)
+                    and re.fullmatch(r"[a-f0-9]{64}", process["cmdline_sha256"]),
+                    "pipeline child process identity missing")
+            current, visited = process["pid"], set()
+            while current != pid:
+                require(current in tree and current not in visited, "pipeline socket owner is outside task tree")
+                visited.add(current)
+                current = tree[current].get("ppid")
+        require(all(tree[pid].get(k) == identity[k] for k in ("start_ticks", "cmdline_sha256")),
+                "pipeline root process changed")
+        argv = observed.get("argv")
+        require(isinstance(argv, list) and argv and all(isinstance(a, str) for a in argv),
+                "pipeline command missing")
+        require(hashlib.sha256(b"\0".join(a.encode() for a in argv) + b"\0").hexdigest()
+                == identity["cmdline_sha256"], "pipeline command hash mismatch")
+        def option(name):
+            require(argv.count(name) == 1 and argv.index(name) + 1 < len(argv),
+                    "pipeline command option missing/duplicated: " + name)
+            return argv[argv.index(name) + 1]
+        launch = {k: option(k) for k in ("--nnodes", "--node-rank", "--master-addr", "--master-port",
+                                        "--pipeline-parallel-size", "--tensor-parallel-size")}
+        require(int(launch["--nnodes"]) == len(hosts) and int(launch["--pipeline-parallel-size"]) > 1
+                and int(launch["--tensor-parallel-size"]) > 0, "pipeline topology mismatch")
+        require((alias != coordinator) == ("--headless" in argv), "pipeline headless role mismatch")
+        ip = ipaddress.IPv4Address(observed.get("host_ip"))
+        require(not ip.is_loopback and not ip.is_unspecified, "pipeline host address missing")
+        connections = observed.get("connections")
+        require(isinstance(connections, list) and connections, "pipeline live connections missing")
+        tuples = set()
+        for connection in connections:
+            require(isinstance(connection, dict) and connection.get("pid") in tree
+                    and connection.get("state") == "ESTABLISHED", "pipeline socket ownership/state missing")
+            endpoints = []
+            for endpoint in (connection.get("local"), connection.get("remote")):
+                require(isinstance(endpoint, list) and len(endpoint) == 2
+                        and type(endpoint[1]) is int and 0 < endpoint[1] <= 65535,
+                        "invalid pipeline connection endpoint")
+                endpoints.append((str(ipaddress.IPv4Address(endpoint[0])), endpoint[1]))
+            require(endpoints[0][0] == str(ip), "pipeline socket local address mismatch")
+            tuples.add(tuple(endpoints))
+        records[alias] = (observed, tuples)
+        launches[alias] = launch
+    primary, primary_connections = records[coordinator]
+    require(primary["process_identity"] == binding["process_identity"], "pipeline API root differs from observer")
+    require(launches[coordinator]["--node-rank"] == "0"
+            and launches[coordinator]["--master-addr"] == primary["host_ip"], "pipeline coordinator mismatch")
+    require({int(v["--node-rank"]) for v in launches.values()} == set(range(len(hosts))),
+            "pipeline node ranks incomplete/duplicated")
+    def common_command(value):
+        args = list(value["argv"])
+        index = args.index("--node-rank")
+        del args[index:index + 2]
+        if "--headless" in args:
+            args.remove("--headless")
+        return args
+    for alias, (observed, connections) in records.items():
+        require(all(v == launches[coordinator][k] for k, v in launches[alias].items() if k != "--node-rank"),
+                "pipeline nodes disagree on topology")
+        require(common_command(observed) == common_command(primary), "pipeline inference arguments differ")
+        if alias != coordinator:
+            require(observed["process_identity"]["container_id"] != primary["process_identity"]["container_id"],
+                    "pipeline participant reused coordinator container")
+            require(any((remote, local) in primary_connections for local, remote in connections
+                        if remote[0] == primary["host_ip"]), "pipeline reciprocal live connection missing")
 
 
 def checks_evidence(reader, report, required):

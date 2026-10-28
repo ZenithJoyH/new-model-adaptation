@@ -77,6 +77,23 @@ observation 对应本轮 run、Host、实例、进程和监听端口。service_o
 host-network、IPv4 localhost 场景；其他环境需补齐采集器，不能凭填写 ID 声称现场验证。
 所有路径须通过已核实映射在评测进程和 gate 中可读。
 
+原生多机pipeline parallel允许一个协调Host提供API，其他Host使用`--headless`。
+此时保留协调Host原有service_binding和本地API observation；绑定另加
+`distributed: {kind: pipeline_parallel, participants: [...]}`，participants精确覆盖
+全部target Host（含协调Host），每项提供host_alias、process_identity和observation引用。
+一次评测仍只有一个run_id、服务实例和完整数据集，不为每个参与Host重复发送评测。
+
+每项引用本轮`pipeline_process_observation`，必须由现场专用取证程序读取该Host实际容器
+的/proc生成：schema_version1、status verified、run_id、host_alias、service_instance_id、
+deployment_fingerprint、与API本轮challenge相同的coordinator_nonce、独立随机nonce、
+pid/process_identity、argv、host_ip、processes及connections。processes逐项保存
+pid/ppid/start_ticks/cmdline_sha256，connections仅记录进程树真正拥有的ESTABLISHED
+IPv4 socket（pid/local/remote/state）。取证需前后检查进程身份，禁止取整个主机网络表后
+将无关socket冒充本任务连接。协调Host根身份必须与API观察相同；headless角色、node rank、
+nnodes、TP/PP、master和除node-rank/headless外全部推理参数须一致，参与Host与协调Host的
+实际连接四元组必须互逆。所有引用仍按原契约校验哈希；缺失、旧run/nonce或单端连接不通过。
+该扩展不把headless节点声明为本地API，也不代替实际16rank推理与图重放证据。
+
 ## 小集合与正式精度
 
 sanity 使用 test/Accuracy_test/sanity.py。manifest 固定 model、concurrency、timeout 和

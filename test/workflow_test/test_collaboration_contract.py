@@ -298,6 +298,93 @@ class PinnedContractTests(ModernFixture):
 
 
 class ObjectiveEvidenceTests(ModernFixture):
+    def pipeline_binding(self, change=None):
+        import hashlib
+        self.cfg['target']['hosts'] = ['PPU-01', 'PPU-02']
+        binding = self.binding()
+        refs = []
+        for rank, alias in enumerate(self.cfg['target']['hosts']):
+            argv = ['python', '-m', 'vllm.entrypoints.cli.main', 'serve', '/weights',
+                    '--nnodes', '2', '--node-rank', str(rank), '--master-addr', '192.0.2.1',
+                    '--master-port', '29653', '--pipeline-parallel-size', '2', '--tensor-parallel-size', '8']
+            if rank:
+                argv.append('--headless')
+            identity = dict(binding['process_identity'], container_id=('c' if rank == 0 else 'e')*64,
+                            cmdline_sha256=hashlib.sha256(b'\0'.join(a.encode() for a in argv)+b'\0').hexdigest())
+            observed = {'schema_version':1, 'kind':'pipeline_process_observation', 'status':'verified',
+                        'host_alias':alias, 'run_id':'accuracy-run', 'service_instance_id':'service-A',
+                        'deployment_fingerprint':binding['deployment_fingerprint'], 'coordinator_nonce':'a'*64,
+                        'nonce':('b' if rank == 0 else 'f')*64, 'pid':123, 'process_identity':identity,
+                        'argv':argv, 'host_ip':'192.0.2.'+str(rank+1),
+                        'processes':[{'pid':123,'ppid':1,'start_ticks':123,
+                                      'cmdline_sha256':identity['cmdline_sha256']},
+                                     {'pid':124,'ppid':123,'start_ticks':124,'cmdline_sha256':'7'*64}],
+                        'connections':[{'pid':124,'state':'ESTABLISHED',
+                                        'local':['192.0.2.'+str(rank+1),4000+rank],
+                                        'remote':['192.0.2.'+str(2-rank),4001-rank]}]}
+            if rank == 0:
+                binding['process_identity'] = identity
+                api = self.reader.json(binding['observation'])
+                api['process_identity'] = identity
+                binding['observation'] = self.raw('observation.json',api)
+            if change is not None:
+                change(observed, rank)
+            refs.append({'host_alias':alias, 'process_identity':identity,
+                         'observation':self.raw('participant-'+str(rank)+'.json',observed)})
+        binding['distributed'] = {'kind':'pipeline_parallel','participants':refs}
+        return binding
+
+    def test_pipeline_binds_one_api_and_two_real_process_observations(self):
+        binding = self.pipeline_binding()
+        report = {'run_id':'accuracy-run','service_instance_id':'service-A'}
+        for host in ['PPU-01','PPU-02']:
+            contract.service_binding(self.reader,binding,report,self.cfg,host)
+
+    def test_pipeline_rejects_missing_duplicate_extra_and_unknown_hosts(self):
+        for case in ['missing','duplicate','extra','unknown','kind']:
+            with self.subTest(case=case):
+                binding = self.pipeline_binding()
+                refs = binding['distributed']['participants']
+                if case == 'missing': refs.pop()
+                if case == 'duplicate': refs[1] = copy.deepcopy(refs[0])
+                if case == 'extra': refs.append(copy.deepcopy(refs[0]))
+                if case == 'kind': binding['distributed']['kind'] = 'unchecked'
+                with self.assertRaises(ValueError):
+                    contract.service_binding(self.reader,binding,{'run_id':'accuracy-run','service_instance_id':'service-A'},
+                                             self.cfg,'outsider' if case == 'unknown' else 'PPU-02')
+
+    def test_pipeline_rejects_stale_identity_role_topology_and_socket_evidence(self):
+        def mutate(record, rank, case):
+            if rank == 0: return
+            if case in ['run_id','deployment_fingerprint','coordinator_nonce','host_alias','nonce']:
+                record[case] = 'stale'
+            elif case == 'root': record['processes'][0]['start_ticks'] += 1
+            elif case == 'ancestry': record['processes'][1]['ppid'] = 999
+            elif case == 'cycle': record['processes'][1]['ppid'] = 124
+            elif case == 'owner': record['connections'][0]['pid'] = 999
+            elif case == 'connection': record['connections'][0]['remote'][1] += 1
+            elif case == 'state': record['connections'][0]['state'] = 'CLOSED'
+            elif case == 'local': record['connections'][0]['local'][0] = '192.0.2.99'
+            elif case == 'empty': record['connections'] = []
+            else:
+                import hashlib
+                if case == 'role': record['argv'].remove('--headless')
+                elif case == 'rank': record['argv'][record['argv'].index('--node-rank')+1] = '0'
+                elif case == 'topology': record['argv'][record['argv'].index('--tensor-parallel-size')+1] = '4'
+                elif case == 'model': record['argv'][record['argv'].index('/weights')] = '/other-weights'
+                elif case == 'cmdline': record['argv'].append('--changed')
+                if case != 'cmdline':
+                    digest = hashlib.sha256(b'\0'.join(a.encode() for a in record['argv'])+b'\0').hexdigest()
+                    record['process_identity']['cmdline_sha256'] = digest
+                    record['processes'][0]['cmdline_sha256'] = digest
+        for case in ['run_id','deployment_fingerprint','coordinator_nonce','host_alias','nonce','root','ancestry',
+                     'cycle','owner','connection','state','local','empty','role','rank','topology','model','cmdline']:
+            with self.subTest(case=case):
+                binding = self.pipeline_binding(lambda record,rank:mutate(record,rank,case))
+                with self.assertRaises(ValueError):
+                    contract.service_binding(self.reader,binding,{'run_id':'accuracy-run','service_instance_id':'service-A'},
+                                             self.cfg,'PPU-02')
+
     def test_native_service_binding_cannot_be_relabelled_or_reused(self):
         binding=self.binding()
         report={'run_id':'accuracy-run','service_instance_id':'service-A'}
