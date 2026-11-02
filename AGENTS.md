@@ -32,6 +32,34 @@ agents; [AGENTS.zh-CN.md](AGENTS.zh-CN.md) is the human-readable Chinese version
   belong in the appropriate operator library, not the Plugin; preserve the A3
   distinction for framework metadata. Prepare changes for PR delivery without
   broadening source permissions or automatically committing/publishing them.
+- Operator work in FlagGems, FlagGems-vllm or FlagGems-sglang also follows the
+  supplied [operator development standard](docs/operator-development-standard.md).
+  Read its overview and task-indexed clauses; applicable MUST clauses bind operator
+  implementation, dispatch, independent numerical/graph tests, benchmarks and PR
+  review. Cite `plugin:<clause>` or `operator:<clause>` to distinguish the standards.
+  Use the existing source review, not a new stage. This does not authorize another
+  framework/component or patches to installed third-party dependencies.
+- Follow the user's clarified ownership for future adaptation: FlagGems provides
+  ATen operators only; vLLM operators, including non-ATen fused computations used
+  by vLLM, belong in FlagGems-vllm. This overrides broader FlagGems ownership in
+  the supplied standards; their other applicable requirements remain binding.
+  FlagGems ATen operators use automatic replacement; verify activation, actual
+  dispatch and correctness rather than adding a Plugin adapter per ATen operator.
+  Test FlagGems numerical behavior through `flag_gems.<op>` and test automatic
+  replacement/dispatch separately. Inspect FlagGems-vllm for each
+  vLLM-specific operator, compare its contract, and integrate compatible public
+  APIs through the existing Plugin architecture. Missing implementations belong
+  in the appropriate operator library. The supplied PR development standard remains binding.
+- Resolve guidance using explicit user/project applicability overrides, then applicable
+  development standards and the target revision's engineering conventions; historical
+  examples do not override them. Unchanged hard requirements remain binding.
+- If referenced guidance is verified absent, record the revision/search and alternative
+  basis, then continue authorized work whose contracts are established; do not repeatedly
+  seek approval for the same gap or claim to have read missing material. Follow
+  [missing-guidance handling](docs/adaptation-policy.md#guidance-precedence-missing-documents-and-gates).
+- Separate development prerequisites from delivery gates: uncertain semantics or write
+  boundaries block affected edits; failed/unrun checks block the corresponding pass/readiness
+  claim, not authorized diagnosis and repair. Keep dependent acceptance incomplete.
 - Final service launchers contain only necessary startup commands/settings.
   Omit unnecessary cache-directory environment overrides. Prepare the minimal
   `start-model.sh` before service acceptance and reuse the same script for sanity,
@@ -69,6 +97,7 @@ Load unrelated workflows only if the user expands the task.
 | Adaptation involving remote work | Also read the remote operations Skill before the first remote action. |
 | Accuracy/performance evaluation | Also read [project contract](docs/skills-project-contract.md) and its repository-local Skill; select an explicit operation. |
 | Recoverable long-running execution | Also read [execution journal](docs/agent-execution.md). |
+| Operator implementation, integration, testing, tuning or PR review | [Operator development standard](docs/operator-development-standard.md), its task-indexed clauses and target repository guidance; also apply the selected profile and Plugin standard for cross-component changes. |
 | Framework implementation or PR review | Also read the target source guidance; for vLLM/SGLang plugins, [development standard v1](docs/inference-plugin-development-v1.md); for `vllm-plugin-fl`, also [plugin contribution policy](docs/plugin-contribution-policy.md). |
 
 The remote Skill is a repository-local entry read by path. A natural-language
@@ -111,7 +140,14 @@ installation is required. A local-only task does not activate remote checks.
   This handoff document does not replace acceptance evidence or run unselected phases.
 - New workspaces pin the [v2 evidence contract](docs/evidence-contract-v2.md).
   Upgrade existing contracts explicitly and preserve historical results.
-  `optimized` requires frozen performance targets as well as valid measurements.
+  Complete adaptation requires valid performance measurements and full acceptance,
+  not a predefined speed target. Explicit user-requested optimization targets remain
+  binding when configured; never remove them to turn a failed run into a pass.
+- Service sanity uses representative text requests; image-capable models also need
+  image requests. Review relevance, output health and actual image understanding,
+  plus obvious performance problems. Do not require verbatim reference answers for
+  open-ended generation. Keep raw responses and an attributed, result-bound review;
+  successful HTTP responses alone do not establish sanity acceptance.
 - For service profiles, freeze verified model modalities, architecture SHA-256 and
   each Host's served aliases, shared launcher and effective startup configuration in
   `acceptance_plan.service_contract` before sanity. Bind sanity, accuracy, performance

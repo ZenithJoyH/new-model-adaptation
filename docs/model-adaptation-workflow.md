@@ -35,6 +35,13 @@ Local explicit records are `models/<model>/<platform>/frameworks/<framework>/`.
 Keep environment analysis, numbered issue records, acceptance reports and
 retrospectives in Markdown. Runtime files and full test artifacts remain remote.
 
+Before a selected phase, apply the [guidance and gate policy](adaptation-policy.md#guidance-precedence-missing-documents-and-gates).
+Verified missing reading material is recorded with an alternative basis; it does not by
+itself stop authorized implementation. Unknown contracts/write boundaries block affected
+edits; failed or unrun checks block the corresponding acceptance/delivery claim, while
+permitted diagnosis continues. Explicit applicability overrides resolve only their stated
+conflicts; retain all other hard requirements and the selected profile's phase order.
+
 ## 1. Architecture
 
 Write `architecture-and-inference.md` at model level in Chinese. Cover overall
@@ -57,6 +64,14 @@ and user references. Establish baselines; change one material variable at a time
 Use existing extension points; test incrementally, retain issue evidence and review
 the final diff/ownership/affected callers. Put one-off code outside product trees.
 vLLM Plugin and Torch-FL have separate implementation instructions.
+
+Operator changes also follow the [operator development standard](operator-development-standard.md):
+read task-relevant clauses and apply the user's clarified ownership: FlagGems
+provides ATen operators only; vLLM operators (including non-ATen fused computations)
+come from FlagGems-vllm. Then verify contracts, independent numerics, actual
+dispatch and applicable graph/autotune behavior. Component benchmarks belong here
+and follow the operator repository's admission criteria; they do not impose a
+predefined end-to-end speed target. Bind this evidence to the existing source review.
 
 ## 4. Acceptance
 
@@ -97,11 +112,17 @@ Bind all later receipts and the launcher to the final verified per-Host mode.
 Changing it invalidates affected receipts and requires revalidation, including
 accuracy before final performance; never silently downgrade a running service.
 
-Before sanity, freeze verified modalities, the architecture hash, served aliases and
-per-Host startup identity in `acceptance_plan.service_contract`, following the
-[service evidence contract](evidence-contract-v2.md#服务范围与共享启动绑定).
+Service sanity sends representative text requests and, for image-capable models,
+image requests. Review each response for relevance, garbling, empty/repetitive output
+and actual image understanding; do not require verbatim open-ended answers. Preserve
+responses, timings and a result-bound review. Fix obvious performance problems before
+formal accuracy. Freeze verified modalities, the architecture hash, served aliases and
+per-Host startup identity in `acceptance_plan.service_contract` before sanity, following
+the [service evidence contract](evidence-contract-v2.md#服务范围与共享启动绑定).
 Test coverage cannot be reduced by changing only the request manifest.
-The first performance measurement needs no prior baseline; comparisons and relative targets require one.
+Performance acceptance then requires complete valid measurements,
+not a predefined speed target; explicit optimization targets remain binding. The first
+measurement needs no prior baseline; comparisons and relative targets require one.
 
 Formal metrics pass at frozen thresholds with complete valid coverage; individual
 wrong answers and retained timeout-as-incorrect samples do not alone fail a valid

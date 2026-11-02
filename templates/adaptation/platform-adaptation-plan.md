@@ -8,7 +8,8 @@
 - Plugin、FlagGems、适用时 FlagGems-vllm、只读 vLLM baseline：
 - 已阅读的各目标组件设计/dispatch/贡献规范和现有测试入口（路径与 revision）：
 - 设计与 PR 标准：仓库 `docs/plugin-contribution-policy.md`
-- 开发规范：`docs/inference-plugin-development-v1.md`；本任务适用条款及计划验证：
+- Plugin 开发规范：`docs/inference-plugin-development-v1.md`；适用 `plugin:<编号>` 及计划验证：
+- 算子开发规范：`docs/operator-development-standard.md`；适用 `operator:<编号>` 及计划验证：
 
 ## 修改边界
 
@@ -30,8 +31,10 @@
 | ID | 模型组件/阶段 | Plugin 当前路径 | 平台能力 | 算子来源 | eager 影响 | graph 影响 | 修改计划 | 最小验证 | 状态 |
 |---|---|---|---|---|---|---|---|---|---|
 
-算子来源必须明确为：既有支持路径、FlagGems/框架专用算子库的兼容公开 API、
-对应算子库新增数值实现，或尚未确认。按 A3 单列框架 metadata；数值 kernel 不得放入
+算子来源必须明确为：既有支持路径、FlagGems ATen 自动替换、FlagGems-vllm 兼容公开 API（含 vLLM 非 ATen 融合计算）、
+对应算子库新增数值实现，或尚未确认。ATen 路径核实替换启用及实际命中；vLLM 算子检索
+FlagGems-vllm 并核对契约，再通过 Plugin 原有分发接入，不为每个 ATen 算子新增接线。
+按 A3 单列框架 metadata；数值 kernel 不得放入
 Plugin，不能使用临时直接调用绕过 Plugin dispatch。
 
 ## 设计选择与共享影响
@@ -60,8 +63,15 @@ Plugin，不能使用临时直接调用绕过 Plugin dispatch。
 - 同步前 remote/branch/upstream/revision/status：
 - fast-forward-only 同步命令：
 - 同步后 revision/status：
-- 算子检索范围和结果：
-- 新增算子公开 API/测试、Plugin 接入顺序及公开依赖固定版本/SHA：
+- FlagGems ATen 自动替换命中与直接 `flag_gems.<op>` 数值测试的分别验证：
+- vLLM 非 ATen/融合算子的 FlagGems-vllm 归属与公开 API、配置/注册/marker（不归 FlagGems、不冒充 ATen）：
+- FlagGems-vllm 实际版本/revision、算子检索及兼容性结果：
+- 新增算子所属库、公开 API/测试、自动替换或 Plugin 接入路径及公开依赖固定版本/SHA：
+
+- 算子输入/输出、变体、布局/offset、别名/state、workspace/stream 与错误契约：
+- 独立参考、厂商副本影响、graph 新输入新结果、autotune 状态恢复及可选能力隔离测试：
+- 算子实现/优化 benchmark：baseline/目标实际命中、同设备/同步/warmup/图条件、核心场景、
+  仓库准入、回归和未验证范围；不适用时说明影响面依据，不要求预设整模型性能目标：
 
 ## 运行配置
 

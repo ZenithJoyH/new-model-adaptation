@@ -6,6 +6,45 @@ phase. Code paths are relative to the repository root. Read the
 workspace numbering and final launch-script requirements before remote work or
 final launcher verification.
 
+## Guidance precedence, missing documents and gates
+
+Within the authorized task and execution boundaries, apply the user's explicit current
+requirements and project applicability overrides first. Then apply the relevant supplied
+development standards and project safety/evidence rules; use the target revision's own
+AGENTS, contribution and workflow documents for concrete paths, registration, commands
+and additional applicable gates. Historical notes and examples are references, not overrides.
+An explicit override resolves only its stated conflict; all other applicable hard requirements
+remain binding. Do not resolve an uncovered conflict by silently choosing the weaker rule:
+identify the clauses, pause only the affected action and clarify the unresolved decision.
+
+When required guidance is referenced but absent (for example `optimization.md` or
+`deep_opt.md`), verify the installed source identity/revision, referenced location, tracked
+file list or package contents, and existing equivalent documents. Record the search evidence,
+missing reference, applicable replacement guidance and affected scope in the existing plan
+or numbered issue; do not create a parallel process log. An access failure is not proof of
+absence, and a main-branch check does not prove the container's files are missing.
+
+Once absence is verified and the available rules/source/tests establish the necessary
+contracts, continue the already authorized, verifiable work using the supplied standards
+and existing repository workflow. Do not repeatedly request permission for the same missing
+reading material or the same applicable authorization. Do not invent its contents, claim to
+have read it or completed its exclusive protocol, or infer permission to update dependencies,
+write outside approved roots or run unselected phases. Record an alternative optimization
+procedure as such; keep independent numerics, graph checks, controlled trials and applicable
+operator benchmark gates. Missing guidance does not waive an actual technical requirement.
+
+| Condition | Action and completion boundary |
+| --- | --- |
+| Missing guidance only; contracts and scope established | Record the gap and alternative basis, then continue scoped implementation and verification. |
+| Unknown semantics, unverified writable source/root, or unresolved material conflict | Pause the affected modification; continue independent authorized analysis/checks. Do not guess an implementation contract. |
+| Numerical, graph, benchmark or other applicable checks fail or cannot run | Keep the affected gate failed/incomplete and continue permitted diagnosis/fixes. Do not mark it passed or promote dependent acceptance. |
+| Work awaiting PR/delivery verification | Prepare reviewable changes and disclose outstanding checks; do not claim PR readiness, standards compliance or adaptation completion before the applicable gates pass. Actual commit/PR/publication still needs user authorization. |
+
+PR quality requirements govern how code is developed throughout the task; delivery gates
+are not a requirement to have all final tests passing before implementation can start.
+This policy does not change phase order, framework-specific gates, graph fallback rules,
+component ownership or the distinction between operator benchmarks and model acceptance.
+
 ## Model adaptation workspace
 
 Every adaptation has three identity dimensions: **model**, **hardware platform**,
@@ -111,8 +150,9 @@ check is not a packaging pass. Commit/push still requires a user request.
   accuracy receipt shows that every metric frozen in the run configuration meets
   its configured minimum threshold. A score below `1.0`, and therefore some
   individually incorrect answers, does not fail the formal accuracy test by
-  itself. Per-question all-correct checking belongs only to the small-batch
-  sanity check. A final timeout response is retained as a failed/incorrect sample
+  itself. Small-batch sanity reviews representative text/image responses for
+  relevance and output health; open-ended answers need not match reference text verbatim.
+  A final timeout response is retained as a failed/incorrect sample
   and contributes zero correctness credit; it must never be dropped from the
   denominator or hidden by retries. A limited number of such timeout samples may
   coexist with a passing formal run only when sample coverage remains complete
@@ -125,7 +165,9 @@ check is not a packaging pass. Commit/push still requires a user request.
   `framework.yml`. For legacy implicit records, continue to use the platform
   `README.md` and `platform.yml`. Verify the root-level remote `start-model.sh` required by the remote operations policy;
   file existence alone is not completion evidence. Require minimal inference for `functional`, and recorded
-  correctness regression plus performance results for `optimized`.
+  full acceptance and valid performance results for `optimized`; no predefined
+  performance target is required for model bring-up. Quantified targets explicitly
+  requested and frozen for an optimization task remain binding.
 - Never commit weights, secrets, complete logs, or bulky raw benchmarks.
 
 After technical completion, the Agent invokes the
@@ -140,6 +182,17 @@ includes weight-download instructions only; do not execute them. Follow the
 for independent invocation, draft handling and phase isolation.
 
 ## Framework implementation and PR quality
+
+- Operator design, integration, implementation, tuning and PR review also follow
+  the [operator development standard](operator-development-standard.md), reading
+  its overview and task-indexed clauses. It supplements the Plugin standard and
+  retains formal PR requirements. Under the user's clarified ownership, FlagGems
+  provides ATen operators only through automatic replacement; vLLM operators,
+  including non-ATen fused computations, use FlagGems-vllm public APIs. This
+  overrides the supplied standards' broader FlagGems ownership. Independent
+  numerical tests and actual dispatch tests are separate obligations. Component
+  benchmarks follow repository admission criteria during implementation; they do
+  not impose predefined end-to-end performance targets on model bring-up.
 
 - For vLLM/SGLang plugins, the supplied
   [development standard v1](inference-plugin-development-v1.md) applies throughout

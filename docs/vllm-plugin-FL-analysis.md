@@ -197,7 +197,12 @@ epoch 清理缓存，并在进程 fork 后重置状态。
 
 ### 5.4 新增算子的标准改动面
 
-如果 FlagGems 已有兼容实现，通常需要：
+以下路径来自本文分析的历史 revision，实施前核实目标版本。当前分工下 FlagGems ATen
+算子通过自动替换，核实启用和实际命中，不逐个添加 Plugin adapter；独立数值单测与分发
+测试分别完成。按用户最新澄清，后续 FlagGems 仅提供 ATen 算子；vLLM 算子（包括非 ATen
+融合计算）应检索 FlagGems-vllm，不以“通用融合”为由放入 FlagGems。
+该分工优先于[算子层规范](operator-development-standard.md)原文中的相关归属描述。
+对于该库已有兼容公开 API、但 Plugin 尚未接入的 vLLM 算子，通常需要：
 
 1. 在 `dispatch/backends/flaggems/impl/` 增加调用契约 adapter；
 2. 在 `FlagGemsBackend` 增加 backend method；
@@ -208,8 +213,8 @@ epoch 清理缓存，并在进程 fork 后重置状态。
 7. 在平台 YAML 中设置明确的 `op_backends`、blacklist/whitelist；
 8. 增加 unit、functional、eager 和 graph capture/replay 测试。
 
-如果 FlagGems 缺失该数值算子，应按 A1 在已获准的 FlagGems 或 FlagGems-vllm 中实现，
-先交付公开 API 和测试，再通过 `OpManager` 接入并固定公开依赖版本/SHA；不得在 Plugin
+缺失实现须检索对应库：ATen 算子归 FlagGems 并按自动替换路径生效，vLLM 算子归
+FlagGems-vllm 并经 Plugin 分发接入。先交付公开 API 和测试并固定公开依赖版本/SHA；不得在 Plugin
 复制 kernel 或从模型代码临时直接调用。A3 所述框架 metadata 不属此数值算子迁移范围。
 FlagGems 算子异常或精度问题的最小复现
 统一保存在工作根 `07-bugs/`，并通过已核实的容器对应路径原地执行；已有用例不再复制到
@@ -380,9 +385,10 @@ smoke 目的，不得直接复制为本项目正式服务配置。
 | architecture/config 未注册 | `patches/`、`configs/`、`models/`、`register_model()` | model config/registry 单测 |
 | 权重名或量化元数据不一致 | model shim 的 loader/mapper | 权重映射与 ignored-layer 测试 |
 | vLLM 高层层类需替换 | `ops/` 的 OOT class 或正式 registry | OOT whitelist/blacklist 与集成测试 |
-| FlagGems 已有算子但 plugin 未接入 | flaggems adapter + backend + register_ops | reference、policy、数值、graph 测试 |
+| FlagGems ATen 自动替换未生效 | 替换启用与实际命中路径 | 数值、dtype/layout、graph 测试 |
+| FlagGems-vllm 已有算子但 plugin 未接入 | 现有 adapter + backend + register_ops | reference、policy、数值、graph 测试 |
 | FlagGems 算子报错或精度异常 | 工作根 `07-bugs/<issue>/` 最小复现及容器对应路径 | plugin 临时 policy、问题记录 |
-| FlagGems 缺少数值算子 | 对应算子库公开 API + Plugin dispatch | eager/graph、dtype/shape/layout 测试 |
+| 对应算子库缺少数值算子 | ATen：FlagGems 自动替换；vLLM：FlagGems-vllm API + Plugin dispatch | eager/graph、dtype/shape/layout 测试 |
 | attention 类型或 metadata 不兼容 | attention backend/impl | prefill/decode/KV-cache/graph 测试 |
 | MoE routing 或 experts 不兼容 | `ops/fused_moe/`、quantization、dispatch | router/expert/combine/EP 测试 |
 | 平台实现差异 | `vendor/<platform>/` 和平台 YAML | 平台 CI、容差和 fallback 测试 |

@@ -9,6 +9,11 @@ Retrospectives may review partial or failed work without passing prior acceptanc
 
 Applies only to this profile. Inherit the [common workflow](../../docs/model-adaptation-workflow.md); legacy direct records retain their paths.
 
+Apply the [guidance precedence and missing-document policy](../../docs/adaptation-policy.md#guidance-precedence-missing-documents-and-gates)
+when reading component instructions. Record verified missing `optimization.md` / `deep_opt.md`
+and the alternative basis; continue authorized work with established contracts. This does not
+waive technical gates or allow a PR-ready/completed claim before applicable verification passes.
+
 3. **Perform the adaptation.** Combine the model architecture and inference-path
    analysis, the requested platform's environment analysis, and the
    adaptation-related reference files provided by the user. Carry out the work
@@ -25,6 +30,8 @@ Applies only to this profile. Inherit the [common workflow](../../docs/model-ada
       not an issue record.
       Read the overview and applicable clauses of
       [development standard v1](../../docs/inference-plugin-development-v1.md),
+      the [operator standard](../../docs/operator-development-standard.md) for
+      operator work (overview plus applicable task-indexed clauses),
       `docs/plugin-contribution-policy.md` and each target component's
       current design/contribution guidance before choosing changes. Explain
       ownership, interface contracts, alternatives, shared callers, optional
@@ -79,36 +86,45 @@ Applies only to this profile. Inherit the [common workflow](../../docs/model-ada
       For delivery, pin public operator-library dependencies to a fixed version
       or commit SHA under D3; synchronizing for discovery does not permit a
       floating or private dependency in the resulting PR.
-   4. **Integrate operators already available in FlagGems.** For each operator
-      the plugin does not invoke or support, inspect the plugin's
-      dispatch/backend design and the synchronized FlagGems revision. When
-      FlagGems has a compatible implementation, follow the existing plugin architecture to
-      add the required dispatch, backend, registration, or platform binding.
-      Never bypass the plugin design with an ad hoc direct call. Add focused
-      integration and numerical tests. When this work resolves a compatibility
-      gap or failure, record the FlagGems symbol, revision, plugin entry point,
-      supported constraints, solution, and results in the corresponding numbered
-      Markdown issue record under `adaptation/`.
-   5. **Implement operators missing from FlagGems.** When the synchronized FlagGems
-      revision has no compatible implementation, implement generic numerical
-      operators in FlagGems and vLLM-specific numerical contracts in
-      FlagGems-vllm. Deliver the public operator API and tests first, then
-      integrate through the existing plugin dispatch framework. Only modify
-      declared, verified writable components; report a scope blocker instead of
-      placing numerical kernels in the Plugin. Framework metadata remains on
+   4. **Verify ATen replacement and integrate vLLM operators separately.**
+      FlagGems ATen operators use automatic replacement: verify activation, actual
+      dispatch, numerical correctness and graph behavior rather than adding a
+      Plugin adapter for every ATen operator. Under operator:E7, numerical unit
+      tests explicitly call `flag_gems.<op>`; test automatic replacement/dispatch
+      separately. The user's clarified ownership limits FlagGems to ATen operators.
+      vLLM operators, including non-ATen fused computations, belong in FlagGems-vllm;
+      never register them as ATen overloads or place them in FlagGems as generic fusion.
+      This ownership overrides conflicting wording in the supplied standards.
+      For vLLM operators, inspect
+      the installed FlagGems-vllm revision and public APIs. Compare arguments, dtype,
+      layout, state mutations and graph requirements before integrating a compatible
+      implementation through existing Plugin dispatch/backend/registration or
+      platform bindings. Never bypass the Plugin design with ad hoc direct calls.
+      Record the owning library, revision, actual entry point, constraints and tests.
+   5. **Implement missing operators in their owning library.** Search the relevant
+      library before declaring an implementation missing: ATen operators belong in
+      FlagGems; vLLM operators, including non-ATen fused computations, belong in
+      FlagGems-vllm. Deliver public APIs and tests first, then use ATen automatic
+      replacement or integrate FlagGems-vllm through Plugin dispatch as appropriate. Apply the operator standard's target-repository
+      export/registration/marker rules and existing compilation/launch infrastructure.
+      Verify per-tensor layouts, variants, alias/state, masks, quantization, edge/error
+      semantics and vendor copies without unrelated migration. Do not patch installed
+      third-party dependencies to make the operator work. Only modify declared, verified
+      writable components; report a scope blocker instead of placing numerical kernels
+      in the Plugin. Framework metadata remains on
       the framework side under A3, including metadata implemented with Triton. The
       Triton implementation must support `graph` capture/replay, not only `eager`
       execution. Avoid capture-time host synchronization, unsupported dynamic
       allocation, data-dependent host control flow, and unstable tensor shapes or
       addresses. Add numerical, dtype, shape, layout, device, boundary-condition,
       and execution-mode tests, including dedicated `eager` and `graph`
-      capture/replay coverage. Record the checked FlagGems revision and search
-      evidence, explicitly mark the operator as missing from FlagGems, and
+      capture/replay coverage. Record the checked owning-library revision and search
+      evidence, explicitly identify which library lacks the operator, and
       document the Triton location, supported constraints, plugin integration,
       results, and limitations in a numbered Markdown issue record under
       `adaptation/` and in the final `acceptance/adaptation-summary.md`.
-   6. **Package reproducible FlagGems operator bugs.** Whenever a FlagGems
-      operator raises an error or shows a numerical-accuracy problem during any
+   6. **Package reproducible operator-library bugs.** Whenever a FlagGems or
+      FlagGems-vllm operator raises an error or shows a numerical-accuracy problem during any
       adaptation stage, keep a dedicated issue directory under the approved
       remote root's `07-bugs/` and execute it through that directory's verified path
       below `container_root`. If the case already exists and is accessible there,
@@ -123,12 +139,12 @@ Applies only to this profile. Inherit the [common workflow](../../docs/model-ada
       repository, or the vLLM repository. Provide a minimal, independently
       executable unit test that reproduces the exact operator failure for the
       operator developers inside the same adaptation image environment. Prefer
-      testing the FlagGems operator directly without requiring the complete model
-      service, vLLM, or the plugin; if the defect only appears through plugin
+      testing the owning library API directly without a complete model service,
+      retaining only framework dependencies required by its contract; if the defect only appears through plugin
       dispatch, graph capture/replay, or another required integration path,
       include the smallest such path and a direct-operator comparison when
       possible. Pin the random seed and record the exact container image and
-      container name, FlagGems revision, platform, device, software environment,
+      container name, owning-library revision, platform, device, software environment,
       operator arguments, dtype, shapes, strides/layout, launch mode, command,
       expected behavior, actual behavior, tolerances, and concise error or
       numerical-difference evidence. Cover `eager` and `graph` separately when
@@ -201,6 +217,15 @@ Applies only to this profile. Inherit the [common workflow](../../docs/model-ada
       finally full service bring-up. After each change, run the smallest relevant
       regression set and cover both `eager` and `graph` behavior where applicable.
       Do not continue to a broader test while the narrower test is failing.
+      Apply operator:D/E for independent references, actual backend hits, changed-input
+      graph replay, autotune state restoration and optional-capability isolation.
+      Operator implementations/optimizations also need the repository's benchmarks:
+      compare baseline and target on the same device, synchronization, warmup and
+      graph conditions, report core workloads, regressions and untested scope, and
+      meet applicable repository admission criteria. These component checks precede
+      formal model acceptance; they neither replace it nor require a predefined
+      end-to-end speed target. Respect operator:F for logger, English source/comments,
+      license headers, formatting/build checks and public dependency delivery.
    9. **Control the adaptation service lifecycle.** Stop or restart only the
       current adaptation's inference service or related process when required for
       configuration changes, recovery, or verification. Never stop, restart, or
@@ -253,15 +278,16 @@ Applies only to this profile. Inherit the [common workflow](../../docs/model-ada
    2. **Small-set accuracy and performance sanity check.** Before the
       formal accuracy evaluation, send a small, fixed set of simple requests with
       a frozen, capacity-validated concurrency against the accepted `graph` service.
-      Contract v2 uses the project sanity runner with model-appropriate reference
-      outputs; retain the ten-concurrency requirement only for historical v1 runs. Check every response against its expected result and record
-      errors, timeouts, latency, throughput, accelerator utilization, and memory
-      usage sufficient to spot an obvious performance regression. If any response
-      is incorrect, return to adaptation and fix correctness first. If responses
-      are correct but performance is clearly abnormal, diagnose and fix the
-      performance problem before the full accuracy run. Repeat this sanity check
-      after every fix; do not proceed until both correctness and the performance
-      sanity check pass.
+      Use text requests for text-only models; image-capable models need both text
+      and image requests. New sanity manifests use schema 2: freeze modalities,
+      requests and expected behavior, collect original responses and timings, then
+      record an attributed review bound to that report. Review relevance, empty or
+      garbled/repetitive output and actual image understanding; open-ended answers
+      need not equal reference text verbatim. HTTP success alone does not pass.
+      Record errors/timeouts and inspect latency, throughput, accelerator utilization
+      and memory. Resolve output defects and obvious performance problems before
+      formal accuracy, then repeat affected checks. Historical schema 1 reference
+      comparisons and v1 concurrency records retain their original meaning.
    3. **Formal full accuracy evaluation.** Run the evaluation on the target host
       against the accepted `graph`-mode service, inside a container based on
       `harbor.baai.ac.cn/flageval/flageval-llmeval:v1` or
@@ -287,15 +313,19 @@ Applies only to this profile. Inherit the [common workflow](../../docs/model-ada
       passed or complete when the valid full-run result meets every metric
       threshold frozen before the run. The metric does not need to equal `1.0`:
       individually incorrect answers are allowed within the configured threshold
-      and do not fail the formal test by themselves. Do not carry the preceding
-      sanity check's per-question all-correct rule into formal accuracy. A final
+      and do not fail the formal test by themselves. Small-batch response review
+      does not replace the formal accuracy threshold. A final
       timeout response is an incorrect/failed sample: retain it in the complete
       sample set and metric denominator, and never drop it or hide it with retries.
       A limited number of timeout samples may coexist with a pass only when all
       frozen metrics still meet their thresholds. Missing or invalid samples,
       non-timeout request/execution errors, or any metric below its threshold
       still prevent a passing formal result.
-   4. **Final performance evaluation.** Only after the formal accuracy evaluation
+   4. **Final performance evaluation.** New-model adaptation requires valid, complete
+      measurements of the declared scenarios, not a predefined performance target.
+      Record throughput, latency, resource observations and configuration, and resolve
+      obvious measurement/runtime anomalies. Explicit user-requested optimization
+      targets are optional but remain binding once frozen. Only after the formal accuracy evaluation
       in step 3 has completed and met its pass criterion, use `test/perf_test/`
       against the same accepted `graph`-mode configuration for final inference
       performance testing or profiling. Do not start the formal performance

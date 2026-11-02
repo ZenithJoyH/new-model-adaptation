@@ -1,7 +1,8 @@
 # Plugin / FlagGems / FlagGems-vllm 修改设计审查与 PR 准备
 
 > 按仓库 `docs/plugin-contribution-policy.md` 审查真实代码；模板存在不代表审查通过。
-> 同时按 `docs/inference-plugin-development-v1.md` 的任务索引落实全部适用条款。
+> 同时按 `docs/inference-plugin-development-v1.md`、算子改动按 `docs/operator-development-standard.md`
+> 的任务索引落实全部适用条款；以下用 plugin:/operator: 区分两份规范的条款编号。
 > 此材料属于 environment/，不包含源码、补丁或临时脚本。产品代码留在对应组件的已核实安装源码。
 > 以下版本与 diff 信息逐个被改组件填写；未修改的组件明确注明，不为填表制造改动。
 
@@ -44,12 +45,15 @@
 复用已有测试与问题证据；适用的【必须】未满足时不得标记规范审查通过，偏离【应该】须
 说明原因和验证方式。不适用项写明依据，不能用未验证代替不适用。
 
-| 条款编号 | 适用组件/场景或不适用依据 | 实现/测试证据 | 结果、缺口或 SHOULD 偏离理由 |
+| 规范:条款编号 | 适用组件/场景或不适用依据 | 实现/测试证据 | 结果、缺口或 SHOULD 偏离理由 |
 |---|---|---|---|
 
-- A1/A3/D3：数值算子与 metadata 归属、公开 API/测试交付顺序、固定公开版本/SHA：
-- F1–F4/F6：真实分发、独立数值参考、改变输入的 capture/replay、当前环境与 CI 证据及未验证项：
-- F7/G1/G2：格式/lint/pre-commit、英文注释与日志、新模型/厂商 README 支持列表及可运行 example：
+- plugin:A1/A3/D3：数值算子与 metadata 归属、公开 API/测试交付顺序、固定公开版本/SHA：
+- plugin:F1–F4/F6：真实分发、独立数值参考、改变输入的 capture/replay、当前环境与 CI 证据及未验证项：
+- plugin:F7/G1/G2：格式/lint/pre-commit、英文注释与日志、新模型/厂商 README 支持列表及可运行 example：
+- operator:A/B/C：所属库和厂商落点、公开导出/注册/marker、FlagGems 仅 ATen / FlagGems-vllm 提供 vLLM 算子（含非 ATen 融合）的归属核对、各变体和状态/布局/错误契约：
+- operator:D/E：独立参考、FlagGems 直接数值与替换命中分别验证、变输入 graph、autotune 状态恢复和可选能力隔离：
+- operator:F：同条件 baseline/目标 benchmark、核心 workload 与回归、仓库准入、logger/英文/版权、构建与 PR 齐套性：
 - PR/CI 验证结果位置（目标 Plugin README/docs 不放一次性验收报告；本地适配记录按本仓库保留）：
 
 ## 回归矩阵与结果
@@ -60,7 +64,8 @@
 - 变更前失败或可靠负对照、变更后通过的证据：
 - 相关已有模型/调用方和不应受影响路径的代表性依据：
 - 缺少其他硬件时已完成的隔离检查、未验证范围和剩余风险：
-- 性能基线和差异（未测则明确标注；遵守正式验收顺序）：
+- 算子 benchmark 基线/目标与差异（阶段 3 局部验证；按目标仓库门槛，不适用须说明）：
+- 整模型性能结果（正式精度通过后执行；不强制预设速度目标，未测则明确标注）：
 
 ## 最终 diff 自检
 
