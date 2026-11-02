@@ -14,6 +14,11 @@ when reading component instructions. Record verified missing `optimization.md` /
 and the alternative basis; continue authorized work with established contracts. This does not
 waive technical gates or allow a PR-ready/completed claim before applicable verification passes.
 
+For MetaX multi-host work, first satisfy the phase-2
+[communication preflight](../../docs/model-adaptation-workflow.md#metax-multi-host-communication-preflight)
+with `mccl_tests` before dependent multi-host model execution. Inspect existing
+matching evidence when phase 2 is unselected; do not silently run another phase.
+
 3. **Perform the adaptation.** Combine the model architecture and inference-path
    analysis, the requested platform's environment analysis, and the
    adaptation-related reference files provided by the user. Carry out the work
@@ -343,8 +348,12 @@ waive technical gates or allow a PR-ready/completed claim before applicable veri
       disabled state is unverified, do not run or accept the performance result.
       Do not put this argument in the common graph profile, and restore the normal
       prefix-cache-enabled profile before any later non-performance test.
-      Use `test/nccl_test/` for communication validation when relevant, also
-      under the `graph`-mode acceptance configuration.
+      Use platform-appropriate communication checks when relevant: MetaX uses
+      `mccl_tests`; use `test/nccl_test/` only where its backend is applicable.
+      Later graph communication checks must match the accepted topology/runtime;
+      a standalone communication benchmark does not prove model graph integration.
+      The phase-2 MetaX preflight is an earlier environment prerequisite and does
+      not wait for formal accuracy or require a model prefix-cache change.
    5. **Acceptance evidence.** Record the exact test scripts, configuration,
       dataset or case set, service mode, container name and image, commands,
       environment, result locations, metrics, pass criteria, and outcomes under

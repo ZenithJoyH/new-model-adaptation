@@ -115,6 +115,14 @@ installation is required. A local-only task does not activate remote checks.
   cannot complete formal acceptance or reach `optimized`.
 - Use each profile's own implementation and acceptance steps. Do not apply vLLM
   service gates to Torch-FL Python API work. Profiles cannot weaken shared rules.
+- For MetaX multi-host adaptation, first verify cross-host communication with
+  `MetaX-MACA/mccl_tests` during environment analysis, before dependent multi-host
+  model execution. Follow the [MetaX communication preflight](docs/model-adaptation-workflow.md#metax-multi-host-communication-preflight).
+  Every test rank must run inside its Host's actual adaptation container using
+  the model's communication stack and device/network mappings; host-only results
+  cannot satisfy this prerequisite.
+  Retain exact-scope evidence; failed or missing checks block dependent execution,
+  not independent analysis. This does not authorize unselected phases or hosts.
 - Keep architecture and inference-chain analyses in Chinese. Local environment,
   adaptation and acceptance directories contain concise Markdown records only;
   executable process artifacts and native evidence stay in approved remote roots.

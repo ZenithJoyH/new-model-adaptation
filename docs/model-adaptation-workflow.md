@@ -57,6 +57,66 @@ drivers, toolchain, package/import/source identities, revisions, available resou
 root mappings and compatibility gaps. Search prior verified troubleshooting
 experience before changes; revalidate its applicability.
 
+### MetaX multi-host communication preflight
+
+For MetaX adaptations spanning two or more Hosts, use
+[MetaX-MACA/mccl_tests](https://github.com/MetaX-MACA/mccl_tests) in phase 2 before
+dependent multi-host model execution. This is an environment prerequisite shared
+by applicable frameworks, not a new phase or a model performance acceptance run.
+Single-host work is not required to run cross-host tests. If phase 2 is unselected,
+inspect matching existing evidence; missing evidence does not authorize running
+an unselected phase. Draft/read-only profile restrictions still apply.
+
+1. **Confirm scope and runtime.** Verify the exact Hosts, allocated GPUs, approved
+   roots and container mappings. Test inside the actual adaptation containers using
+   the same MACA/MCCL libraries as model execution. Record SDK, driver, MPI and loaded
+   MCCL versions/paths, test revision and binary path/hash, rank/GPU mapping, network
+   interfaces and RDMA devices. Check rank launch connectivity and device visibility;
+   preserve unrelated services and keep adaptation containers running. Do not install
+   or upgrade the SDK, change SSH/network policy or broaden resource use implicitly.
+   Every test rank, including those launched remotely by MPI, must execute inside
+   its corresponding adaptation container. Starting `mpirun` inside one container
+   does not prove remote ranks entered theirs. Record each Host's container ID,
+   rank process/container membership, actual loaded libraries, GPU/RDMA device
+   mappings and network mode. Use the mappings intended for model execution;
+   do not switch to a separate test container or host libraries to obtain a pass.
+   Host-side launch orchestration is allowed within scope, but host-only benchmarks
+   are diagnostic evidence only and cannot pass this container preflight. If a
+   remote rank runs on the host or its container identity cannot be verified,
+   leave the preflight incomplete and fix the launch path before rerunning.
+2. **Verify the launch command.** Inspect the pinned README, build and launch scripts
+   before use. The reviewed upstream `cluster.sh` takes `"IP1:slots,IP2:slots"`, total
+   process count and test name, unlike the README's older argument list. It defaults
+   to an SDK samples binary path, fixed HCA names and a derived `/24` subnet. Resolve
+   these from the actual environment, not by copying example IPs, NICs or defaults;
+   verify the intended binary and libraries on every Host. Recheck newer revisions.
+3. **Exercise the topology.** Progress from per-host multi-GPU checks to two Hosts
+   with one GPU each, then multi-GPU/multi-host tests covering the planned rank groups.
+   Run AllReduce and the operations required by the model's parallelism, such as
+   AllGather/ReduceScatter for TP, Send/Recv for PP and All-to-All for EP. Scan small
+   and large message sizes with correctness checking (`-c 1`), warmup and repeated
+   iterations; record datatype, sizes, counts, latency, `algbw`, `busbw` and errors.
+   Verify the actual transport/NIC path from runtime evidence; a completed MPI job
+   alone does not establish RDMA use or a healthy intended path.
+4. **Record the decision.** Require all selected checks to complete with correct
+   results, no hangs/timeouts and the intended communication path. Diagnose obvious
+   bandwidth/latency anomalies against link/topology facts or a comparable baseline;
+   do not invent a universal bandwidth threshold or treat `busbw` as raw NIC throughput.
+   Failed, unavailable or unresolved checks leave the affected environment prerequisite
+   incomplete and block dependent multi-host execution; independent analysis and
+   authorized diagnosis may continue. Reuse only verified matching evidence; changes
+   to Hosts, topology, containers, communication libraries or network settings require
+   affected checks to be rerun. Do not silently rewrite historical acceptance states.
+
+Keep test setup/commands under the approved remote root's `01-environment/`, with
+test source/build artifacts in a declared `05-tmp/` subdirectory and full outputs in
+`04-runs/`; do not add them to Plugin/operator sources or local model directories.
+In local `environment/environment-analysis.md`, record scope, commands, versions,
+results, blockers and exact remote evidence paths/hashes. This preflight may run
+before model accuracy and requires no model service, launcher or prefix-cache switch.
+It does not prove framework TP/PP/EP integration or graph capture/replay; retain
+the selected profile's later graph, accuracy and performance acceptance requirements.
+
 ## 3. Implementation
 
 Follow the profile's concrete steps, combining model analysis, environment facts
