@@ -55,14 +55,17 @@ minimal-regression 由框架定向测试承担，只有提供固定案例集时�
   prefix cache 开启。后续性能复用相同脚本 SHA-256 与基础配置，仅传 `--performance`。
   记录脚本、实际调用、生效配置与每轮服务实例；非必要磁盘缓存目录环境变量不保留。
 - 方法：本节、项目本地精度入口及 `test/Accuracy_test/` 的原生执行/验证工具。
-- `service-sanity`：在已通过执行模式验收的最终 graph 服务上，冻结符合模型能力的代表性请求、
-  参考输出和经容量验证的正整数并发。v2 使用 `test/Accuracy_test/sanity.py`，默认只离线
-  校验，显式 `--run` 才发送请求；当前支持文本/多模态 chat 请求的完整文本对比。
-  原生 manifest、结果与服务绑定见 [v2 契约](evidence-contract-v2.md)。原始结果放在
-  远端 `<host_root>/04-runs/<run_id>/`；未提供已核实参考或不适用该 runner 时为
-  `incomplete`。历史 v1 的十并发规则保持原记录，不套用于新 v2 工作区。
-  正式 gate 另核对冻结 `service_contract` 中的模型能力、服务别名与启动身份，
-  单独 manifest 预检不能代替这些检查。
+- `service-sanity`：在已通过执行模式验收的最终 graph 服务上，固定符合模型能力的请求、
+  预期行为和经容量验证的正整数并发。纯文本模型使用文本请求；支持图像的模型必须同时
+  覆盖文本和图像请求。新 manifest 使用 schema 2，不要求开放式回答逐字匹配参考答案。
+  `test/Accuracy_test/sanity.py` 默认离线预检，显式 `--run` 才发送请求，保存原始响应、
+  错误和时延。schema 2 的正式 gate 另核对冻结 `service_contract` 中的模型能力、服务别名
+  与启动身份，单独 manifest 预检不能代替这些检查。正常响应生成 `needs_review`，不自动声明通过；Agent/人工逐项检查切题、
+  乱码、异常重复及图像理解，独立审阅绑定原报告哈希。原生回执引用 `native.manifest`、
+  `native.sanity`、`native.sanity_review`，格式见 [v2 契约](evidence-contract-v2.md)。
+  空输出、异常结束、错误/超时保留并不能通过；性能预检仍需独立观测证据，明显问题先修复。
+  原始结果放在远端 `<host_root>/04-runs/<run_id>/`。历史 schema 1 仍按参考文本比较，
+  历史 v1 的十并发规则不套用于新工作区；不改写旧报告或自动迁移原 manifest。
 - `formal-full` evaluator：目标机器上基于
   `harbor.baai.ac.cn/flageval/flageval-llmeval:v1` 或已核实的适用 arm64 镜像的评测容器。
 - `formal-full` runner：`test/Accuracy_test/llmrun.py`。在容器内保持该文件与
@@ -79,13 +82,28 @@ minimal-regression 由框架定向测试承担，只有提供固定案例集时�
   的正式数据集。完整性由项目原生验收器执行，配置字段以当前 runner 为准。
 - 正式精度的完成判定按冻结阈值执行：有效完整结果中每个任务的指定 metric 达到对应
   minimum，即可将精度子步骤标记为 `passed` 或 `complete`。metric 不要求为 `1.0`，允许
-  个别题目答错；`service-sanity` 的逐题正确要求不得替代正式精度的阈值判定。最终超时请求
+  个别题目答错；`service-sanity` 的响应审阅不得替代正式精度阈值判定。最终超时请求
   必须作为错误样本保留并计入分母，不得丢弃或用重试掩盖；样本完整且各 metric 达标时允许
   少量超时。样本或回执无效、非超时请求/执行错误、结果不完整或任一 metric 未达阈值时
   仍不得通过。
 - 正式结果：runner 生成的 `acceptance-result.json`。通过
   `./scripts/adapt-model <model> --platform <platform> --framework vllm-plugin-fl --hosts <hosts> --steps acceptance --acceptance-substeps accuracy --check-only --verify-records --artifact-root <Host>=<可读根>`
   执行本项目绑定检查；不得用 Markdown、阶段分数、日志或退出码替代。
+- `score-existing-run`：仅在用户明确批准“长度截断空答案按错误计分”后，允许对原始
+  GPQA Diamond198完整终态运行做离线恢复。先保留原生终态报告和全部原始响应，再冻结
+  新配置的`offline_recovery`、原配置/生效快照、终态、只读缓存快照、API原始日志以及
+  全198题prompt/target与原生过滤器审计。`python3 test/Accuracy_test/recover_gpqa.py
+  <新冻结配置> --artifact-root <批准根>`默认只离线预检；显式`--run`生成独立原生报告。
+  只允许有实际`finish_reason=length`及原输出上限证据的null内容按零分处理；原None
+  仍保存在`raw_resps`，评分样本使用明确的`<TRUNCATED_EMPTY_CONTENT>`标记并保留截断
+  字段。其余响应逐字保留，完整198题分母、阈值、数据集和所有推理参数不变，禁止重发
+  题目或改写原缓存。用户随后明确变更门槛时，须在新配置的 `threshold_override` 中冻结
+  授权、原值和新值，仅允许变更 minimum；原配置保留。新原生gate重读原始数据逐题重算选定指标，未知空值、额外执行错误、
+  缺题/重题或漂移均拒绝。此明确例外不改变普通formal-full的空响应拒绝规则，也不把
+  已失败的原报告改为通过。也支持已核实的原生 null→`<TIMEOUT>` 转换及汇总排除空答案
+  分母的情况：原报告即便标记 passed 也必须保留，逐题验证原样本与缓存一致后，以全部
+  198题重新计算；不能把原报告的状态作为通过依据。普通 per-filter exact-match gate
+  同样核对逐题均值，超时不得从分母排除。该快速离线操作不属于现有journal的正式完成映射。
 - `hard-case`：当前尚无仓库级固定清单和正式入口；用户未提供并冻结版本化 manifest 时返回
   `incomplete`。
 - `gate-check`：使用
@@ -109,9 +127,11 @@ minimal-regression 由框架定向测试承担，只有提供固定案例集时�
 - `full-suite`：把版本化完整场景 manifest 中每项映射为重复的 `--case`；不得静默遗漏。
   `--model`、`--tokenizer`、`--max-model-len`、Host、端口和 endpoint 来自当前服务取证，且
   每个 `INPUT+OUTPUT` 不超过当前上下文预算。
-- v2 在运行前冻结 `acceptance_plan.performance_targets`，逐场景声明延迟/吞吐等目标；
-  相对目标必须提供完整可核验 baseline。报告有效且全部目标达标才通过，不能只凭正常退出
-  标记 `optimized`。具体格式见 [v2 契约](evidence-contract-v2.md)。
+- 新模型适配不强制预设性能目标：冻结场景并完成完整有效测量，记录实测吞吐、时延、
+  资源与配置，处理明显异常。无量化优化目标时省略 `acceptance_plan.performance_targets`。
+  用户另行要求量化优化时，在运行前冻结该字段；相对目标须有完整可核验 baseline，显式
+  目标仍须全部达成，不得删除既定目标规避失败。`optimized` 仍须全部验收通过，不能只凭
+  正常退出或缺少 baseline 就声称提速。具体格式见 [v2 契约](evidence-contract-v2.md)。
 - 测量与验证：按冻结配置及原生 runner 执行显式预热、多轮无 profiler 测量、请求/token/指标校验；项目
   原生报告为 `benchmark-result.json`，使用 `perf_common.validate_report` 完整校验。
 - 正式回执：在完整远端报告旁执行

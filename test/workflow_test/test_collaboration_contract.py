@@ -298,6 +298,29 @@ class PinnedContractTests(ModernFixture):
 
 
 class ObjectiveEvidenceTests(ModernFixture):
+    def test_optimized_local_state_needs_full_acceptance_but_not_speed_targets(self):
+        # Exercise the local state validator with real document hashes/receipts;
+        # native measurement integrity is covered by the native-performance test.
+        profile = workspace.resolved_profile(self.f.root, 'vllm-plugin-fl')[1]
+        directory = self.f.directory.with_name('vllm-plugin-fl')
+        self.f.directory.rename(directory)
+        self.f.directory = directory
+        self.f.profile = profile
+        self.cfg.update(framework='vllm-plugin-fl', profile='framework-profiles/vllm-plugin-fl/profile.yml')
+        workspace.pin_profile(self.cfg, profile)
+        self.cfg['workflow']['acceptance']['substeps'] = {
+            name: 'not_started' for name in profile['acceptance']['steps']}
+        from test_service_acceptance import freeze_service
+        self.f.bind('architecture')
+        freeze_service(self)
+        for stage in ('environment', 'adaptation', *profile['acceptance']['steps'], 'acceptance'):
+            self.f.bind(stage)
+        self.cfg['status'] = 'optimized'
+        self.assertNotIn('performance_targets', self.cfg['acceptance_plan'])
+        self.assertEqual(gate.validate_workspace(self.f.root, directory, self.cfg, profile), [])
+        self.cfg['workflow']['acceptance']['substeps']['performance'] = 'not_started'
+        self.assertTrue(gate.validate_workspace(self.f.root, directory, self.cfg, profile))
+
     def pipeline_binding(self, change=None):
         import hashlib
         self.cfg['target']['hosts'] = ['PPU-01', 'PPU-02']
@@ -443,6 +466,13 @@ class ObjectiveEvidenceTests(ModernFixture):
             with self.subTest(limits=limits), self.assertRaises(ValueError):
                 contract.validate_performance_plan({'performance_targets':{'cases':[{'case':[1,1,1,1],'limits':limits}]}})
 
+    def test_performance_targets_are_optional_but_explicit_empty_targets_are_invalid(self):
+        self.assertIsNone(contract.validate_performance_plan({}, [[1, 1, 1, 1]]))
+        contract.performance_targets(self.reader, {'request': {'cases': [[1, 1, 1, 1]]}}, {})
+        for targets in (None, {}, {'cases': []}, False):
+            with self.subTest(targets=targets), self.assertRaises(ValueError):
+                contract.validate_performance_plan({'performance_targets': targets})
+
     def test_native_performance_checks_service_targets_and_baseline_artifacts(self):
         import test_performance_evidence as perf_fixtures
         fixture=perf_fixtures.PerformanceEvidenceTests(); fixture.setUp()
@@ -473,9 +503,33 @@ class ObjectiveEvidenceTests(ModernFixture):
         gate.native_performance(reader,native,envelope,cfg)
         cfg['acceptance_plan']['performance_targets']['cases'][0]['limits']['Req/s']['min_ratio']=1.1
         with self.assertRaisesRegex(ValueError,'未达标'): gate.native_performance(reader,native,envelope,cfg)
-        cfg['acceptance_plan']['performance_targets']['cases'][0]['limits']['Req/s']['min_ratio']=1.0
+        # A separate bring-up plan can omit targets, but still needs all native
+        # artifacts and current-service identity. This is not a historical regrade.
+        cfg['acceptance_plan'].pop('performance_targets')
+        gate.native_performance(reader,native,envelope,cfg)
+        with patch.dict(envelope, service_instance_id='another-service'):
+            with self.assertRaises(ValueError): gate.native_performance(reader,native,envelope,cfg)
         raw=fixture.report_path.parent/fixture.report['artifacts'][0]['path']; raw.write_text('changed')
         with self.assertRaisesRegex(ValueError,'完整性能产物'): gate.native_performance(reader,native,envelope,cfg)
+
+    def test_native_sanity_review_is_bound_to_original_responses(self):
+        from test_service_acceptance import freeze_service, launch_record
+        freeze_service(self)
+        launch_envelope, binding, _ = launch_record(self, 'sanity')
+        manifest, result, review = SanityTests.response_review_fixture()
+        manifest_ref = self.raw('sanity-manifest.json', manifest)
+        result.update(manifest_sha256=manifest_ref['sha256'], service_binding=binding)
+        result_ref = self.raw('sanity-result.json', result)
+        review.update(manifest_sha256=manifest_ref['sha256'], report_sha256=result_ref['sha256'])
+        envelope = {'run_id': 'sanity-run', 'service_instance_id': 'service-A', 'native': {
+            'manifest': manifest_ref, 'sanity': result_ref, 'sanity_review': self.raw('sanity-review.json', review),
+            'service_launch': launch_envelope['native']['service_launch']}}
+        self.cfg['acceptance_plan']['sanity_manifest_sha256'] = manifest_ref['sha256']
+        gate.native_sanity(self.reader, envelope, self.cfg, 'PPU-01')
+        review['report_sha256'] = '0' * 64
+        envelope['native']['sanity_review'] = self.raw('sanity-review.json', review)
+        with self.assertRaisesRegex(ValueError, '原始响应报告不匹配'):
+            gate.native_sanity(self.reader, envelope, self.cfg, 'PPU-01')
 
     def test_delivery_manifest_requires_all_reproducible_files(self):
         files=[dict(self.raw(role+'.json',{'content':role}),role=role) for role in ('launcher','config','source','lock','restore')]
@@ -530,6 +584,122 @@ class ObjectiveEvidenceTests(ModernFixture):
 
 
 class SanityTests(unittest.TestCase):
+    @staticmethod
+    def response_review_fixture():
+        manifest = {'schema_version': 2, 'kind': 'sanity_manifest', 'model': 'Example',
+                    'concurrency': 2, 'timeout': 30, 'modalities': ['text', 'image'], 'cases': [
+            {'id': 'text', 'modality': 'text', 'expected_behavior': 'Explain the sun coherently.',
+             'request': {'messages': [{'role': 'user', 'content': 'Tell me about the sun.'}]}},
+            {'id': 'image', 'modality': 'image', 'expected_behavior': 'Identify a red square.',
+             'request': {'messages': [{'role': 'user', 'content': [
+                 {'type': 'text', 'text': 'Describe the shape and color.'},
+                 {'type': 'image_url', 'image_url': {'url': 'https://example.invalid/red-square.png'}}]}]}}
+        ]}
+        result = {'kind': 'sanity_result', 'status': 'needs_review', 'run_id': 'sanity-run',
+                  'manifest_sha256': 'a' * 64, 'concurrency': 2, 'cases': [
+            {'id': name, 'error': None, 'elapsed_seconds': 0.3,
+             'response': {'choices': [{'finish_reason': 'stop', 'message': {'content': content}}]}}
+            for name, content in [('text', 'The Sun is a star.'), ('image', 'A square colored red.')]]}
+        review = {'schema_version': 1, 'kind': 'sanity_review', 'reviewer': 'test operator',
+                  'run_id': result['run_id'], 'manifest_sha256': result['manifest_sha256'], 'cases': [
+            {'id': 'text', 'output_health': True, 'relevance': True, 'note': 'Coherent description of the sun.'},
+            {'id': 'image', 'output_health': True, 'relevance': True, 'image_understanding': True,
+             'note': 'The shape and color match the supplied image.'}]}
+        return manifest, result, review
+
+    def test_text_and_image_review_accepts_nonverbatim_answers(self):
+        manifest, result, review = self.response_review_fixture()
+        sanity.validate_result(manifest, result, review)
+        # Text-only models do not need an image request.
+        manifest['modalities'] = ['text']
+        for obj in (manifest, result, review):
+            obj['cases'] = obj['cases'][:1]
+        sanity.validate_result(manifest, result, review)
+
+    def test_request_transport_preserves_image_input_and_failed_responses(self):
+        import io
+        manifest, _, _ = self.response_review_fixture()
+        manifest['concurrency'] = 1
+        body = {'choices': [{'finish_reason': 'stop', 'message': {'content': 'A red square.'}}]}
+        captured = []
+
+        def transport(request, timeout):
+            captured.append(json.loads(request.data))
+            self.assertEqual(timeout, manifest['timeout'])
+            if len(captured) == 1:
+                raise TimeoutError('request timed out')
+            return io.BytesIO(json.dumps(body).encode())
+
+        with patch.object(sanity.urllib.request, 'urlopen', side_effect=transport):
+            results = sanity.execute(manifest, {'endpoint': 'http://example.invalid/v1/chat/completions'})
+        self.assertIn('timed out', results[0]['error'])
+        self.assertEqual(results[1]['response'], body)
+        self.assertEqual(captured[1]['messages'], manifest['cases'][1]['request']['messages'])
+        self.assertEqual(captured[1]['model'], manifest['model'])
+        self.assertFalse(captured[1]['stream'])
+        self.assertTrue(all(item['elapsed_seconds'] >= 0 for item in results))
+
+    def test_modality_coverage_and_real_image_input_are_required(self):
+        for kind in ('missing-image', 'missing-text', 'fake-image', 'unsupported-content', 'no-expectation', 'multiple-completions'):
+            manifest, _, _ = self.response_review_fixture()
+            if kind == 'missing-image': manifest['cases'].pop()
+            if kind == 'missing-text': manifest['cases'].pop(0)
+            if kind == 'fake-image':
+                manifest['cases'][1]['request']['messages'][0]['content'] = 'Pretend there is an image.'
+            if kind == 'unsupported-content':
+                manifest['cases'][1]['request']['messages'][0]['content'][1]['type'] = 'audio_url'
+            if kind == 'no-expectation': manifest['cases'][0]['expected_behavior'] = ''
+            if kind == 'multiple-completions': manifest['cases'][0]['request']['n'] = 2
+            with self.subTest(kind=kind), self.assertRaises(ValueError):
+                sanity.validate_manifest(manifest)
+
+    def test_response_health_and_review_cannot_be_skipped(self):
+        for kind in ('empty', 'truncated', 'timeout', 'timing', 'omitted', 'no-review',
+                     'wrong-run', 'wrong-manifest', 'no-reviewer', 'unrelated', 'unseen-image', 'no-rationale', 'extra-choice'):
+            manifest, result, review = self.response_review_fixture()
+            response = result['cases'][0]
+            if kind == 'empty': response['response']['choices'][0]['message']['content'] = ''
+            if kind == 'extra-choice': response['response']['choices'].append(copy.deepcopy(response['response']['choices'][0]))
+            if kind == 'truncated': response['response']['choices'][0]['finish_reason'] = 'length'
+            if kind == 'timeout': response['error'] = 'timeout'
+            if kind == 'timing': response['elapsed_seconds'] = float('nan')
+            if kind == 'omitted': review['cases'].pop()
+            if kind == 'no-review': review = None
+            if kind == 'wrong-run': review['run_id'] = 'old-run'
+            if kind == 'wrong-manifest': review['manifest_sha256'] = 'b' * 64
+            if kind == 'no-reviewer': review['reviewer'] = ''
+            if kind == 'unrelated': review['cases'][0]['relevance'] = False
+            if kind == 'unseen-image': review['cases'][1].pop('image_understanding')
+            if kind == 'no-rationale': review['cases'][0]['note'] = ''
+            with self.subTest(kind=kind), self.assertRaises(ValueError):
+                sanity.validate_result(manifest, result, review)
+
+    def test_sanity_cli_collects_responses_but_does_not_auto_accept(self):
+        import io
+        import tempfile
+        manifest, result, _ = self.response_review_fixture()
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            (root / 'manifest.json').write_text(json.dumps(manifest))
+            (root / 'binding.json').write_text(json.dumps({'endpoint': 'http://127.0.0.1:1/v1/chat/completions'}))
+            args = ['sanity', '--manifest', str(root / 'manifest.json'), '--service-binding',
+                    str(root / 'binding.json'), '--run-id', 'sanity-run', '--output', str(root / 'result.json')]
+            with patch('sys.argv', args), patch('sys.stdout', io.StringIO()), patch.object(sanity, 'execute') as run:
+                self.assertEqual(sanity.main(), 0)
+                run.assert_not_called()
+                self.assertFalse((root / 'result.json').exists())
+            with patch('sys.argv', args + ['--run']), patch('sys.stdout', io.StringIO()), \
+                    patch.object(sanity, 'execute', return_value=result['cases']):
+                self.assertEqual(sanity.main(), 0)
+            saved = json.loads((root / 'result.json').read_text())
+            self.assertEqual(saved['status'], 'needs_review')
+            with self.assertRaisesRegex(ValueError, 'sanity_review'):
+                sanity.validate_result(manifest, saved)
+            with patch('sys.argv', args + ['--run']), patch('sys.stdout', io.StringIO()), \
+                    patch.object(sanity, 'execute') as run:
+                self.assertEqual(sanity.main(), 2)
+                run.assert_not_called()
+
     def test_performance_run_id_is_fixed_before_requests_and_cannot_reuse_directory(self):
         import io
         import tempfile

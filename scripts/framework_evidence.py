@@ -158,11 +158,14 @@ class Artifacts:
 def native_accuracy(reader, native, envelope, cfg):
     sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "test/Accuracy_test"))
     try:
-        from acceptance_contract import validate_formal_config, metric_errors
+        from acceptance_contract import validate_formal_config, metric_errors, sample_metric_errors
         from llmrun import load_config, validate_samples
         report = reader.json(native["report"])
         frozen_path = reader.file(native["config"])
         frozen = json.loads(frozen_path.read_text(encoding="utf-8"))
+        if "offline_recovery" in frozen:
+            from gpqa_recovery_contract import validate_recovery_report
+            validate_recovery_report(frozen, report, reader)
         if cfg.get("evidence_contract", 1) == 2:
             from evidence_contract import service_binding
             require(frozen.get("formal_contract_version") == 2, "新契约需要 formal_contract_version=2")
@@ -215,6 +218,8 @@ def native_accuracy(reader, native, envelope, cfg):
             require(not metric_errors(frozen, task, result.get("results", {}).get(task, {})), f"{task}: 指标未达到冻结阈值")
             samples = reader.file(report["artifacts"][task]["samples"])
             require(validate_samples(frozen, task, samples.parent, samples_file=samples), f"{task}: 样本不完整或无效")
+            require(not sample_metric_errors(frozen, task, result.get("results", {}).get(task, {}), samples),
+                    f"{task}: 指标与全量样本分母不一致（超时必须计错）")
     finally:
         sys.path.pop(0)
 
@@ -322,7 +327,12 @@ def native_sanity(reader, report, cfg, host):
             from service_acceptance import validate_sanity_scope, validate_launch
             validate_sanity_scope(cfg, host, manifest)
             validate_launch(reader, report, cfg, host, "sanity", result["service_binding"])
-        validate_result(manifest, result)
+        review = None
+        if manifest.get("schema_version") == 2:
+            review = reader.json(native["sanity_review"])
+            require(review.get("report_sha256") == native["sanity"]["sha256"],
+                    "sanity review 与原始响应报告不匹配")
+        validate_result(manifest, result, review)
     finally:
         sys.path.pop(0)
 
@@ -455,8 +465,8 @@ def validate_workspace(root, directory, cfg, profile, mounts=None):
             basic = "execution-mode" if "execution-mode" in steps else "model-eager"
             require(basic in steps and state(cfg, basic) in DONE, "functional/optimized 缺少模型推理证据")
         if cfg["status"] == "optimized":
-            require(cfg.get("evidence_contract") == 2 and cfg.get("acceptance_plan", {}).get("performance_targets"),
-                    "optimized 需要 v2 性能目标；旧验收保留为历史记录")
+            require(cfg.get("evidence_contract") == 2,
+                    "optimized 需要 v2 完整验收；旧验收保留为历史记录")
             require(profile["status"] == "active" and all(state(cfg, s) in DONE for s in steps)
                     and state(cfg, "acceptance") in DONE, "optimized 需要 active profile 和完整验收")
         if profile["status"] == "experimental":

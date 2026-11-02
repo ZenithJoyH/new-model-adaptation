@@ -11,7 +11,8 @@ profile_snapshot、profile_sha256 固定机器可执行要求；documents、disp
 工作区仍按原算法核验，不自动改写哈希/历史回执；通过 workspace-control 显式升级后复核。
 架构绑定模型身份和证据，其余阶段绑定部署、对应计划及前置回执。performance_targets
 变化不直接改变 accuracy 的上下文。审计按固定版本验证，另提示当前 profile 更新；
-升级须显式执行。optimized 需要 v2、完整验收和性能目标通过。
+升级须显式执行。optimized 需要 v2 和完整验收（含有效性能测量），不要求预设性能目标；
+用户明确配置的优化目标仍须达成。v2 是证据记录/绑定规则的版本，不是另一套适配流程。
 
 ## 公共回执
 
@@ -170,19 +171,65 @@ gate 核对观察到的 argv 与进程哈希，比较冻结 argv、必要环境�
 
 ## 小集合与正式精度
 
-sanity 使用 test/Accuracy_test/sanity.py。manifest 固定 model、concurrency、timeout 和
-带唯一 id 的 cases；每项包含 request.messages（可含多模态输入）及参考实现的 reference_text。
-当前比较器做去除首尾空白后的精确文本比较，适合固定短答案/确定性回归；自由生成或
-浮点输出须提供对应比较器。小集合检验适配一致性，正式数据集检验模型能力阈值。
+sanity 使用 `test/Accuracy_test/sanity.py`。manifest schema 是请求文件的格式版本，
+与工作区 evidence_contract 版本分开管理。新 manifest 使用 schema 2，固定 model、
+concurrency、timeout、modalities 及带唯一 id 的 cases。纯文本模型声明 `["text"]`；图像
+模型声明 `["text", "image"]`，必须实际覆盖两类请求。模型能力来自已核实的结构分析，
+不得把图像模型声明为纯文本来省略图像验证。每个 case 包含 `modality`、`request.messages`
+及可审阅的 `expected_behavior`；图像 case 的 user 消息实际包含 `image_url` 和文本问题。
+图片应可辨识且问题依赖图片内容，不能仅检查模型声称“看到了图片”。开放式回答不做逐字
+比较；确定性问题可以在预期行为中写明正确答案。图像资产在远端保留可复核来源/版本。
+
+```json
+{
+  "schema_version": 2, "kind": "sanity_manifest", "model": "<served-model>",
+  "concurrency": 10, "timeout": 120, "modalities": ["text", "image"],
+  "cases": [
+    {"id": "text-1", "modality": "text",
+     "request": {"messages": [{"role": "user", "content": "用一句话介绍太阳。"}]},
+     "expected_behavior": "回答与太阳相关、语句完整，无乱码或异常重复"},
+    {"id": "image-1", "modality": "image",
+     "request": {"messages": [{"role": "user", "content": [
+       {"type": "text", "text": "图片里有哪些物体？"},
+       {"type": "image_url", "image_url": {"url": "<verified-image-url-or-data-uri>"}}
+     ]}]}, "expected_behavior": "运行前根据实际图片填写可核验的物体及关键特征"}
+  ]
+}
+```
+
+示例只是字段说明；正式预检选几个代表性文本/图像请求并填写实际图片预期，不能保留占位符。
+并发仍按实际容量固定，本次调整不改变现有并发选择政策。
 
 ```bash
 python3 test/Accuracy_test/sanity.py --manifest /approved/03-acceptance/sanity.json \
   --service-binding /approved/03-acceptance/service-binding.json --run-id sanity-001
 ```
 
-默认离线检查；显式增加 --run 和新的绝对 --output 才发请求。框架回执 native.manifest、
-native.sanity 引用 manifest 和报告，acceptance_plan.sanity_manifest_sha256 在执行前冻结。
-gate 重验 case 覆盖、响应、错误和参考一致性；performance_sanity 等审查项仍须单独证据。
+默认离线检查；显式增加 `--run` 和新的绝对 `--output` 才发请求。runner 保存原始响应、
+错误和每请求 `elapsed_seconds`，检查非空输出及正常 `finish_reason=stop`；错误/超时、
+截断/异常结束不能通过。正常完成返回 `needs_review`（退出码 0 只代表采集成功）。
+Agent 或人工阅读实际请求、图片与响应后另存审阅，不改写原报告：
+
+```json
+{
+  "schema_version": 1, "kind": "sanity_review", "reviewer": "<agent-or-human-name>",
+  "run_id": "sanity-001", "manifest_sha256": "<manifest-sha256>",
+  "report_sha256": "<original-sanity-result-sha256>",
+  "cases": [
+    {"id": "text-1", "output_health": true, "relevance": true,
+     "note": "根据实际响应说明切题且无乱码、空输出或异常重复的依据"},
+    {"id": "image-1", "output_health": true, "relevance": true, "image_understanding": true,
+     "note": "逐项描述实际图片特征与回复的对应关系，不得照填模板结论"}
+  ]
+}
+```
+
+框架回执 `native.manifest`、`native.sanity`、`native.sanity_review` 分别引用文件和 SHA-256；
+`acceptance_plan.sanity_manifest_sha256` 在执行前固定。gate 重验覆盖、原始响应、错误、时延、
+审阅身份及报告绑定，全部检查通过才能将 sanity 标为完成。已有 profile 检查名
+`reference_consistency` 对 schema 2 表示对预期行为的逐项审阅，属于有证据的判断；哈希不能
+自动证明语义正确。`performance_sanity` 仍需独立观测吞吐、时延和资源，明显异常先修复。
+历史 schema 1 保持精确参考文本比较，不改写历史结果；新请求应显式创建 schema 2 manifest。
 
 正式精度继续使用 llmrun.py。v2 配置添加 formal_contract_version: 2、service_binding 和
 非空 concurrency_reason；num_concurrent 是按容量依据冻结的正整数。旧配置继续保持至少
@@ -191,9 +238,12 @@ gate 重验 case 覆盖、响应、错误和参考一致性；performance_sanity
 取证与评测使用同一个预先选定的 run_id；llmrun 的 `run_id` 使用此 ID，避免默认时间戳
 生成另一个 run。性能 runner 同样显式传入 `--run-id`；重复使用已存在的运行目录会被拒绝。
 
-## 性能目标
+## 性能测量与可选目标
 
-acceptance_plan.performance_targets 与 request 一起冻结，cases 与请求逐项同序：
+新模型适配没有强制的预期性能目标。必须固定场景、取得完整有效测量，保留原始产物、
+服务绑定、吞吐/时延和资源观测并处理明显异常；正常退出不等于测量有效。没有另行要求
+量化优化时省略 `acceptance_plan.performance_targets`，不填空目标或人为设置零阈值。
+只有用户要求量化优化目标时，该字段才与 request 一起冻结，cases 与请求逐项同序：
 
 ```yaml
 performance_targets:
@@ -208,7 +258,10 @@ performance_targets:
 performance_targets.baseline 的完整 benchmark-result.json path/sha256，原始依赖也须可读。
 工具核验 baseline 产物、模型、tokenizer、上下文和场景一致性；硬件拓扑、精度与缓存
 可比性仍须现场证据和审查。指标名使用原生 summary 的准确列名。
-原生 benchmark passed 表示测量有效；v2 framework performance passed 还要求目标达标。
+原生 benchmark passed 表示测量有效；框架 performance 仍核对完整产物、服务身份、已通过
+精度及关闭缓存等前置。若配置了目标则额外要求达标；缺少目标不会阻止适配验收或 optimized。
+不得删除已冻结的目标以掩盖失败，改变优化任务范围须明确记录并重新验证受影响结果。
+没有可比基线时只报告测量结果，不宣称优化幅度。
 
 ## 可恢复交付
 

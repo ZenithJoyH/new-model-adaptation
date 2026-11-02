@@ -1,6 +1,32 @@
 """Shared, offline contract for formal accuracy acceptance (stdlib only)."""
 
 import math
+import json
+from pathlib import Path
+
+
+def sample_metric_errors(cfg, task, metrics, samples_file):
+    """Check per-filter exact match over every document, including timeouts."""
+    selected = cfg["acceptance_criteria"][task]["metric"]
+    metric, separator, sample_filter = selected.partition(",")
+    if metric != "exact_match" or not separator:
+        return []
+    with Path(samples_file).open(encoding="utf-8") as stream:
+        rows = [json.loads(line) for line in stream if line.strip()]
+    if not any("filter" in row for row in rows):
+        return []  # Document-schema recovery has its own raw-input validator.
+    rows = [row for row in rows if row.get("filter") == sample_filter]
+    expected = expected_samples_by_task(cfg)[task]
+    if len(rows) != expected or len({str(row.get("doc_id")) for row in rows}) != expected:
+        return [f"{task}: selected-filter sample coverage is incomplete"]
+    if any(type(row.get(metric)) not in (int, float) or row[metric] not in (0, 1)
+           or (row.get("timeout") and row[metric] != 0) for row in rows):
+        return [f"{task}: invalid per-document exact-match score or nonzero timeout score"]
+    actual = sum(row[metric] for row in rows) / expected
+    reported = metrics.get(selected)
+    if type(reported) not in (int, float) or not math.isfinite(reported) or not math.isclose(reported, actual, rel_tol=0, abs_tol=1e-12):
+        return [f"{task}: reported {selected}={reported} differs from all-{expected}-document mean {actual}; timeouts must remain in the denominator"]
+    return []
 
 
 def expected_samples_by_task(cfg, tasks=None):

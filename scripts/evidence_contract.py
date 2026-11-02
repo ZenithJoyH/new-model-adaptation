@@ -208,9 +208,13 @@ def execution(reader, report, cfg, profile):
 
 
 def validate_performance_plan(plan, cases=None):
+    # New-model bring-up has no mandatory performance target. Explicit targets
+    # remain binding for tasks that request a quantified optimization goal.
+    if "performance_targets" not in plan:
+        return None
     targets = plan.get("performance_targets")
     require(isinstance(targets, dict) and isinstance(targets.get("cases"), list) and targets["cases"],
-            "先冻结 performance_targets，测量有效不能代替性能达标")
+            "显式 performance_targets 必须包含非空场景目标")
     metrics = {"Req/s", "Output tok/s", "Peak Output tok/s", "Total tok/s", "Benchmark Duration (s)"}
     metrics.update(f"{stat} {metric} (ms)" for stat in ("Mean", "Median", "P99")
                    for metric in ("TTFT", "TPOT", "ITL"))
@@ -244,6 +248,8 @@ def validate_performance_plan(plan, cases=None):
 
 def performance_targets(reader, source, plan):
     targets = validate_performance_plan(plan, source["request"]["cases"])
+    if targets is None:
+        return
     baseline = None
     if targets.get("baseline"):
         from perf_common import validate_report

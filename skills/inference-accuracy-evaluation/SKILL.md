@@ -14,7 +14,7 @@ Read [the project contract](references/project-contract.md) and the selected
 framework profile before running anything. The contract specifies methods,
 concurrency, cache state, native commands, output paths and verification.
 
-Require the caller to explicitly select one of: `service-sanity`, `hard-case`, `formal-full`, `gate-check`.
+Require the caller to explicitly select one of: `service-sanity`, `hard-case`, `formal-full`, `score-existing-run`, `gate-check`.
 Return `incomplete` for missing or unsupported selection. Do not choose another
 operation, broaden the selected stage, or invoke another Skill. Return missing
 prerequisites and suggested next actions for the calling Agent to decide.
@@ -29,6 +29,20 @@ For vllm-plugin-fl, follow the contract's dry-run/preflight, measured-run and
 `adapt-model --check-only --verify-records` path. A public Hub result or a log line
 cannot replace these native receipts. Torch-FL experimental device/operator/eager
 checks follow their own profile and do not imply formal service acceptance.
+
+`score-existing-run` is limited to explicitly user-authorized recovery of the
+original complete GPQA Diamond198 invocation whose native scorer rejected a
+length-truncated null content or demonstrably normalized it to a timeout and
+excluded it from the aggregate denominator. Use `test/Accuracy_test/recover_gpqa.py`; its
+default is offline preflight, and `--run` creates a separate report. Preserve the
+original terminal report and raw responses, including a native passed report with
+an incorrect denominator. No inference requests, response-cache
+edits, retries or dropped samples are permitted. A later explicit user threshold
+change must be frozen separately in `threshold_override`; preserve the original
+configuration and change only the authorized minimum. Unknown
+nulls, incomplete provenance or changed data/parameters remain failures. The
+framework gate validates the explicit recovery policy and every original score;
+ordinary `formal-full` empty-response rejection is unchanged.
 
 When a long operation needs a recoverable control record, use
 [the execution journal](../../docs/agent-execution.md). It wraps existing checks
