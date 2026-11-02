@@ -1,5 +1,9 @@
 # Qwen3.8-Flash-Next / MetaX / vllm-plugin-fl
 
+2026-11-01最新进展见[图文graph与全量精度](acceptance/accuracy-mx103-20261101.md)：GPU已释放；6GiB KV/prefill2048图文graph、并发和双长请求均通过，ERQA400已启动，随后执行GPQA198，尚无新分数。没有停止其他任务。
+
+2026-10-31历史状态：[GPQA/ERQA全量准备](acceptance/accuracy-mx103-20261031.md)已完成数据与CPU评测环境预检，但图文服务切换时8卡被重新启动的GLM任务占用，评测尚未开始。Qwen容器仍运行，当前无模型服务；候选脚本已启用image16/video0但尚未验收。此前[文本graph回归](acceptance/graph-main-mx103-20261031.md)的10例105token和24请求已通过，原文本实例现已退出。未停止其他任务；旧全量GPQA和九场景性能继续属于mx-101历史结果。
+
 范围为mx-101既有qwen3.8-flash容器，BF16文本TP8；远端根
 `/public-flash/jinghao/qwen3.8-flash`，权重只读`/public-flash/models/Qwen3.8-Flash-Next`。
 当前functional；本次选择的适配、数值对照、正式GPQA精度、graph性能测量和最终启动交付已完成。
@@ -41,7 +45,8 @@ graph九场景测量，每场景一次warmup及两次无profiler测量，现已�
 部分性能产物保留，不再安排eager性能或计算完整eager/graph性能比。既有数值一致性验证保留。
 最终脚本为远端根start-model.sh，容器内部副本为/opt/qwen3.8-flash-delivery/start-model.sh；
 2026-10-27移除缓存和数据库覆盖后，两份SHA256均为c207cc11bfba76819ec04510cd34c8647ecc5fec92492dd48e8ba1eff6e3eda3。
-normal服务PID4113542、8000端口、100K上下文，保持运行；10例105token与eager参考完全一致，
+2026-10-27验证时normal服务PID4113542、8000端口、100K上下文；2026-10-31现场源容器已停，
+以下数值保留为当时结果：10例105token与eager参考完全一致，
 最大生成token logprob差0.004307605326≤0.02。默认本地DB的24请求及延迟对照通过。正常调用开启prefix，唯一--performance分支仅关闭prefix。
 本轮性能分支只做shell/配置预检；全198题GPQA及九场景性能没有重跑，仍绑定2026-10-25旧脚本/实例。
 镜像打包及新容器验证未请求，image_validation=pending。

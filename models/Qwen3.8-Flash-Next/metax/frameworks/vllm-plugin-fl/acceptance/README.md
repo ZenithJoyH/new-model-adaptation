@@ -2,6 +2,10 @@
 
 范围：qwen3.8-flash，BF16文本TP8；远端根 `/public-flash/jinghao/qwen3.8-flash`。
 
+2026-11-01：[图文graph与全量精度](accuracy-mx103-20261101.md)正在进行；8卡已释放，6GiB KV配置的图文及双长请求通过，ERQA400已启动，GPQA198随后执行，尚无本轮分数。以下保留此前实例结果。
+
+2026-10-31完成[mx-103开发容器迁移与Plugin更新](../environment/mx103-container-migration-20261031.md)及[10例105token、24请求文本graph回归](graph-main-mx103-20261031.md)。后续[全量GPQA/ERQA准备](accuracy-mx103-20261031.md)受其他任务占用GPU阻塞，尚未评分；为图文切换退出原文本实例后，当前仅容器运行，模型服务未就绪。[英文环境交付指南](deployment-guide.md)已区分当前阻塞与历史结果。
+
 - [冻结计划](acceptance-plan.md)：GPQA full198 strict-match≥88%；按2026-10-25用户更新，仅测量报告graph九场景。
 - [100K执行模式](execution-mode-100k.md)：原生验收通过；10例105token相同，最大生成token logprob差0.0029179352≤0.02；实际18尺寸捕获及166次图执行。
 - [100K并发小集](sanity-100k.md)：原生验收通过，8题均与eager参考一致。
