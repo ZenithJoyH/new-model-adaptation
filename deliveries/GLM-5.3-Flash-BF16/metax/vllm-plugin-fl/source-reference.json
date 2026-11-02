@@ -1,0 +1,88 @@
+{
+  "schema_version": 1,
+  "kind": "installed_source_reference",
+  "source_deployment_fingerprint": "ed8b2a8a5ee91fcb8279b479db55661be9c5ed5c86cab249a1a49eb4df9728f7",
+  "source_sets": {
+    "vllm-plugin-FL": {
+      "head": "4e23ae8f24b380ee845f6ab3f5c8c136151d4959",
+      "tracked_diff_sha256": "adb86acb793922e094956211567397c978470c6375ccbc7d50b594cbf94957ea",
+      "files": {
+        "README.md": "7c3ef2ecf7d4ee6c04e887f944c2031299aa83e7e5261691b3d465a55a50ba68",
+        "vllm_fl/__init__.py": "4c88ed29801fa783b61353e5a0f31261813516878be35b5081c8727fdad0abc3",
+        "vllm_fl/dispatch/backends/flaggems/register_ops.py": "e85c3897c44f865049c129efeac77025adab4e1bf8dad9781b27608e4ad88110",
+        "vllm_fl/dispatch/backends/vendor/metax/metax.py": "dcf6254bf6af87c69120de6adc69ddd8892f381e5a046d8a6f869dd41708de63",
+        "vllm_fl/dispatch/backends/vendor/metax/patches/chunk_delta_h.py": "7f37b983d5dedfc3ee3a8ad5283c6b3b829f5a9780bbc804e7c890b06a2d9c5e",
+        "vllm_fl/dispatch/backends/vendor/metax/patches/fix_standalone_compile.py": "f500ec3311cd38b79e4fdcf749d9cf36e9732d02a9e2be0d0d03a894e092e9ee",
+        "examples/glm5_3_flash_chat.py": "2bb947f35d859c4b8c23bdecdf373206027f209b199024f69121c5da7fad3999",
+        "tests/unit_tests/compilation/test_metax_standalone_artifact.py": "9665f1cfb8e7b1c673cdd674b0e9cdd9fe507e4371dc8607d9b999e1fc7322d1",
+        "tests/unit_tests/dispatch/test_glm5next_ops.py": "560b66aaa12411c4bf2938d5c6efce28b4104516d10c8cb273477c35ecb3a619",
+        "tests/unit_tests/patches/test_glm5next.py": "1e3bca0ded867f535781a4eb84451ee7af2153fcdd8213babcdf581e7ba9d0e7",
+        "tests/unit_tests/patches/test_glm5next_kda.py": "11bcaf8bfb5743344ad4e3b45fb63a3d1b96e6dd34a2b9866afb279929f4ceac",
+        "tests/unit_tests/patches/test_glm5next_pipeline.py": "643c1ce020ed9226d197b48f7c139d80abc037dd249347bdb0c3bb4dc7664ea0",
+        "tests/unit_tests/patches/test_metax_kda_exp2.py": "72abb9da0e4b4e69a202b8256153ad0150ef3025e359b8ebf147e45362d3f89d",
+        "vllm_fl/configs/glm5_next.py": "71387e26d69668f84795286f11988367b37318f84c4aaf26e08179caceffd88b",
+        "vllm_fl/dispatch/backends/flaggems/impl/glm5next.py": "d218b260f1f9f5d9709260352aac988f8b57e7e2f29a80b4e78f9ae0c9f3053d",
+        "vllm_fl/dispatch/backends/vendor/metax/impl/attention/mla/glm5next.py": "00c051bec6414fdf7f701e1add6d7c91f0a8246769bc36a3423300009b259a7f",
+        "vllm_fl/models/glm5next.py": "f3bdadcff159ecc66ccb51cf5f7eefcbb752881987dffb1e170cba12c83ba48b",
+        "vllm_fl/patches/glm5next.py": "9bf63067b3cfc8d752a778d21fe53534453d921e84a27be4759427bf14eadde2",
+        "vllm_fl/transformers_utils/processors/glm5next.py": "c688415efdefea6364432f8ef7c9d55bf7274f9d6b520e632cf4b5171e5901d2"
+      }
+    },
+    "FlagGems": {
+      "head": "3eab0949b9beea777e910ff8666b9ef53081d35c",
+      "tracked_diff_sha256": "13b702c4d5e85aec3ef33f95218e2cbdf6f9b37eb957b9d9fe65b21d9dfe5e24",
+      "files": {
+        "src/flag_gems/__init__.py": "6020d37838f2058a6064c6f531b3cd509133f30c3cdf9389be378d3a1e964f02",
+        "tests/test_clone_registration.py": "c8896b822247d38ec9e08155b7804c3a9be398e46fd9b7f40e9077082c7a889a"
+      }
+    },
+    "FlagGems-vllm": {
+      "head": "ddce1d66c98cfdbdcfff36364f3d10e3af9d499c",
+      "tracked_diff_sha256": "b1f2105670f693aa0c9b20e604357003aa590517a189dd45fc5449f726149c99",
+      "files": {
+        "src/flaggems_vllm/ops/causal_conv1d.py": "489467e8034b4f882bdffc4430a96537ac7093be5f0ba26e19909345865ef79d",
+        "src/flaggems_vllm/ops/flashmla_sparse.py": "575890059485fa9c9c2e5d21fac307b8a298b8da072a78e5899c28548f5a1243",
+        "src/flaggems_vllm/ops/fp8_fp4_mqa_logits.py": "e8b019ffe1f530b16462928d6935b11bb64d85cd2476f7c096dea07375752903",
+        "src/flaggems_vllm/ops/mhc_with_norm.py": "73106080e2732cf99722a5284ebd5a606d92f6b33b52c585752033702f95505f",
+        "src/flaggems_vllm/ops/top_k_per_row_decode.py": "a366e617f7d95f7424640500f7f32f3aabc6d72a66224d71e8b55381874295e1",
+        "src/flaggems_vllm/ops/top_k_per_row_prefill.py": "5deb047285301d600e3d0e545eb8d878d7d2b2a554e1b01918a376d839258a0f",
+        "src/flaggems_vllm/runtime/backend/_metax/fused/top_k_per_row_decode.py": "f95a533ac17076e9dbff623196bc3eae45b0d64768c8cf5b5b849e7eac86928e",
+        "src/flaggems_vllm/runtime/backend/_metax/fused/top_k_per_row_prefill.py": "03640f268c51432d0700649d106b6014c76e7de4d4eaedd4b9f9c84e3ebe9fbc",
+        "tests/test_top_k_per_row_decode.py": "0eba969fa06233ee4e3b0233770eeb3c96c56bb55d7865331657620b3f1ff93f",
+        "tests/test_top_k_per_row_prefill.py": "7c786f8c6be705a60d53507dbe0881f352a979dae69ff297a61016b9d3add209",
+        "tests/test_causal_conv1d_metax.py": "0f7a6a1eca49f84af3cf78ac664f6747ce8d20d852158402ed8bbf6d0f5c2253",
+        "tests/test_fp8_fp4_mqa_logits_portable.py": "dd5af7a48eda548ed96d039c650843197ef1a8ebcd2cbd3d02a0abcdf4a3ef8a",
+        "tests/test_mhc_norm_model.py": "3714aecc1b4a8c99e7249dcab6d61018d04fffb769cf73f6180a09680b7486fa",
+        "tests/test_sparse_mla_metax.py": "2e7098c82b25dd2d706d716b02e35db73496c80de7214cf2798b9bee82a541b4"
+      }
+    },
+    "vllm": {
+      "head": "ee0da84ab9e04ac7610e28580af62c365e898389",
+      "tracked_diff_sha256": "2a77f03f2b92a12aef3a189be40352e238e98b2795a857d1a37ed7626ae361ec",
+      "files": {}
+    }
+  },
+  "patches": {
+    "vllm-plugin-FL": {
+      "public_base_commit": "4e23ae8f24b380ee845f6ab3f5c8c136151d4959",
+      "container_patch": "/opt/glm5.3-flash-delivery-v14/patches/vllm-plugin-FL.patch",
+      "sha256": "54d3f942fbdff57b006183fbd8e511044c983f939dd49992b85534404172a76d"
+    },
+    "FlagGems": {
+      "public_base_commit": "3eab0949b9beea777e910ff8666b9ef53081d35c",
+      "container_patch": "/opt/glm5.3-flash-delivery-v14/patches/FlagGems.patch",
+      "sha256": "5d7bc5ffa0878a962abb781ef50c48be90a16218c384ce0ba2f73e86651db380"
+    },
+    "FlagGems-vllm": {
+      "public_base_commit": "ddce1d66c98cfdbdcfff36364f3d10e3af9d499c",
+      "container_patch": "/opt/glm5.3-flash-delivery-v14/patches/FlagGems-vllm.patch",
+      "sha256": "6dcaa714698e33ede120b00eb2ece4fd20fa7a248b2109a05a94438dc9cb82db"
+    }
+  },
+  "dependency_publication_exception": {
+    "authorized_by": "human user",
+    "date": "2026-10-28",
+    "scope": "This adaptation may use public base SHAs plus complete frozen patches, file hashes and a validated image; publishing is deferred. No commit/push authorized."
+  },
+  "inherited_vllm_diff_read_only": true
+}

@@ -1,0 +1,89 @@
+diff --git a/src/flag_gems/__init__.py b/src/flag_gems/__init__.py
+index a10066922..eb77e6304 100644
+--- a/src/flag_gems/__init__.py
++++ b/src/flag_gems/__init__.py
+@@ -873,7 +873,9 @@ _FULL_CONFIG = (
+         "clone",
+         clone,
+         None,
+-        (AUTOGRAD_DISPATCH_KEY, torch.library.fallthrough_kernel),
++        (
++            ("Autograd" + backend_info.dispatch_key, torch.library.fallthrough_kernel),
++        ),
+     ),
+     ("coalesce", coalesce, None, (AUTOGRAD_DISPATCH_KEY,)),
+     ("col2im", col2im),
+diff --git a/tests/test_clone_registration.py b/tests/test_clone_registration.py
+new file mode 100644
+index 000000000..f2de4511e
+--- /dev/null
++++ b/tests/test_clone_registration.py
+@@ -0,0 +1,68 @@
++import pytest
++import torch
++
++import flag_gems
++
++
++@pytest.mark.clone
++def test_cpu_rng_clone_keeps_native_device_dispatch():
++    state = torch.random.get_rng_state()
++    with flag_gems.use_gems(include=["clone"]):
++        copied = torch.clone(state)
++    assert copied.device.type == "cpu"
++    assert copied.data_ptr() != state.data_ptr()
++    torch.testing.assert_close(copied, state, rtol=0, atol=0)
++
++
++@pytest.mark.clone
++def test_cpu_clone_keeps_native_autograd():
++    value = torch.arange(24, dtype=torch.float32, requires_grad=True)
++    with flag_gems.use_gems(include=["clone"]):
++        copied = torch.clone(value)
++        (gradient,) = torch.autograd.grad(copied.sum(), value)
++    assert copied.data_ptr() != value.data_ptr()
++    torch.testing.assert_close(copied, value, rtol=0, atol=0)
++    torch.testing.assert_close(gradient, torch.ones_like(value), rtol=0, atol=0)
++
++
++@pytest.mark.clone
++@pytest.mark.parametrize("dtype", [torch.float32, torch.bfloat16])
++@pytest.mark.parametrize("transpose", [False, True])
++def test_registered_device_clone_values_and_layout(dtype, transpose):
++    value = torch.arange(32, dtype=dtype, device=flag_gems.device).reshape(4, 8)
++    if transpose:
++        value = value.t()
++    reference = value.cpu().clone()
++    with flag_gems.use_gems(include=["clone"]):
++        copied = torch.clone(value)
++    assert copied.data_ptr() != value.data_ptr()
++    assert copied.stride() == value.stride()
++    torch.testing.assert_close(copied.cpu(), reference, rtol=0, atol=0)
++
++
++@pytest.mark.clone
++def test_registered_device_clone_autograd():
++    value = torch.arange(32, dtype=torch.float32, device=flag_gems.device)
++    value.requires_grad_()
++    with flag_gems.use_gems(include=["clone"]):
++        copied = torch.clone(value)
++        (gradient,) = torch.autograd.grad(copied.sum(), value)
++    torch.testing.assert_close(gradient.cpu(), torch.ones(32), rtol=0, atol=0)
++
++
++@pytest.mark.clone
++@pytest.mark.parametrize("dtype", [torch.float32, torch.bfloat16])
++def test_registered_device_clone_changed_input_graph(dtype):
++    value = torch.arange(32, dtype=dtype, device=flag_gems.device)
++    with flag_gems.use_gems(include=["clone"]), torch.inference_mode():
++        torch.clone(value)
++        torch.cuda.synchronize()
++        graph = torch.cuda.CUDAGraph()
++        with torch.cuda.graph(graph):
++            copied = torch.clone(value)
++        for offset in [3, 7]:
++            expected = torch.arange(32, dtype=dtype) + offset
++            value.copy_(expected)
++            graph.replay()
++            torch.cuda.synchronize()
++            torch.testing.assert_close(copied.cpu(), expected, rtol=0, atol=0)

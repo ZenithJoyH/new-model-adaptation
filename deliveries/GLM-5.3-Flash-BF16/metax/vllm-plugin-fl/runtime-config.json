@@ -1,0 +1,70 @@
+{
+  "schema_version": 1,
+  "kind": "glm53_runtime_configuration",
+  "source_deployment_fingerprint": "ed8b2a8a5ee91fcb8279b479db55661be9c5ed5c86cab249a1a49eb4df9728f7",
+  "profile": "vllm-plugin-fl",
+  "profile_version": 7,
+  "model": "GLM-5.3-Flash-BF16",
+  "base_configuration": {
+    "mode": "graph",
+    "max_model_len": 65536,
+    "max_num_seqs": 8,
+    "max_num_batched_tokens": 2048,
+    "prefix_caching_enabled": true,
+    "mamba_cache_mode": "align",
+    "reasoning_parser": "glm45",
+    "dtype": "bfloat16",
+    "served_model_name": "glm5.3-flash",
+    "port": 18530,
+    "master_port": 29653,
+    "verified_scheduler_alignment_block_size": 384,
+    "storage_only_tail_block_size": 4,
+    "glm_sparse_topk_canonical_output": true,
+    "glm_mhc_opaque_compile_boundary": true,
+    "glm_silu_opaque_compile_boundary": true,
+    "glm_indexer_opaque_compile_boundary": true,
+    "graph_level": "full-and-piecewise",
+    "launcher_sha256": "a9ccaa4159df8790dd8c7c1833913e239d3f55ba347a65976cf6be29ba6b6626"
+  },
+  "topology": {
+    "hosts": [
+      "mx-101",
+      "mx-102"
+    ],
+    "devices_per_host": 8,
+    "device": "MetaX C550 64GiB",
+    "tp": 8,
+    "pp": 2,
+    "backend": "multi-node mp",
+    "communication_interface": "inbond1",
+    "communication_path": "Socket; RDMA not verified"
+  },
+  "weights": {
+    "container_path": "/public-flash/models/GLM-5.3-Flash-BF16",
+    "files": 120,
+    "physical_bytes": 642652070880,
+    "metadata_sha256": {
+      "config.json": "33e63ec7fe607658be712bd6dd3c16c6549960d8e7f0483d34b939881b55f943",
+      "model.safetensors.index.json": "e6007bd58fb7e07f9fe69544257ee2713f252ef5855bbf685b48c991d524ef0f",
+      "tokenizer_config.json": "98b1271574f41abf89427ae2dda030d94dc9478f0edc5a8bd240db213c6fd5fc",
+      "tokenizer.json": "19e773648cb4e65de8660ea6365e10acca112d42a854923df93db4a6f333a82d",
+      "chat_template.jinja": "34d5ee66b12fa6446cdae131c352b8f68cd85369e0e6fda115583805fada3891",
+      "generation_config.json": "230c30609ecbbb9e6583bedde8e7bdda0c6eb8fe5fad0eaeb3d1b293d751cb4f"
+    }
+  },
+  "internal_launcher": "/opt/glm5.3-flash-delivery-v14/start-model.sh",
+  "declared_external_mounts": [
+    {
+      "host_path": "/public-flash/models/GLM-5.3-Flash-BF16",
+      "container_path": "/public-flash/models/GLM-5.3-Flash-BF16",
+      "read_only": true,
+      "role": "weights/tokenizer/template"
+    },
+    {
+      "host_path": "/public-flash/jinghao/glm5.3-flash/04-runs",
+      "container_path": "/public-flash/jinghao/glm5.3-flash/04-runs",
+      "read_only": false,
+      "role": "task logs/results only; no code or configuration"
+    }
+  ]
+}

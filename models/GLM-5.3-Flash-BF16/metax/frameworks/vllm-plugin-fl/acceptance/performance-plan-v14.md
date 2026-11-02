@@ -29,3 +29,8 @@ accuracy gate，随后只重启本任务服务，通过同一SHA的start-model.s
 用户尚未冻结业务性能目标。本计划仅测量，不补造零门槛目标，不据正常退出将framework
 performance或optimized标记通过；正式业务目标验收仍待另行冻结。性能后恢复普通
 prefix开启启动，再完成镜像新容器验证及最终服务恢复。当前没有性能通过结论。
+
+六场景请求已通过原始runner的离线`--dry-run`，未发送模型请求；每场景3轮的18条
+基准命令已保存。原生计划文件为`03-acceptance/performance-request-final-v14-20261028.json`，
+request canonical SHA为`811e5cf493d36d355d8f0846cae8f77546808ca473cf28c6a97d3818d0d9abac`；
+该计划不表示性能测量已执行，也不添加业务验收目标。

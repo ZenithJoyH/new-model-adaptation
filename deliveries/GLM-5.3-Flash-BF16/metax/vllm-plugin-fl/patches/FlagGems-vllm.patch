@@ -1,0 +1,1108 @@
+diff --git a/src/flaggems_vllm/ops/causal_conv1d.py b/src/flaggems_vllm/ops/causal_conv1d.py
+index 8d0c417..c2a408f 100644
+--- a/src/flaggems_vllm/ops/causal_conv1d.py
++++ b/src/flaggems_vllm/ops/causal_conv1d.py
+@@ -4,6 +4,7 @@ import torch
+ import triton
+ import triton.language as tl
+ 
++from flaggems_vllm import runtime
+ from flaggems_vllm.utils import libentry
+ 
+ 
+@@ -42,6 +43,7 @@ def _conv_kernel(
+     NULL: tl.constexpr,
+     BLOCK_D: tl.constexpr,
+     BW: tl.constexpr,
++    STATIC_HISTORY: tl.constexpr,
+ ):
+     req = tl.program_id(0)
+     channel = tl.program_id(1) * BLOCK_D + tl.arange(0, BLOCK_D)
+@@ -54,23 +56,49 @@ def _conv_kernel(
+     valid = (slot >= 0) & (slot != PAD) & (slot != NULL)
+     use_state = tl.load(INITIAL + req) if HAS_INITIAL else True
+     st_base = STATE + slot * SS_REQ + channel[:, None] * SS_D
+-    history = tl.load(
+-        st_base + j[None, :] * SS_T,
+-        (channel[:, None] < D) & (j[None, :] < WIDTH - 1) & valid & use_state,
+-        other=0,
+-    ).to(tl.float32)
+-    weight = tl.load(
+-        W + channel[:, None] * SW_D + j[None, :] * SW_T,
+-        (channel[:, None] < D) & (j[None, :] < WIDTH),
+-        other=0,
+-    ).to(tl.float32)
++    if STATIC_HISTORY:
++        # Keep each history tap in a channel vector. MetaX's current SDK
++        # cannot translate the indexed shuffle emitted by tl.gather.
++        history_taps = ()
++        weight_taps = ()
++        for tap in tl.static_range(WIDTH):
++            weight_taps += (
++                tl.load(W + channel * SW_D + tap * SW_T, channel < D, other=0).to(
++                    tl.float32
++                ),
++            )
++        for tap in tl.static_range(WIDTH - 1):
++            history_taps += (
++                tl.load(
++                    STATE + slot * SS_REQ + channel * SS_D + tap * SS_T,
++                    (channel < D) & valid & use_state,
++                    other=0,
++                ).to(tl.float32),
++            )
++    else:
++        history = tl.load(
++            st_base + j[None, :] * SS_T,
++            (channel[:, None] < D) & (j[None, :] < WIDTH - 1) & valid & use_state,
++            other=0,
++        ).to(tl.float32)
++        weight = tl.load(
++            W + channel[:, None] * SW_D + j[None, :] * SW_T,
++            (channel[:, None] < D) & (j[None, :] < WIDTH),
++            other=0,
++        ).to(tl.float32)
+     for token in range(start, end):
+         value = tl.load(
+             X + req * SX_REQ + channel * SX_D + token * SX_T, channel < D, other=0
+         )
+         value = value.to(STATE.dtype.element_ty).to(tl.float32)
+-        window = tl.where(j[None, :] == WIDTH - 1, value[:, None], history)
+-        result = tl.sum(window * weight, 1)
++        if STATIC_HISTORY:
++            result = tl.full((BLOCK_D,), 0, tl.float32)
++            for tap in tl.static_range(WIDTH - 1):
++                result += history_taps[tap] * weight_taps[tap]
++            result += value * weight_taps[WIDTH - 1]
++        else:
++            window = tl.where(j[None, :] == WIDTH - 1, value[:, None], history)
++            result = tl.sum(window * weight, 1)
+         if HAS_BIAS:
+             result += tl.load(BIAS + channel, channel < D, other=0).to(tl.float32)
+         if SILU:
+@@ -81,13 +109,27 @@ def _conv_kernel(
+             tl.where(valid, result, 0),
+             channel < D,
+         )
+-        nxt = tl.broadcast_to(((j + 1) % BW)[None, :], (BLOCK_D, BW))
+-        history = tl.gather(window, nxt, 1)
+-    tl.store(
+-        st_base + j[None, :] * SS_T,
+-        history,
+-        (channel[:, None] < D) & (j[None, :] < WIDTH - 1) & valid,
+-    )
++        if STATIC_HISTORY:
++            shifted = ()
++            for tap in tl.static_range(WIDTH - 2):
++                shifted += (history_taps[tap + 1],)
++            history_taps = shifted + (value,)
++        else:
++            nxt = tl.broadcast_to(((j + 1) % BW)[None, :], (BLOCK_D, BW))
++            history = tl.gather(window, nxt, 1)
++    if STATIC_HISTORY:
++        for tap in tl.static_range(WIDTH - 1):
++            tl.store(
++                STATE + slot * SS_REQ + channel * SS_D + tap * SS_T,
++                history_taps[tap],
++                (channel < D) & valid,
++            )
++    else:
++        tl.store(
++            st_base + j[None, :] * SS_T,
++            history,
++            (channel[:, None] < D) & (j[None, :] < WIDTH - 1) & valid,
++        )
+ 
+ 
+ def _launch(
+@@ -193,6 +235,7 @@ def _launch(
+             null,
+             BLOCK_D=32,
+             BW=triton.next_power_of_2(width),
++            STATIC_HISTORY=runtime.device.vendor_name == "metax",
+             num_warps=4,
+         )
+     return out
+diff --git a/src/flaggems_vllm/ops/flashmla_sparse.py b/src/flaggems_vllm/ops/flashmla_sparse.py
+index 761a249..d939f1b 100644
+--- a/src/flaggems_vllm/ops/flashmla_sparse.py
++++ b/src/flaggems_vllm/ops/flashmla_sparse.py
+@@ -19,6 +19,8 @@ import torch
+ import triton
+ import triton.language as tl
+ 
++from flaggems_vllm import runtime
++
+ from flaggems_vllm.utils.tle_capabilities import supports_sparse_mla_tle
+ from flaggems_vllm.utils.triton_version_utils import has_triton_tle
+ 
+@@ -41,11 +43,18 @@ TLE_FLASHMLA_PREFILL_PAIR_BLOCKS = 2
+ TLE_FLASHMLA_PREFILL_WORKER_NUM_WARPS = 4
+ 
+ 
+-@triton.autotune(
+-    configs=[
++def _sparse_mla_configs():
++    # C550 has 64 KiB shared memory; the 64x64 pipelined tiles exceed it.
++    if runtime.device.vendor_name == "metax":
++        return [triton.Config({"BK": 16, "BH": 16}, num_warps=4, num_stages=1)]
++    return [
+         triton.Config({"BK": 64, "BH": 64}, num_warps=8, num_stages=2),
+         triton.Config({"BK": 64, "BH": 64}, num_warps=8, num_stages=4),
+-    ],
++    ]
++
++
++@triton.autotune(
++    configs=_sparse_mla_configs(),
+     key=["SQ", "HQ", "DQK", "SKV", "TOPK", "HAVE_ATTN_SINK", "HAVE_TOPK_LENGTH"],
+ )
+ @triton.jit
+@@ -1016,6 +1025,9 @@ def _can_use_tle_flash_mla_sparse_fwd(
+     d_v: int,
+     topk_length: Optional[torch.Tensor] = None,
+ ) -> bool:
++    # MetaX exposes CUDA devices, but its compiler lacks NVIDIA MMA layouts.
++    if runtime.device.vendor_name == "metax":
++        return False
+     if not (HAS_TLE_FLASHMLA_SPARSE and _flash_mla_sparse_tle_enabled()):
+         return False
+     if q.device.type != "cuda":
+diff --git a/src/flaggems_vllm/ops/fp8_fp4_mqa_logits.py b/src/flaggems_vllm/ops/fp8_fp4_mqa_logits.py
+index 2adea89..c2f9173 100644
+--- a/src/flaggems_vllm/ops/fp8_fp4_mqa_logits.py
++++ b/src/flaggems_vllm/ops/fp8_fp4_mqa_logits.py
+@@ -20,6 +20,7 @@ import triton
+ import triton.language as tl
+ 
+ from flaggems_vllm import runtime
++from flaggems_vllm.ops.fp8_storage import decode_e4m3fn
+ from flaggems_vllm.utils import libentry, libtuner
+ from flaggems_vllm.utils.device_info import get_device_capability
+ from flaggems_vllm.utils.triton_version_utils import has_triton_tle
+@@ -107,6 +108,7 @@ def _fp8_fp4_mqa_logits_kernel(
+     BLOCK_M: tl.constexpr,
+     BLOCK_N: tl.constexpr,
+     HEAD_BLOCK: tl.constexpr,
++    SOFTWARE_FP8: tl.constexpr,
+ ):
+     """Fused FP8 MQA logits with head-batched tiled dot products.
+ 
+@@ -133,6 +135,9 @@ def _fp8_fp4_mqa_logits_kernel(
+         other=0.0,
+     )
+ 
++    if SOFTWARE_FP8:
++        k = decode_e4m3fn(k).to(tl.bfloat16)
++
+     k_scale = tl.load(K_scale_ptr + n_offs, mask=n_mask, other=0.0)
+ 
+     # Accumulator for output: [BLOCK_M, BLOCK_N] in fp32
+@@ -153,6 +158,9 @@ def _fp8_fp4_mqa_logits_kernel(
+             other=0.0,
+         )
+ 
++        if SOFTWARE_FP8:
++            q = decode_e4m3fn(q).to(tl.bfloat16)
++
+         # Flatten to 2D for MMA: [BLOCK_M * HEAD_BLOCK, D]
+         q_2d = tl.reshape(q, [BLOCK_M * HEAD_BLOCK, D])
+ 
+@@ -642,15 +650,16 @@ def fp8_fp4_mqa_logits(
+     else:
+         M, H, D = q_values.shape
+         N = k_values.shape[0]
+-        use_tle = _can_use_tle(M, N, H, D)
++        software_fp8 = runtime.device.vendor_name == "metax"
++        use_tle = not software_fp8 and _can_use_tle(M, N, H, D)
+         if use_tle:
+             _launch_tle_kernel(
+                 q_values, k_values, k_scales, weights, logits, M, N, H, D
+             )
+         else:
+             _fp8_fp4_mqa_logits_kernel[grid](
+-                q_values,
+-                k_values,
++                q_values.view(torch.uint8) if software_fp8 else q_values,
++                k_values.view(torch.uint8) if software_fp8 else k_values,
+                 k_scales,
+                 weights,
+                 logits,
+@@ -667,6 +676,7 @@ def fp8_fp4_mqa_logits(
+                 logits.stride(1),
+                 weights.stride(0),
+                 weights.stride(1),
++                SOFTWARE_FP8=software_fp8,
+             )
+ 
+     if clean_logits:
+diff --git a/src/flaggems_vllm/ops/mhc_with_norm.py b/src/flaggems_vllm/ops/mhc_with_norm.py
+index 102642a..5ec0e1f 100644
+--- a/src/flaggems_vllm/ops/mhc_with_norm.py
++++ b/src/flaggems_vllm/ops/mhc_with_norm.py
+@@ -13,7 +13,9 @@ from flaggems_vllm.utils import libentry, libtuner
+ @libentry()
+ @libtuner(configs=runtime.get_tuned_config("mhc_rms_norm"), key=["D"])
+ @triton.jit
+-def _norm_kernel(X, W, Y, D: tl.constexpr, EPS: tl.constexpr, BLOCK: tl.constexpr):
++def _norm_kernel(X, W, Y, D: tl.constexpr, EPS: tl.constexpr):
++    # The reduction extent is semantic; only launch warps are autotuned.
++    BLOCK: tl.constexpr = triton.next_power_of_2(D)
+     row = tl.program_id(0)
+     d = tl.arange(0, BLOCK)
+     value = tl.load(X + row * D + d, d < D, other=0).to(tl.float32)
+@@ -40,7 +42,6 @@ def mhc_rms_norm(layer_input, norm_weight, norm_eps):
+             out,
+             dim,
+             norm_eps,
+-            BLOCK=triton.next_power_of_2(dim),
+         )
+     return out
+ 
+diff --git a/src/flaggems_vllm/ops/top_k_per_row_decode.py b/src/flaggems_vllm/ops/top_k_per_row_decode.py
+index 9749a6d..caa2d91 100644
+--- a/src/flaggems_vllm/ops/top_k_per_row_decode.py
++++ b/src/flaggems_vllm/ops/top_k_per_row_decode.py
+@@ -1365,7 +1365,14 @@ def _standard_topk_entry(kernel):
+     return libentry()(
+         libtuner(
+             configs=runtime.get_tuned_config("top_k_per_row_standard"),
+-            key=["NUM_ROWS", "vocab_size", "TOPK", "stride0", "stride1"],
++            key=[
++                "NUM_ROWS",
++                "vocab_size",
++                "TOPK",
++                "stride0",
++                "stride1",
++                "CANONICAL_OUTPUT",
++            ],
+         )(kernel)
+     )
+ 
+@@ -1445,7 +1452,16 @@ def non_tle_top_k_per_row_decode(
+ 
+ 
+ def top_k_per_row_decode(
+-    logits, next_n, seq_lens, indices, num_rows, stride0, stride1, top_k
++    logits,
++    next_n,
++    seq_lens,
++    indices,
++    num_rows,
++    stride0,
++    stride1,
++    top_k,
++    *,
++    canonical_output=False,
+ ):
+     """Top-K per row for decode phase of DeepSeek V4.
+ 
+@@ -1460,6 +1476,8 @@ def top_k_per_row_decode(
+         num_rows: must be 1 (decode processes one row at a time).
+         stride0: logits.stride(0).
+         stride1: logits.stride(1).
++        canonical_output: Force stable selection and index ordering through the
++            standard Triton path; False retains the existing backend dispatch.
+         top_k: number of top elements to select.
+     """
+     logger.debug("GEMS TOP_K_PER_ROW_DECODE")
+@@ -1467,7 +1485,7 @@ def top_k_per_row_decode(
+     assert num_rows == logits.shape[0]
+     vocab_size = logits.shape[1]
+     use_radix_final = vocab_size >= SORTING_ALGORITHM_THRESHOLD
+-    if HAS_TLE:
++    if HAS_TLE and not canonical_output:
+         topkp = triton.next_power_of_2(top_k)
+         if vocab_size < SPLIT_WORK_THRESHOLD:
+             tle_top_k_per_row_decode[(num_rows,)](
+@@ -1584,7 +1602,8 @@ def top_k_per_row_decode(
+             s_found_topk_values_ptr,
+             TOPK=top_k,
+             BLOCK_SIZE=NUM_THREADS_PER_BLOCK,
+-            CANONICAL_OUTPUT=vocab_size >= CANONICAL_OUTPUT_VOCAB_THRESHOLD,
++            CANONICAL_OUTPUT=canonical_output
++            or vocab_size >= CANONICAL_OUTPUT_VOCAB_THRESHOLD,
+             NUM_ROWS=num_rows,
+             **launch_options,
+         )
+diff --git a/src/flaggems_vllm/ops/top_k_per_row_prefill.py b/src/flaggems_vllm/ops/top_k_per_row_prefill.py
+index c59ee3a..44b3107 100644
+--- a/src/flaggems_vllm/ops/top_k_per_row_prefill.py
++++ b/src/flaggems_vllm/ops/top_k_per_row_prefill.py
+@@ -1338,7 +1338,14 @@ def _standard_topk_entry(kernel):
+     return libentry()(
+         libtuner(
+             configs=runtime.get_tuned_config("top_k_per_row_standard"),
+-            key=["NUM_ROWS", "vocab_size", "TOPK", "stride0", "stride1"],
++            key=[
++                "NUM_ROWS",
++                "vocab_size",
++                "TOPK",
++                "stride0",
++                "stride1",
++                "CANONICAL_OUTPUT",
++            ],
+         )(kernel)
+     )
+ 
+@@ -1414,7 +1421,16 @@ def non_tle_top_k_per_row_prefill(
+ 
+ 
+ def top_k_per_row_prefill(
+-    logits, row_starts, row_ends, indices, num_rows, stride0, stride1, top_k
++    logits,
++    row_starts,
++    row_ends,
++    indices,
++    num_rows,
++    stride0,
++    stride1,
++    top_k,
++    *,
++    canonical_output=False,
+ ):
+     """Top-K per row for prefill phase of DeepSeek V4 sparse attention.
+ 
+@@ -1430,13 +1446,15 @@ def top_k_per_row_prefill(
+         num_rows: number of rows.
+         stride0: logits.stride(0), typically == vocab_size for contiguous tensor.
+         stride1: logits.stride(1), typically == 1 for contiguous tensor.
++        canonical_output: Force stable selection and index ordering through the
++            standard Triton path; False retains the existing backend dispatch.
+         top_k: number of top elements per row.
+     """
+     logger.debug("GEMS TOP_K_PER_ROW_PREFILL")
+ 
+     vocab_size = logits.shape[1]
+     assert num_rows == logits.shape[0]
+-    if HAS_TLE:
++    if HAS_TLE and not canonical_output:
+         topkp = triton.next_power_of_2(top_k)
+         use_radix_final = _use_radix_final_for_prefill(vocab_size)
+         num_insert_sort_blocks = (
+@@ -1515,7 +1533,8 @@ def top_k_per_row_prefill(
+             s_found_topk_values_ptr,
+             TOPK=top_k,
+             BLOCK_SIZE=NUM_THREADS_PER_BLOCK,
+-            CANONICAL_OUTPUT=vocab_size >= CANONICAL_OUTPUT_VOCAB_THRESHOLD,
++            CANONICAL_OUTPUT=canonical_output
++            or vocab_size >= CANONICAL_OUTPUT_VOCAB_THRESHOLD,
+             ROW_OFFSET=0,
+             NUM_ROWS=num_rows,
+             **launch_options,
+diff --git a/src/flaggems_vllm/runtime/backend/_metax/fused/top_k_per_row_decode.py b/src/flaggems_vllm/runtime/backend/_metax/fused/top_k_per_row_decode.py
+index b31afca..8f7e25e 100644
+--- a/src/flaggems_vllm/runtime/backend/_metax/fused/top_k_per_row_decode.py
++++ b/src/flaggems_vllm/runtime/backend/_metax/fused/top_k_per_row_decode.py
+@@ -181,11 +181,28 @@ def _blocks_per_row(num_rows):
+ 
+ 
+ def top_k_per_row_decode(
+-    logits, next_n, seq_lens, indices, num_rows, stride0, stride1, top_k
++    logits,
++    next_n,
++    seq_lens,
++    indices,
++    num_rows,
++    stride0,
++    stride1,
++    top_k,
++    *,
++    canonical_output=False,
+ ):
+-    if ensure_tle():
++    if not canonical_output and ensure_tle():
+         # Read by the generic host dispatch on this very call.
+         _generic.MULTIPLE_BLOCKS_PER_ROW_CONFIG = _blocks_per_row(num_rows)
+     return _generic.top_k_per_row_decode(
+-        logits, next_n, seq_lens, indices, num_rows, stride0, stride1, top_k
++        logits,
++        next_n,
++        seq_lens,
++        indices,
++        num_rows,
++        stride0,
++        stride1,
++        top_k,
++        canonical_output=canonical_output,
+     )
+diff --git a/src/flaggems_vllm/runtime/backend/_metax/fused/top_k_per_row_prefill.py b/src/flaggems_vllm/runtime/backend/_metax/fused/top_k_per_row_prefill.py
+index b8a4b7e..aeb3ffb 100644
+--- a/src/flaggems_vllm/runtime/backend/_metax/fused/top_k_per_row_prefill.py
++++ b/src/flaggems_vllm/runtime/backend/_metax/fused/top_k_per_row_prefill.py
+@@ -171,13 +171,30 @@ WIDE_TILE_VOCAB = 16384
+ 
+ 
+ def top_k_per_row_prefill(
+-    logits, row_starts, row_ends, indices, num_rows, stride0, stride1, top_k
++    logits,
++    row_starts,
++    row_ends,
++    indices,
++    num_rows,
++    stride0,
++    stride1,
++    top_k,
++    *,
++    canonical_output=False,
+ ):
+-    if ensure_tle():
++    if not canonical_output and ensure_tle():
+         # Read by the generic host dispatch on this very call.
+         _generic.NUM_THREADS_PER_BLOCK = (
+             1024 if logits.shape[1] >= WIDE_TILE_VOCAB else 512
+         )
+     return _generic.top_k_per_row_prefill(
+-        logits, row_starts, row_ends, indices, num_rows, stride0, stride1, top_k
++        logits,
++        row_starts,
++        row_ends,
++        indices,
++        num_rows,
++        stride0,
++        stride1,
++        top_k,
++        canonical_output=canonical_output,
+     )
+diff --git a/tests/test_top_k_per_row_decode.py b/tests/test_top_k_per_row_decode.py
+index 2fd3cbc..fa2ed3a 100644
+--- a/tests/test_top_k_per_row_decode.py
++++ b/tests/test_top_k_per_row_decode.py
+@@ -385,3 +385,132 @@ def test_repeated_inputs_stable_selection(rows, vocab, k, score_kind, strided):
+         else:
+             torch.testing.assert_close(out, first, rtol=0, atol=0)
+     torch.testing.assert_close(logits, inputs_before, rtol=0, atol=0)
++
++
++@pytest.mark.top_k_per_row_decode
++@pytest.mark.parametrize("rows,vocab,k", [(4, 37, 8), (8, 864, 512), (1536, 864, 512)])
++@pytest.mark.parametrize("row_padding", [0, 7])
++@pytest.mark.parametrize("score_kind", ["continuous", "ties"])
++@pytest.mark.parametrize("next_n", [1, 2])
++@torch.inference_mode()
++def test_canonical_output_small_pools(rows, vocab, k, row_padding, score_kind, next_n):
++    generator = torch.Generator().manual_seed(53)
++    values = torch.randn((rows, vocab), generator=generator)
++    if score_kind == "ties":
++        values.fill_(-2)
++        ties = torch.linspace(0, vocab - 1, 8).long().tolist()
++        high = [i for i in range(vocab) if i not in ties][: k - 2]
++        values[:, high] = -1
++        values[:, ties] = -1.25
++    storage = torch.empty((rows, vocab + row_padding), device=device)
++    logits = storage[:, :vocab]
++    logits.copy_(values)
++    batch = rows // next_n
++    lengths_cpu = torch.full((batch,), vocab, dtype=torch.int32)
++    lengths_cpu[0] = next_n
++    if next_n == 1:
++        lengths_cpu[0] = 0
++    lengths = lengths_cpu.to(device)
++    starts_cpu = torch.zeros(rows, dtype=torch.int32)
++    ends_cpu = torch.tensor(
++        [int(lengths_cpu[i // next_n]) - next_n + i % next_n + 1 for i in range(rows)],
++        dtype=torch.int32,
++    )
++    backing = torch.full((rows * k + 64,), -17, dtype=torch.int32, device=device)
++    output = backing[32:-32].view(rows, k)
++
++    def reference(cpu, lo, hi):
++        expected = torch.full((rows, k), -1, dtype=torch.int32)
++        for row in range(rows):
++            start, end = int(lo[row]), int(hi[row])
++            count = min(k, max(end - start, 0))
++            order = torch.argsort(cpu[row, start:end], descending=True, stable=True)
++            expected[row, :count] = order[:count].to(torch.int32)
++        return expected.sort(-1).values
++
++    def run():
++        flaggems_vllm.top_k_per_row_decode(
++            logits,
++            next_n,
++            lengths,
++            output,
++            rows,
++            logits.stride(0),
++            logits.stride(1),
++            k,
++            canonical_output=True,
++        )
++
++    expected = reference(values, starts_cpu, ends_cpu)
++    first = None
++    for _ in range(8):
++        run()
++        host = output.cpu()
++        torch.testing.assert_close(host.sort(-1).values, expected, rtol=0, atol=0)
++        if first is None:
++            first = host
++        else:
++            torch.testing.assert_close(host, first, rtol=0, atol=0)
++    torch.testing.assert_close(logits.cpu(), values, rtol=0, atol=0)
++    assert bool((backing[:32] == -17).all())
++    assert bool((backing[-32:] == -17).all())
++
++    for _ in range(3):
++        run()
++    flaggems_vllm.runtime.torch_device_fn.synchronize()
++    graph = torch.cuda.CUDAGraph()
++    with torch.cuda.graph(graph):
++        run()
++    for factor in (-1.0, 0.5):
++        changed = values * factor
++        logits.copy_(changed)
++        changed_lengths = lengths_cpu.clone()
++        changed_lengths[-1] -= 1
++        lengths.copy_(changed_lengths)
++        changed_starts = starts_cpu
++        changed_ends = torch.tensor(
++            [
++                int(changed_lengths[i // next_n]) - next_n + i % next_n + 1
++                for i in range(rows)
++            ],
++            dtype=torch.int32,
++        )
++        graph.replay()
++        flaggems_vllm.runtime.torch_device_fn.synchronize()
++        torch.testing.assert_close(
++            output.cpu().sort(-1).values,
++            reference(changed, changed_starts, changed_ends),
++            rtol=0,
++            atol=0,
++        )
++        assert bool((backing[:32] == -17).all())
++        assert bool((backing[-32:] == -17).all())
++
++
++@pytest.mark.top_k_per_row_decode
++@pytest.mark.skipif(
++    flaggems_vllm.runtime.device.vendor_name != "metax", reason="MetaX dispatch guard"
++)
++@torch.inference_mode()
++def test_canonical_output_bypasses_vendor_tle_install(monkeypatch):
++    from importlib import import_module
++
++    vendor = import_module(
++        "flaggems_vllm.runtime.backend._metax.fused.top_k_per_row_decode"
++    )
++
++    def unexpected_tle_gate():
++        raise AssertionError("legacy TLE gate reached")
++
++    monkeypatch.setattr(vendor, "ensure_tle", unexpected_tle_gate)
++    values = torch.tensor([[3.0, 1.0, 2.0, 0.0]], device=device)
++    indices = torch.empty((1, 2), dtype=torch.int32, device=device)
++    lengths = torch.tensor([4], dtype=torch.int32, device=device)
++    starts = torch.zeros_like(lengths)
++    operation = vendor.top_k_per_row_decode
++    operation(values, 1, lengths, indices, 1, 4, 1, 2, canonical_output=True)
++    torch.testing.assert_close(
++        indices.cpu(), torch.tensor([[0, 2]], dtype=torch.int32), rtol=0, atol=0
++    )
++    with pytest.raises(AssertionError, match="legacy TLE gate"):
++        operation(values, 1, lengths, indices, 1, 4, 1, 2)
+diff --git a/tests/test_top_k_per_row_prefill.py b/tests/test_top_k_per_row_prefill.py
+index 9c3b3a1..6e8467f 100644
+--- a/tests/test_top_k_per_row_prefill.py
++++ b/tests/test_top_k_per_row_prefill.py
+@@ -475,3 +475,119 @@ def test_repeated_inputs_stable_selection(rows, vocab, k, score_kind, strided):
+         else:
+             torch.testing.assert_close(out, first, rtol=0, atol=0)
+     torch.testing.assert_close(logits, inputs_before, rtol=0, atol=0)
++
++
++@pytest.mark.top_k_per_row_prefill
++@pytest.mark.parametrize("rows,vocab,k", [(4, 37, 8), (8, 864, 512), (1536, 864, 512)])
++@pytest.mark.parametrize("row_padding", [0, 7])
++@pytest.mark.parametrize("score_kind", ["continuous", "ties"])
++@torch.inference_mode()
++def test_canonical_output_small_pools(rows, vocab, k, row_padding, score_kind):
++    generator = torch.Generator().manual_seed(53)
++    values = torch.randn((rows, vocab), generator=generator)
++    if score_kind == "ties":
++        values.fill_(-2)
++        ties = torch.linspace(0, vocab - 1, 8).long().tolist()
++        high = [i for i in range(vocab) if i not in ties][: k - 2]
++        values[:, high] = -1
++        values[:, ties] = -1.25
++    storage = torch.empty((rows, vocab + row_padding), device=device)
++    logits = storage[:, :vocab]
++    logits.copy_(values)
++    starts_cpu = torch.arange(rows, dtype=torch.int32) % 4
++    ends_cpu = torch.full((rows,), vocab, dtype=torch.int32)
++    starts_cpu[0] = 0
++    ends_cpu[0] = 0
++    ends_cpu[1] = int(starts_cpu[1]) + 3
++    starts, ends = starts_cpu.to(device), ends_cpu.to(device)
++    backing = torch.full((rows * k + 64,), -17, dtype=torch.int32, device=device)
++    output = backing[32:-32].view(rows, k)
++
++    def reference(cpu, lo, hi):
++        expected = torch.full((rows, k), -1, dtype=torch.int32)
++        for row in range(rows):
++            start, end = int(lo[row]), int(hi[row])
++            count = min(k, max(end - start, 0))
++            order = torch.argsort(cpu[row, start:end], descending=True, stable=True)
++            expected[row, :count] = order[:count].to(torch.int32)
++        return expected.sort(-1).values
++
++    def run():
++        flaggems_vllm.top_k_per_row_prefill(
++            logits,
++            starts,
++            ends,
++            output,
++            rows,
++            logits.stride(0),
++            logits.stride(1),
++            k,
++            canonical_output=True,
++        )
++
++    expected = reference(values, starts_cpu, ends_cpu)
++    first = None
++    for _ in range(8):
++        run()
++        host = output.cpu()
++        torch.testing.assert_close(host.sort(-1).values, expected, rtol=0, atol=0)
++        if first is None:
++            first = host
++        else:
++            torch.testing.assert_close(host, first, rtol=0, atol=0)
++    torch.testing.assert_close(logits.cpu(), values, rtol=0, atol=0)
++    assert bool((backing[:32] == -17).all())
++    assert bool((backing[-32:] == -17).all())
++
++    for _ in range(3):
++        run()
++    flaggems_vllm.runtime.torch_device_fn.synchronize()
++    graph = torch.cuda.CUDAGraph()
++    with torch.cuda.graph(graph):
++        run()
++    for factor in (-1.0, 0.5):
++        changed = values * factor
++        logits.copy_(changed)
++        changed_starts = starts_cpu.clone()
++        changed_ends = torch.maximum(starts_cpu, ends_cpu - 1)
++        starts.copy_(changed_starts)
++        ends.copy_(changed_ends)
++        graph.replay()
++        flaggems_vllm.runtime.torch_device_fn.synchronize()
++        torch.testing.assert_close(
++            output.cpu().sort(-1).values,
++            reference(changed, changed_starts, changed_ends),
++            rtol=0,
++            atol=0,
++        )
++        assert bool((backing[:32] == -17).all())
++        assert bool((backing[-32:] == -17).all())
++
++
++@pytest.mark.top_k_per_row_prefill
++@pytest.mark.skipif(
++    flaggems_vllm.runtime.device.vendor_name != "metax", reason="MetaX dispatch guard"
++)
++@torch.inference_mode()
++def test_canonical_output_bypasses_vendor_tle_install(monkeypatch):
++    from importlib import import_module
++
++    vendor = import_module(
++        "flaggems_vllm.runtime.backend._metax.fused.top_k_per_row_prefill"
++    )
++
++    def unexpected_tle_gate():
++        raise AssertionError("legacy TLE gate reached")
++
++    monkeypatch.setattr(vendor, "ensure_tle", unexpected_tle_gate)
++    values = torch.tensor([[3.0, 1.0, 2.0, 0.0]], device=device)
++    indices = torch.empty((1, 2), dtype=torch.int32, device=device)
++    lengths = torch.tensor([4], dtype=torch.int32, device=device)
++    starts = torch.zeros_like(lengths)
++    operation = vendor.top_k_per_row_prefill
++    operation(values, starts, lengths, indices, 1, 4, 1, 2, canonical_output=True)
++    torch.testing.assert_close(
++        indices.cpu(), torch.tensor([[0, 2]], dtype=torch.int32), rtol=0, atol=0
++    )
++    with pytest.raises(AssertionError, match="legacy TLE gate"):
++        operation(values, starts, lengths, indices, 1, 4, 1, 2)
+diff --git a/tests/test_causal_conv1d_metax.py b/tests/test_causal_conv1d_metax.py
+new file mode 100644
+index 0000000..13598e8
+--- /dev/null
++++ b/tests/test_causal_conv1d_metax.py
+@@ -0,0 +1,116 @@
++# SPDX-License-Identifier: Apache-2.0
++"""MetaX causal-conv compilation and stateful graph regression."""
++
++import importlib
++from types import SimpleNamespace
++
++import pytest
++import torch
++
++import flaggems_vllm as gems
++
++from .test_causal_conv1d import _close, _reference
++
++pytestmark = pytest.mark.skipif(not torch.cuda.is_available(), reason="GPU required")
++
++
++@pytest.mark.parametrize("vendor,expected", [("metax", True), ("nvidia", False)])
++def test_static_history_selection(vendor, expected, monkeypatch):
++    module = importlib.import_module("flaggems_vllm.ops.causal_conv1d")
++    selected = []
++
++    class InspectLaunch:
++        def __getitem__(self, grid):
++            def inspect(*args, **kwargs):
++                selected.append(kwargs["STATIC_HISTORY"])
++
++            return inspect
++
++    monkeypatch.setattr(module, "_conv_kernel", InspectLaunch())
++    monkeypatch.setattr(module.runtime, "device", SimpleNamespace(vendor_name=vendor))
++    module.causal_conv1d_update(
++        torch.empty((1, 2), device=gems.device),
++        torch.empty((1, 2, 3), device=gems.device),
++        torch.empty((2, 4), device=gems.device),
++    )
++    assert selected == [expected]
++
++
++@pytest.mark.skipif(gems.vendor_name != "metax", reason="MetaX regression")
++@pytest.mark.parametrize("dtype", [torch.float32, torch.float16, torch.bfloat16])
++@pytest.mark.parametrize("dim,width", [(2, 3), (23, 8), (512, 4)])
++@pytest.mark.parametrize("mode", ["prefill", "decode"])
++def test_static_history_cpu_oracle_and_changed_input_graph(dtype, dim, width, mode):
++    generator = torch.Generator(device="cpu").manual_seed(952)
++    tokens = 5 if mode == "prefill" else 1
++    x_cpu = torch.randn(dim, tokens, dtype=dtype, generator=generator)
++    weight_cpu = torch.randn(dim, width, dtype=dtype, generator=generator)
++    bias_cpu = torch.randn(dim, dtype=dtype, generator=generator) * 0.1
++    seed_cpu = torch.randn(2, dim, width + 1, dtype=dtype, generator=generator)
++    x = x_cpu.to(gems.device)
++    weight = weight_cpu.to(gems.device)
++    bias = bias_cpu.to(gems.device)
++    state = seed_cpu.to(gems.device)
++    slots = torch.tensor([1], dtype=torch.int32, device=gems.device)
++    starts = torch.tensor([0, tokens], dtype=torch.int32, device=gems.device)
++    initial = torch.tensor([True], device=gems.device)
++
++    def run():
++        if mode == "prefill":
++            return gems.causal_conv1d_fn(
++                x,
++                weight,
++                bias,
++                state,
++                starts,
++                cache_indices=slots,
++                has_initial_state=initial,
++                activation="silu",
++            )
++        return gems.causal_conv1d_update(
++            x.t(),
++            state,
++            weight,
++            bias,
++            conv_state_indices=slots,
++            activation="silu",
++        ).t()
++
++    expected, final = _reference(
++        [x_cpu],
++        seed_cpu,
++        weight_cpu,
++        bias_cpu,
++        [1],
++        [True],
++        True,
++    )
++    actual = run()
++    _close(actual.cpu(), expected[0])
++    torch.testing.assert_close(state.cpu(), final, rtol=0, atol=0)
++
++    for _ in range(3):
++        run()
++    torch.cuda.synchronize()
++    graph = torch.cuda.CUDAGraph()
++    with torch.cuda.graph(graph):
++        captured = run()
++
++    state.copy_(seed_cpu)
++    expected_state = seed_cpu
++    for scale in (2, 3):
++        changed = x_cpu * scale
++        x.copy_(changed)
++        expected, expected_state = _reference(
++            [changed],
++            expected_state,
++            weight_cpu,
++            bias_cpu,
++            [1],
++            [True],
++            True,
++        )
++        graph.replay()
++        torch.cuda.synchronize()
++        _close(captured.cpu(), expected[0])
++        torch.testing.assert_close(state.cpu(), expected_state, rtol=0, atol=0)
+diff --git a/tests/test_fp8_fp4_mqa_logits_portable.py b/tests/test_fp8_fp4_mqa_logits_portable.py
+new file mode 100644
+index 0000000..d6d77ed
+--- /dev/null
++++ b/tests/test_fp8_fp4_mqa_logits_portable.py
+@@ -0,0 +1,113 @@
++# SPDX-License-Identifier: Apache-2.0
++"""FP8 prefill MQA without an optional CUDA DeepGEMM reference dependency."""
++import importlib
++from types import SimpleNamespace
++
++import pytest
++import torch
++
++import flaggems_vllm as gems
++
++pytestmark = pytest.mark.skipif(not torch.cuda.is_available(), reason="GPU required")
++
++
++def _oracle(q, k, scales, weights, starts, ends, clean):
++    dots = torch.einsum("mhd,nd->mhn", q.float(), k.float())
++    logits = (torch.relu(dots * scales) * weights.unsqueeze(-1)).sum(1)
++    if clean:
++        for row, (start, end) in enumerate(zip(starts.tolist(), ends.tolist())):
++            logits[row, :start] = float("-inf")
++            logits[row, end:] = float("-inf")
++    return logits
++
++
++@pytest.mark.parametrize("vendor,software", [("metax", True), ("nvidia", False)])
++def test_software_fp8_selection_preserves_native_inputs(vendor, software, monkeypatch):
++    module = importlib.import_module("flaggems_vllm.ops.fp8_fp4_mqa_logits")
++    calls = []
++
++    class InspectLaunch:
++        def __getitem__(self, grid):
++            def inspect(*args, **kwargs):
++                calls.append((args[0], args[1], kwargs["SOFTWARE_FP8"]))
++
++            return inspect
++
++    monkeypatch.setattr(module, "_fp8_fp4_mqa_logits_kernel", InspectLaunch())
++    monkeypatch.setattr(module, "_can_use_tle", lambda *args: False)
++    monkeypatch.setattr(module.runtime, "device", SimpleNamespace(vendor_name=vendor))
++    q = torch.empty((1, 32, 128), dtype=torch.float8_e4m3fn, device=gems.device)
++    k = torch.empty((2, 128), dtype=torch.float8_e4m3fn, device=gems.device)
++    module.fp8_fp4_mqa_logits(
++        (q, None),
++        (k, torch.empty(2, device=gems.device)),
++        torch.empty((1, 32), device=gems.device),
++        None,
++        None,
++        clean_logits=False,
++    )
++    q_arg, k_arg, selected = calls[0]
++    assert selected == software
++    assert q_arg.dtype == (torch.uint8 if software else q.dtype)
++    assert k_arg.dtype == (torch.uint8 if software else k.dtype)
++    assert q_arg.data_ptr() == q.data_ptr() and k_arg.data_ptr() == k.data_ptr()
++
++
++@pytest.mark.parametrize("rows,keys", [(0, 70), (1, 0), (1, 70), (2, 70), (17, 129)])
++@pytest.mark.parametrize("clean", [False, True])
++@pytest.mark.parametrize("strided", [False, True])
++def test_fp8_mqa_cpu_oracle_and_changed_input_graph(rows, keys, clean, strided):
++    generator = torch.Generator(device="cpu").manual_seed(53)
++    q_cpu = (
++        torch.randint(-16, 17, (rows, 32, 128), generator=generator).float() / 8
++    ).to(torch.float8_e4m3fn)
++    k_cpu = (torch.randint(-16, 17, (keys, 128), generator=generator).float() / 8).to(
++        torch.float8_e4m3fn
++    )
++    weights_cpu = torch.randn((rows, 32), generator=generator)
++    scales_cpu = torch.linspace(0.01, 0.05, keys)
++    starts_cpu = torch.arange(rows, dtype=torch.int32).remainder(5).clamp_max(keys)
++    ends_cpu = torch.full((rows,), keys, dtype=torch.int32)
++    if rows:
++        ends_cpu[-1] = starts_cpu[-1]
++    if strided:
++        q = torch.empty((rows * 2, 32, 128), dtype=q_cpu.dtype, device=gems.device)[::2]
++        k = torch.empty((keys * 2, 128), dtype=k_cpu.dtype, device=gems.device)[::2]
++        weights = torch.empty((rows, 64), device=gems.device)[:, ::2]
++        q.copy_(q_cpu)
++        k.copy_(k_cpu)
++        weights.copy_(weights_cpu)
++    else:
++        q, k, weights = (x.to(gems.device) for x in (q_cpu, k_cpu, weights_cpu))
++    scales = scales_cpu.to(gems.device)
++    starts, ends = starts_cpu.to(gems.device), ends_cpu.to(gems.device)
++
++    def run():
++        return gems.fp8_fp4_mqa_logits(
++            (q, None), (k, scales), weights, starts, ends, clean_logits=clean
++        )
++
++    expected = _oracle(
++        q_cpu, k_cpu, scales_cpu, weights_cpu, starts_cpu, ends_cpu, clean
++    )
++    actual = run()
++    torch.testing.assert_close(actual.cpu(), expected, rtol=1e-4, atol=1e-4)
++    if not rows or not keys:
++        return
++    for _ in range(3):
++        run()
++    torch.cuda.synchronize()
++    graph = torch.cuda.CUDAGraph()
++    with torch.cuda.graph(graph):
++        captured = run()
++    for scale in (0.5, 1.5):
++        changed_q = (q_cpu.float().flip(-1) * scale).to(q_cpu.dtype)
++        changed_weights = weights_cpu * scale
++        q.copy_(changed_q)
++        weights.copy_(changed_weights)
++        expected = _oracle(
++            changed_q, k_cpu, scales_cpu, changed_weights, starts_cpu, ends_cpu, clean
++        )
++        graph.replay()
++        torch.cuda.synchronize()
++        torch.testing.assert_close(captured.cpu(), expected, rtol=1e-4, atol=1e-4)
+diff --git a/tests/test_mhc_norm_model.py b/tests/test_mhc_norm_model.py
+new file mode 100644
+index 0000000..59e1d52
+--- /dev/null
++++ b/tests/test_mhc_norm_model.py
+@@ -0,0 +1,42 @@
++# SPDX-License-Identifier: Apache-2.0
++"""Model-sized mHC normalization against a CPU oracle and graph replay."""
++import pytest
++import torch
++
++import flaggems_vllm as gems
++
++pytestmark = pytest.mark.skipif(not torch.cuda.is_available(), reason="GPU required")
++
++
++@pytest.mark.parametrize("dtype", [torch.float32, torch.bfloat16])
++def test_model_norm_cpu_oracle_and_changed_graph_inputs(dtype):
++    generator = torch.Generator(device="cpu").manual_seed(538)
++    source = torch.randn((3, 4096), generator=generator, dtype=dtype)
++    source_weight = torch.randn((4096,), generator=generator, dtype=dtype)
++    x = source.to(gems.device)
++    weight = source_weight.to(gems.device)
++
++    def reference(value, scale):
++        value_f = value.float()
++        return (
++            value_f
++            * torch.rsqrt(value_f.square().mean(-1, keepdim=True) + 1e-6)
++            * scale.float()
++        ).to(dtype)
++
++    actual = gems.mhc_rms_norm(x, weight, 1e-6)
++    torch.testing.assert_close(actual.cpu(), reference(source, source_weight))
++    for _ in range(3):
++        gems.mhc_rms_norm(x, weight, 1e-6)
++    torch.cuda.synchronize()
++    graph = torch.cuda.CUDAGraph()
++    with torch.cuda.graph(graph):
++        captured = gems.mhc_rms_norm(x, weight, 1e-6)
++    for scale in (0.5, 1.5):
++        changed = (source.flip(-1) * scale + 0.1).to(dtype)
++        changed_weight = (source_weight * scale).to(dtype)
++        x.copy_(changed)
++        weight.copy_(changed_weight)
++        graph.replay()
++        torch.cuda.synchronize()
++        torch.testing.assert_close(captured.cpu(), reference(changed, changed_weight))
+diff --git a/tests/test_sparse_mla_metax.py b/tests/test_sparse_mla_metax.py
+new file mode 100644
+index 0000000..09d6e69
+--- /dev/null
++++ b/tests/test_sparse_mla_metax.py
+@@ -0,0 +1,86 @@
++# SPDX-License-Identifier: Apache-2.0
++"""Resource-safe sparse MLA candidates and actual BF16 math on MetaX."""
++import importlib
++from types import SimpleNamespace
++
++import pytest
++import torch
++
++import flaggems_vllm as gems
++
++
++@pytest.mark.parametrize(
++    "vendor,tiles", [("metax", [(16, 16, 1)]), ("nvidia", [(64, 64, 2), (64, 64, 4)])]
++)
++def test_shared_memory_candidates(vendor, tiles, monkeypatch):
++    module = importlib.import_module("flaggems_vllm.ops.flashmla_sparse")
++    monkeypatch.setattr(module.runtime, "device", SimpleNamespace(vendor_name=vendor))
++    configs = module._sparse_mla_configs()
++    assert [(c.kwargs["BK"], c.kwargs["BH"], c.num_stages) for c in configs] == tiles
++
++
++@pytest.mark.parametrize("topk", [80, 128, 2048])
++@pytest.mark.skipif(gems.vendor_name != "metax", reason="MetaX regression")
++@pytest.mark.parametrize("heads", [64, 128])
++@pytest.mark.parametrize("width", [512, 576])
++@pytest.mark.parametrize("bounded", [False, True])
++def test_sparse_mla_cpu_oracle_and_changed_graph(heads, width, bounded, topk):
++    gen = torch.Generator().manual_seed(53)
++    q_cpu = torch.randn((3, heads, width), generator=gen, dtype=torch.bfloat16) * 0.1
++    kv_cpu = torch.randn((65, 1, width), generator=gen, dtype=torch.bfloat16) * 0.1
++    indices_cpu = torch.arange(topk, dtype=torch.int32).repeat(3, 1).unsqueeze(1)
++    indices_cpu[1, 0, 17:] = -1
++    indices_cpu[2, 0, :] = -1
++    lengths_cpu = torch.tensor([63, 11, 0], dtype=torch.int32) if bounded else None
++    q, kv, indices = [t.to(gems.device) for t in (q_cpu, kv_cpu, indices_cpu)]
++    lengths = lengths_cpu.to(gems.device) if bounded else None
++
++    def run():
++        return gems.flash_mla_sparse_fwd(
++            q, kv, indices, sm_scale=width**-0.5, topk_length=lengths
++        )
++
++    def oracle(qq, kk):
++        out = torch.zeros((3, heads, 512), dtype=torch.bfloat16)
++        maximum = torch.full((3, heads), float("-inf"))
++        lse = torch.full((3, heads), float("inf"))
++        for row in range(2):
++            ids = indices_cpu[row, 0]
++            if bounded:
++                ids = ids[: lengths_cpu[row]]
++            keys = kk[ids[(ids >= 0) & (ids < 65)].long(), 0].float()
++            scores = qq[row].float() @ keys.t() * width**-0.5
++            out[row] = (scores.softmax(-1) @ keys[:, :512]).to(out.dtype)
++            maximum[row] = scores.amax(-1)
++            lse[row] = scores.logsumexp(-1)
++        return out, maximum, lse
++
++    for a, b in zip(run(), oracle(q_cpu, kv_cpu)):
++        torch.testing.assert_close(a.cpu(), b, rtol=0.02, atol=0.002)
++    for _ in range(3):
++        run()
++    torch.cuda.synchronize()
++    graph = torch.cuda.CUDAGraph()
++    with torch.cuda.graph(graph):
++        captured = run()
++    for scale in (0.5, 1.5):
++        changed_q = q_cpu * scale
++        changed_k = kv_cpu.flip(0) * scale
++        q.copy_(changed_q)
++        kv.copy_(changed_k)
++        graph.replay()
++        torch.cuda.synchronize()
++        for a, b in zip(captured, oracle(changed_q, changed_k)):
++            torch.testing.assert_close(a.cpu(), b, rtol=0.02, atol=0.002)
++
++
++@pytest.mark.parametrize("vendor,expected", [("metax", False), ("nvidia", True)])
++def test_default_tle_selection_uses_supported_vendor(vendor, expected, monkeypatch):
++    module = importlib.import_module("flaggems_vllm.ops.flashmla_sparse")
++    monkeypatch.setattr(module.runtime, "device", SimpleNamespace(vendor_name=vendor))
++    monkeypatch.setattr(module, "HAS_TLE_FLASHMLA_SPARSE", True)
++    monkeypatch.delenv("FLAGGEMS_FLASHMLA_SPARSE_TLE", raising=False)
++    q = SimpleNamespace(shape=(3, 64, 512), device=SimpleNamespace(type="cuda"))
++    kv = SimpleNamespace(shape=(65, 1, 512))
++    indices = SimpleNamespace(shape=(3, 1, 2048))
++    assert module._can_use_tle_flash_mla_sparse_fwd(q, kv, indices, 512) is expected

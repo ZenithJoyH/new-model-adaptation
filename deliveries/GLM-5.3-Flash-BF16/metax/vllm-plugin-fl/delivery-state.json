@@ -1,0 +1,37 @@
+{
+  "schema_version": 1,
+  "kind": "reproducible_delivery_state",
+  "model": "GLM-5.3-Flash-BF16",
+  "platform": "metax",
+  "framework": "vllm-plugin-fl",
+  "source_deployment_fingerprint": "ed8b2a8a5ee91fcb8279b479db55661be9c5ed5c86cab249a1a49eb4df9728f7",
+  "image": {
+    "reference": "local/glm5.3-flash:adapted-v14-20261028",
+    "id": "sha256:eb67b5a6cccb87470c25060fb5a96d86dc1f87f2030d9b8b36f8393d54ae3e34",
+    "archive": {
+      "path": "/public-flash/jinghao/glm5.3-flash/05-tmp/glm5.3-flash-adapted-v14-clean-20261028.tar",
+      "sha256": "d009a3072608c0166268776662da56a30e15650d7f267f3a57241607e29c318c",
+      "bytes": 24291995136
+    },
+    "published": false,
+    "validation": "pending",
+    "static_verified_hosts": [
+      "mx-101",
+      "mx-102"
+    ],
+    "docker_socket": "unix:///data/jinghao/glm5.3-flash-image-runtime/05-tmp/docker.sock"
+  },
+  "files_sha256": {
+    "dependency-lock.json": "47b4755f8963f8dc0ad61d8aa97bd94ea87ae7a6a11c8534b54216e345a82924",
+    "restore.md": "da9268a5fed42df5c449a797e4ca14f799c007781dbfa0c8e5f8ba7b5ba306d1",
+    "runtime-config.json": "c6159e603efaf3cb8bfaed5d6a11f04eb4a8830953ab4dadfadd6d337b287d2a",
+    "source-reference.json": "e1271f9332c38e679d353a0a118ca64304ba8551d33d80b2fd55ab9dbbbd08bc",
+    "start-model.sh": "a9ccaa4159df8790dd8c7c1833913e239d3f55ba347a65976cf6be29ba6b6626",
+    "patches/FlagGems-vllm.patch": "6dcaa714698e33ede120b00eb2ece4fd20fa7a248b2109a05a94438dc9cb82db",
+    "patches/FlagGems.patch": "5d7bc5ffa0878a962abb781ef50c48be90a16218c384ce0ba2f73e86651db380",
+    "patches/vllm-plugin-FL.patch": "54d3f942fbdff57b006183fbd8e511044c983f939dd49992b85534404172a76d"
+  },
+  "formal_accuracy": "full198_generation_in_progress; user-authorized offline null-as-incorrect recovery pending",
+  "performance": "not_measured",
+  "note": "Static checks are not generation/image validation or formal accuracy acceptance."
+}

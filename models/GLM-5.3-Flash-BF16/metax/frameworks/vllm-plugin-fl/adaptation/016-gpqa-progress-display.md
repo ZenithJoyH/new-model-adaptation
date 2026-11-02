@@ -24,3 +24,11 @@
 唯一匹配响应，unmatched/key_misses/解码失败/重复doc均为0、timeout为0。
 `observe-gpqa-v14`据此记录原生journal完成数，并保存确切客户端进程身份。
 主评测、冻结工具bundle与配置未改变；此监视不是正式精度回执。
+
+随后缓存出现一条4-byte的PROTO5/NONE/STOP值。只读检查确认它是原生空content，
+不是未知pickle结构；服务累计指标同时出现一次`finished_reason=length`。
+第二版正确停止显示分数，并保留unavailable；主进程继续运行。第三版一次性监视器
+仅识别这一精确字节串，在显示时将其当作空答案计错，另列`empty_content_none`计数；
+未知结构、key不匹配或重复doc仍拒绝显示。原缓存值、主评测和冻结工具均未改动。
+正式评测器的regex filter不接受None，可能在全量生成后的评分阶段失败；这一限制
+必须以实际最终运行记录说明，不能将辅助显示分数代替原生验收结果。

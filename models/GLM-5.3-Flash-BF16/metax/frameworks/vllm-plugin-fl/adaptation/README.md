@@ -16,8 +16,13 @@
 | [013 MetaX编译产物接口](013-metax-compiled-artifact-api.md) | 两机各四例及独立新进程恢复通过；后续实际整模编译/AOT与显式graph通过 |
 | [014 整模型图模式](014-whole-model-graph.md) | 两机81项及v13 eager通过；FULL受MLA/indexer能力限制，显式下一档四请求/16rank数值与重放通过 |
 | [015 双机服务取证](015-distributed-service-evidence.md) | 新严格参与节点绑定，本地101项相关回归通过；现场sanity/GPQA绑定通过，sanity取证1426对互逆连接 |
+| [016 GPQA进度显示](016-gpqa-progress-display.md) | 只读辅助监视；正式全量评测保持冻结，中间数字不作为通过证据 |
+| [017 镜像封装存储](017-image-packaging-storage.md) | 清洁单层镜像保存/两机加载及新容器静态核验通过；实际模型生成验证待完成 |
+| [018 截断空答案计分](018-gpqa-truncated-empty-content.md) | 原生TypeError已离线复现；用户批准全量生成后按错误离线计分，原运行与失败记录保留 |
+| [019 Plugin主线更新与启动](019-plugin-update-startup.md) | 两机已更新7094141e；原TP8/PP2启动均被主线PP=1约束拒绝，容器运行、旧补丁完整存档 |
+| [020 TP16/PP1启动与推理检查](020-tp16-pp1-startup.md) | 原stream阻塞已修复并完成权重加载；编译产物测试通过，Abort真实重建未通过；当前16卡被外部DeepSeek占用，未就绪/未推理，原容器运行 |
 
 脚本、原始日志和最小复现保留在批准远端根，不保存到本目录。
 
 [源码设计审查](010-source-review.md) 绑定实际安装的Plugin、FlagGems和FlagGems-vllm全部35文件；
-阶段3原生gate已通过。正式GPQA、性能与镜像验证的后续结果单独记录。
+对应10-28历史版本的阶段3原生gate已通过；不能覆盖11-01主线更新。正式GPQA、性能与镜像验证的后续结果单独记录。

@@ -1,0 +1,39 @@
+{
+  "schema_version": 1,
+  "python": "3.12.11",
+  "packages": {
+    "vllm": "0.24.1.dev0+gee0da84ab.d20261023.empty",
+    "vllm-plugin-fl": "0.3.0rc2.post1+g4e23ae8f2",
+    "flag-gems": "5.5.0.dev0",
+    "flaggems-vllm": "0.3.0.dev1",
+    "FlagTree": "0.7.0+metax",
+    "triton": "3.6.0+metax3.8.2.2",
+    "torch": "2.10.0+metax3.8.2.2",
+    "transformers": "5.15.0"
+  },
+  "installed_paths": {
+    "vllm": "/opt/vllm/vllm/__init__.py",
+    "vllm_fl": "/opt/vllm-plugin-FL/vllm_fl/__init__.py",
+    "flag_gems": "/opt/FlagGems/src/flag_gems/__init__.py",
+    "flaggems_vllm": "/opt/FlagGems-vllm/src/flaggems_vllm/__init__.py",
+    "triton": "/opt/conda/lib/python3.12/site-packages/triton/__init__.py"
+  },
+  "maca_sdk": "3.8.2",
+  "maca_root": "/opt/maca-3.8.2",
+  "host_driver_prerequisite": "3.8.1, verified on mx-101/mx-102",
+  "runtime_directories_in_image": [
+    "/opt/conda",
+    "/opt/maca-3.8.2",
+    "/opt/vllm-plugin-FL",
+    "/opt/FlagGems",
+    "/opt/FlagGems-vllm",
+    "/opt/vllm",
+    "/opt/mxdriver/lib"
+  ],
+  "flagtree_provenance": "Installed0.7.0+metax/actualTriton3.6.0+metax3.8.2.2; earlier vendor git identifier2f1229e is incomplete provenance. Use tested image digest for binary reproduction; no clean pip-only reproduction claimed.",
+  "source_patch_hashes": {
+    "vllm-plugin-FL": "54d3f942fbdff57b006183fbd8e511044c983f939dd49992b85534404172a76d",
+    "FlagGems": "5d7bc5ffa0878a962abb781ef50c48be90a16218c384ce0ba2f73e86651db380",
+    "FlagGems-vllm": "6dcaa714698e33ede120b00eb2ece4fd20fa7a248b2109a05a94438dc9cb82db"
+  }
+}
