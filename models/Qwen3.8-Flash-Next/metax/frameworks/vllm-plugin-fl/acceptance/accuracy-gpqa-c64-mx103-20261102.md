@@ -1,4 +1,4 @@
-# mx-103 GPQA Diamond198：客户端并发64（进行中）
+# mx-103 GPQA Diamond198：客户端并发64（用户停止）
 
 2026-11-02，用户要求先停止ERQA，优先以64并发执行GPQA精度。使用项目本地
 inference-accuracy-evaluation Skill 的 formal-full 操作；本轮没有更改产品源码、
@@ -59,3 +59,11 @@ UTF-8文件逐行读取，避免JSON字符串内Unicode分隔符导致错误拆�
 控制器将在原生客户端终态后调用原生完整性/逐题指标校验，并核对来源前后快照，
 保存 `gpqa-full-verification.json`、`full-verification.json`。
 未完成前不提升framework.yml状态；半小时只读汇报任务已改为跟踪本轮GPQA64。
+
+## 2026-11-02 12:21 CST：用户停止评测
+
+按用户明确要求，核实PID/start_ticks/命令哈希及评测容器归属后，通过pidfd仅终止本轮控制器、docker客户端、原生runner和lm_eval；4个进程均验证退出。评测容器中仅保留原sleep进程。模型服务PID及命令身份未变，health200，running0/waiting0，所有容器保持运行，未影响其他任务。
+
+停止时保留49条原生缓存响应；没有带doc_id的完整198题原生结果，不能将49条缓存当作已验收的唯一题数或完整精度。缓存SHA256为 `477849d6d017c87b905ef239ff5ba02140708e62086e2dec9b62ba240b866775`。本轮累计抢占270次。原始日志、配置、响应缓存和既有ERQA部分结果全部保留，没有补发请求或离线改分。
+
+停止证据为本轮运行根 `user-stop-20261102.json`；`state.json` 已标记 `stopped_by_user`，完整精度为incomplete。半小时汇报任务 `mx-103-qwen-gpqa-erqa` 已删除；不自动恢复ERQA、GPQA或收尾流程。以上覆盖本文此前进行中状态，保留启动历史。
