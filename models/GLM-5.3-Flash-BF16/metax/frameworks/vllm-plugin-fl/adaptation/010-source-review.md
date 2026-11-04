@@ -1,5 +1,25 @@
 # 源码设计审查
 
+## GPQA前置审查限定（2026-11-03）
+
+用户选择先补齐前置验证再运行198题。当前两机实际安装来源仍为Plugin7094141e、FlagGems3eab0949、FlagGems-vllm ddce1d66，vLLM只读。官方MCCL24组已完成，详见本轮环境记录；这不替代源码及执行模式检查。
+
+只读质量检查 `01-environment/glm-source-quality-a2-20261103/mx-101/` 覆盖当前Plugin14、FGV16、FG2个改动文件，保存完整命令与失败。已逐项对比Plugin HEAD：18条ruff告警中，本次新增部分为三个既有测试中的五个import块和standalone兼容导入的一个空行分组；其余包括mla.py未使用类型导入、pynccl_wrapper.py原有envs未定义、worker.py原有import等均在公开基线存在。未修改这些继承逻辑或放宽检查规则。最初仅搜索到HEAD同名starts变量不足以归因；后续完整stdin检查确认，本任务新增canonical测试中存在独立的未使用starts分配，按新增问题处理，不再归为公开基线告警。
+
+首批变更限定为Plugin的 `tests/functional_tests/compilation/test_graph_capture.py`、`tests/unit_tests/distributed/test_collective_compile.py`、`tests/unit_tests/glm5/test_runtime.py` 五个新增import分组对应的排序/空行，以及 `dispatch/backends/vendor/metax/patches/fix_standalone_compile.py` 新增具体产物类型导入块的空行；`pynccl_wrapper.py` 删除本任务留下的EOF空行。FlagGems仅将本任务clone注册tuple的括号排版对齐Black，要求整个AST不变。实际以现有ruff回执逐块定位，不自动修复其他告警、不运行全文件formatter、不改数值或注册行为。修改前保存文件哈希和原字节，测试import只允许相同导入项重排，产品文件要求AST完全一致。完成后逐hunk审查，两机同步相同字节并重新验证受影响回归。原质量失败及既有全部运行证据保留，不仅刷新哈希冒充复验。
+
+追加限定来自完整基线比对 `glm-source-baseline-review-a3-20261103`：FGV `src/flaggems_vllm/ops/flashmla_sparse.py` 仅删除同一包导入之间的空行，产品AST必须完全相同；`tests/test_causal_conv1d.py`、`test_flash_mla_sparse_fwd.py`、`test_fp8_fp4_mqa_logits.py`、`test_mhc_with_norm.py` 只重排相同模块导入；`tests/test_top_k_per_row_decode.py::test_canonical_output_bypasses_vendor_tle_install` 只删除未使用的 `starts = torch.zeros_like(lengths)`，所有调用和断言保持。FlagGems `tests/test_clone.py` 仅调整顶层三项导入的顺序。上述均是本任务补丁带来的检查失败，不属于继承告警；不新增文件、计算路径或参数。待当前编译/clone进程退出后才修改，随后补跑FGV既有72项和clone既有31项，不用代码哈希替代运行结果。适用operator:F3/F5/F6，未改变任何kernel/tuner/dispatch契约，不新增优化或benchmark声明。
+
+适用plugin:C1/F1/F4/F7、operator:F3/F5；当前不新增数值kernel、接口或开关。pre-commit及公开基线已有告警仍须如实记录，尚不宣称PR/完整规范检查通过；正式前置状态须由新的有效回执与原生gate确认。
+
+本轮最终逐块审查已读取两批13文件的实际before/after差异。产品四文件变化仅兼容类型导入排版、EOF空行、clone注册括号、sparse库导入间空行，AST逐文件完全相同；其余测试仅原导入项重排与已验证未读取的一次测试分配删除。原断言、参数化、数值公式、schema、注册、图级别、kernel和调优配置均未改。未发现无法解释的增删、第二套计算实现、无关格式重排或断言放宽。
+
+两机最终验证精确覆盖本轮242项单元、16项图、4项CPU/CUDA×binary/unpacked编译产物、73项FGV独立数值/变输入图、1项canonical守卫及31项clone数值/注册/梯度/变输入图，全部rc0、无失败/skip。242/16/4复用本轮同数学来源且原始XML/log哈希核对的结果；第二批只对实际受影响FGV/clone补跑，不宣称所有检查都重新执行。73项按八个原始XML函数组核对：2+18+2+20+2+3+24+2，完整保留当前三个shared-memory参数用例；最初沿用旧72计数的汇总失败保留，未减少测试或放宽数值断言。最终回执在 `01-environment/glm-quality-regressions-a4-20261103/<host>/after-manifest.json`，完整源码/补丁身份见本轮环境记录。
+
+修正后的FGV改动范围flake8/isort/Black全部通过；FG的flake8/Black通过，剩余init导入排序为公开HEAD既有；Plugin剩余ruff与整文件format建议均已与HEAD比对，未夹带继承代码整理。只读pre-commit运行实际尝试但依赖安装受NFS ACL复制EIO及有界获取超时阻塞，不能报告完整pre-commit或目标CI通过。plugin:F4及operator:F3的提交/PR前检查与失败披露要求保留；当前操作是前置运行验证，不执行提交、发布或PR，不把缺项改写为PR就绪。用户已批准的D3冻结补丁例外保持原范围。
+
+设计审查判断限于当前公开基线上的实际适配补丁：沿用原003～014及020的逐符号必要性和既有源集合审查，并以当前源哈希、上述硬件回归、原生MCCL24组及本轮全部差异重新核对。当前兼容/metadata/通信改动有明确职责和守卫，FG仅修正ATen注册，vLLM专用数值仍在FGV，vLLM/Torch/SDK未写入；没有新增数学实现、生产Torch计算回退或平台选择链。可据这些实证继续正式执行模式验证；不从设计审查推导eager/graph整模数值、GPQA、性能或镜像通过。其他硬件、MTP、完整视频、RDMA及上游CI仍未验证，保留边界。
+
 ## 收尾变更边界（2026-10-28）
 
 G1检查发现Plugin支持表尚无本模型及可运行示例。下一次仅在实际安装的

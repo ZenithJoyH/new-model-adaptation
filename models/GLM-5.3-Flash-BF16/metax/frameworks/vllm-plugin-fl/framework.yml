@@ -6,9 +6,9 @@ profile: framework-profiles/vllm-plugin-fl/profile.yml
 profile_version: 7
 status: blocked
 validated_hosts: []
-container_image: local/glm5.3-flash:mainline-20261027
-last_verified: '2026-11-01'
-blocker: 两机16卡均被外部mx8_0至mx8_7的DeepSeek服务占用；原stream及编译产物错误已修复，完整服务尚未就绪、推理未执行，待释放GPU后继续验证。
+container_image: null
+last_verified: '2026-11-03'
+blocker: 当前TP16/PP1 FULL_AND_PIECEWISE正常服务已启动，健康接口及单次生成通过；用户暂停精度与整模数值对照，正式验收、性能和镜像均未完成。
 control:
   mode: agent
   history:
@@ -132,6 +132,25 @@ control:
         last_verified: null
         blocker: ''
         verification: {}
+  - id: gpqa-prerequisites-20261103
+    at: '2026-11-03T02:25:52.816768+00:00'
+    operation: acceptance_prerequisites_resume
+    actor: agent
+    note: User selected completing prerequisites before fresh GPQA Diamond198 at 85%.
+      Official MCCL24 and current component regressions verified; preserve all retired
+      results. Enable a new service-contract plan for fresh sanity, without migrating
+      historical reports. No performance, image or PR work resumed.
+    previous_deployment:
+      fingerprint: null
+      pending_reason: Current TP16 graph functionality and normal text/image requests
+        verified; full acceptance identity remains unfrozen while GPQA, performance
+        and image delivery are paused.
+    previous_acceptance_plan:
+      execution:
+        max_abs_error: 0.05
+      sanity_manifest_sha256: d930cf9a5c95bc01942612c03758b4566a58561a92f84a95a1c4ab3e46d7b4f6
+      accuracy_config_sha256: cc1f6a7e92f735e302c7b509332a2b237c1b3b9d00cf6c91a59d954d6587d642
+    previous_container_image: local/glm5.3-flash:mainline-20261027
 target:
   hosts:
   - mx-101
@@ -146,14 +165,17 @@ workspace:
     host_root: /public-flash/jinghao/glm5.3-flash
     container_root: /public-flash/jinghao/glm5.3-flash
 deployment:
-  fingerprint: null
-  pending_reason: Plugin main, prefill patch and TP16 topology changed; full service
-    startup blocked, new full acceptance identity not frozen.
+  fingerprint: 3ca3e1b86d3aa3497a69b1d1c6f9e53fa1249bed5680061efad2126b3a1bf1f6
+  identity_manifest:
+    path: /public-flash/jinghao/glm5.3-flash/01-environment/glm-gpqa-control-bootstrap-a1-20261103/deployment-identity.json
+    sha256: 6ee70dc4512e495373e97a0efbc40c91215be03f1f9dff3cad086a899244ba2a
 acceptance_plan:
   execution:
     max_abs_error: 0.05
-  sanity_manifest_sha256: d930cf9a5c95bc01942612c03758b4566a58561a92f84a95a1c4ab3e46d7b4f6
-  accuracy_config_sha256: cc1f6a7e92f735e302c7b509332a2b237c1b3b9d00cf6c91a59d954d6587d642
+  sanity_manifest_sha256: null
+  accuracy_config_sha256: null
+  service_contract:
+    schema_version: 1
 workflow:
   architecture:
     status: passed
@@ -167,17 +189,41 @@ workflow:
       evidence_sha256: 68b621517e84e61ad904d38cc311c2740946cd9a1eb9028da46a6ffdee827baf
       context_sha256: b19d6a1d7eb9ec86451b2a855e8625f17f587663824105b215e1474edd172b9f
   environment:
-    status: not_started
-    evidence: environment/environment-identity-final-v14.md
-    last_verified: null
-    blocker: Plugin主线更新后需按实际选定范围复核；本轮未执行完整阶段。
-    verification: {}
+    status: passed
+    evidence: environment/environment-identity-gpqa-20261103.md
+    last_verified: '2026-11-03'
+    blocker: ''
+    verification:
+      run_id: glm-gpqa-environment-a1-20261103
+      last_verified: '2026-11-03'
+      evidence: environment/environment-identity-gpqa-20261103.md
+      evidence_sha256: d8534148ef31e5ac04ea15641a31c51f59f90a14ccbe89e38d87d9ce7b99cbb3
+      context_sha256: c3594b05bc40b9e92d4f7cdb4e220f5380a722be629c6a770131417f9bd62a35
+      receipts:
+      - host_alias: mx-101
+        path: /public-flash/jinghao/glm5.3-flash/04-runs/glm-gpqa-environment-a1-20261103/mx-101/framework-check.json
+        sha256: befb8bf7ae5fca3b0cc051c76f188b169c714993dcfcacb959a2221456389183
+      - host_alias: mx-102
+        path: /public-flash/jinghao/glm5.3-flash/04-runs/glm-gpqa-environment-a1-20261103/mx-102/framework-check.json
+        sha256: f0f71d9e52c2601b2787b28602f387f4fb795f4fc173cc51641c90f102a1da54
   adaptation:
-    status: not_started
+    status: passed
     evidence: adaptation/010-source-review.md
-    last_verified: null
-    blocker: Plugin主线更新后需按实际选定范围复核；本轮未执行完整阶段。
-    verification: {}
+    last_verified: '2026-11-03'
+    blocker: ''
+    verification:
+      run_id: glm-gpqa-adaptation-a1-20261103
+      last_verified: '2026-11-03'
+      evidence: adaptation/010-source-review.md
+      evidence_sha256: 705ba31534ed9922cbe2f7a6df579d30a3f730d0cdc624da77a966bebf0b37cc
+      context_sha256: 59714cd3d27ff66eab1d2c1aebf8d55d8b8fb23fba27d78a30c35c33e928b2a8
+      receipts:
+      - host_alias: mx-101
+        path: /public-flash/jinghao/glm5.3-flash/04-runs/glm-gpqa-adaptation-a1-20261103/mx-101/framework-check.json
+        sha256: b604c0485a6a2fd5d32cf76e59166e92b58d12539e1d90883aba6649f8925e05
+      - host_alias: mx-102
+        path: /public-flash/jinghao/glm5.3-flash/04-runs/glm-gpqa-adaptation-a1-20261103/mx-102/framework-check.json
+        sha256: 4fb4b46a086bac70f6d25114b0a0c8d2cc79929c9cd7f3ab58b0744e14202a0a
   acceptance:
     status: not_started
     evidence: acceptance/README.md
@@ -328,7 +374,7 @@ task_results:
   container_ids:
     mx-101: d73d1bc917e3651b04b965c02c495c46096873280997f8de9870abd13e15172f
     mx-102: cdf5ee8ab707acc5f7d1ab7285aad4ae43cd655d314d6dca6fb36045ee1769a6
-  current_bringup_run: glm-plugin-tp16-startup-a5-20261101
+  current_bringup_run: glm-full-and-piecewise-normal-a6-20261103
   dependency_publication_exception: User authorized public base SHAs plus complete
     frozen patches/file hashes and validated image; publication deferred, no commit/push.
   current_accuracy_run: glm-gpqa-final-v14-20261028
@@ -443,14 +489,24 @@ task_results:
       startup_run: glm-plugin-tp16-startup-a4-20261101
     compiled_artifact_fix:
       compile_save_reload_tests_passed_per_host: 4
-      independent_process_reload_passed_hosts: [mx-101, mx-102]
+      independent_process_reload_passed_hosts:
+      - mx-101
+      - mx-102
     mccl_abort_fix:
       unit_tests_passed_per_host: 4
       hardware_cleanup_reinit_passed: false
       run_id: glm-mccl-reinit-stream-a1-20261101
-    execution_blocker: External DeepSeek containers occupy all sixteen GPUs;
-      interrupting unrelated workloads requires explicit user confirmation.
-    external_container_names_per_host: [mx8_0, mx8_1, mx8_2, mx8_3, mx8_4, mx8_5, mx8_6, mx8_7]
+    execution_blocker: External DeepSeek containers occupy all sixteen GPUs; interrupting
+      unrelated workloads requires explicit user confirmation.
+    external_container_names_per_host:
+    - mx8_0
+    - mx8_1
+    - mx8_2
+    - mx8_3
+    - mx8_4
+    - mx8_5
+    - mx8_6
+    - mx8_7
     external_workloads_stopped: false
     gpu_reset_performed: false
     source_patch_sha256: 7ca8a1f4bb7996e78b7dbbf0356f145d16c15950eb45e53788e44a83ece48628
@@ -471,3 +527,177 @@ task_results:
     service_ready: false
     formal_acceptance_claimed: false
     full_adaptation_remains_paused: true
+  tp16_pp1_verification_resume_20261102:
+    scope: User-authorized functional startup and text/image inference verification
+      only
+    evidence: adaptation/020-tp16-pp1-startup.md
+    gpu_resource_release_observed: true
+    protected_container_ids_and_mappings_verified: true
+    shared_launcher_sha256: b4b959abacc49bb51a7984bd1bf2309db06a37239b69e63413a0d037be9ea2c8
+    eight_device_stream_arithmetic:
+      run_id: glm-torch-eight-resource-free-a1-20261102
+      passed_hosts:
+      - mx-101
+      - mx-102
+      devices_per_host: 8
+      script_sha256: 553cd11e7dceabd3f2718c817b6a19bf7f5b38d6f448932a023b249be7329241
+      log_sha256:
+        mx-101: d6aaa09a0a037abcf0c38cc8a9b60ba84109efe84a98e23c61985144a2f52a0d
+        mx-102: cf8cffbb38035acc23e36077e002b57becfa1666a6e2adb583a1cdfba395543b
+    communicator_probe:
+      run_id: glm-mccl-reinit-stream-a2-20261102
+      mx102_start_verified: false
+      mx101_start_verified: false
+      final_state_verified: false
+      timeout_seconds: 240
+      cleanup_receipt_verified: false
+      status: not_executed_bastion_false_success_confirmed
+    previous_execution_blocker: Bastion Core API asset matching error and SSH authentication
+      failures
+    connectivity_restored: true
+    new_product_changes: false
+    a6_service_launched: true
+    current_ten_file_reverification_completed: true
+    generation_requests_sent: 3
+    planned_generation_requests: 3
+    generation_requests_status: completed_no_retries
+    service_ready: true
+    inference_verified: true
+    formal_acceptance_claimed: false
+    full_adaptation_remains_paused: true
+    communicator_recovery_probe:
+      run_id: glm-mccl-reinit-stream-a3-20261102
+      passed_hosts:
+      - mx-101
+      - mx-102
+      ranks: 16
+      cycles: 2
+      expected_all_reduce:
+      - 136
+      - 272
+      native_abort_completed_per_rank: 4
+      verification_path: 04-runs/glm-mccl-reinit-stream-a3-20261102/verification.json
+      verification_sha256: 5efc493051cd10a98a421c8064501bab3df95ecadcef82c89264711888cdfaf4
+    startup_run: glm-plugin-tp16-startup-a6-20261102
+    functional_request_binding_sha256: a5d14a9550f778f1905291d5d9219182bf9f9a3e29451ce3c843b11d94742a59
+    requested_graph_mode: FULL_AND_PIECEWISE
+    effective_graph_mode: PIECEWISE
+    graph_adjustment_reason: FlagGemsSparseMLABackend reports AttentionCGSupport.NEVER
+    full_and_piecewise_verified: false
+    graph_mode_acceptance_passed: false
+    functional_content_checks_passed: 3
+    performance_accepted: false
+    service_preserved_running: true
+    raw_report_sha256: fe0c79f53751fafb3e40df75f945dfd77c204722e19a5fd39c194d8a7d457f01
+    content_review_sha256: f0ea6c2b83207e276b491e1eb91add1f1ebc5d6956a2db433c4b6023c52db8b5
+    content_verification_sha256: 41cd1a35d72374d60fa516851983a79b06541197d7755da373a1827c8a66ae80
+    sample_elapsed_seconds:
+    - 235.15754658303922
+    - 288.8631518930197
+    - 162.82447746698745
+    final_functional_receipts:
+    - host_alias: mx-101
+      path: 04-runs/glm-tp16-functional-final-a6-20261102/mx-101/verification.json
+      sha256: e7ed930caf708959e664d681b601798a0dc83996d0ece5ffab63b8ab44000134
+    - host_alias: mx-102
+      path: 04-runs/glm-tp16-functional-final-a6-20261102/mx-102/verification.json
+      sha256: fc29dc828b419f1e238c76cc204023217e86458b1619d9bc25e09d39ec0ec913
+  tp16_piecewise_decode_graph_20261103:
+    scope: Graph bring-up and functional verification only
+    evidence: adaptation/020-tp16-pp1-startup.md
+    supersedes_service_run: glm-plugin-tp16-startup-a6-20261102
+    startup_run: glm-full-and-piecewise-normal-a6-20261103
+    tensor_parallel_size: 16
+    pipeline_parallel_size: 1
+    nnodes: 2
+    graph_mode: FULL_AND_PIECEWISE
+    functional_graph_paths_verified: true
+    formal_execution_mode_passed: false
+    formal_acceptance_claimed: false
+    max_cudagraph_capture_size: 16
+    larger_prefill_runtime_mode: NONE
+    observed_decode_full_iterations: 97
+    observed_short_prefill_piecewise_iterations: 1
+    short_prefill_probe:
+      run_id: glm-piecewise-short-prefill-a6-20261103
+      prompt_tokens: 4
+      max_tokens: 1
+      truncated_by_design: true
+      used_as_sanity_gate: false
+      verification_sha256: 37b4b99439d4080a9361be60aa322bb008a1b79c17bbe8e2f477886ca53cc46b
+    collective_graph_probe:
+      run_id: glm-tp16-collective-graph-default-a4-20261103
+      ranks: 16
+      replays: 200
+      all_reduces_per_graph: 80
+      graph_only_replays: 100
+      graph_then_eager_allgather_replays: 100
+      pynccl_and_custom_op_dispatch_verified: true
+      input_immutability_and_numerics_verified: true
+    current_source_regressions:
+      run_id: glm-graph-regressions-a6-20261103
+      unit_tests_per_host: 242
+      gpu_graph_tests_per_host: 16
+      failed_or_skipped: 0
+      manifests:
+        mx-101: 4838327819b631017c0fbec781c9fac54e8e95c58ccf6309cbe3eb83a0fddab4
+        mx-102: e2818800f1203e9ad48b40504e56660b6d39e2f85bdc817666db2725a68b5b98
+    changed_product_files: 4
+    changed_existing_test_files: 4
+    new_test_files: 0
+    increment_patch_sha256: 67f43dfce8594816e9d2b5f5563f2f2127c2d2dae754b2b9f126d61998a459fb
+    inherited_operator_library_patches_preserved: true
+    vllm_verified_unchanged: true
+    full_precommit_or_pr_readiness_claimed: false
+    shared_launcher_path: /public-flash/jinghao/glm5.3-flash/start-model.sh
+    shared_launcher_sha256: b4b959abacc49bb51a7984bd1bf2309db06a37239b69e63413a0d037be9ea2c8
+    prefix_caching_enabled: true
+    diagnostic_flags_retained: false
+    functional_run: glm-graph-functional-normal-a6-20261103
+    functional_content_checks_passed: 3
+    functional_modalities:
+    - text
+    - image
+    raw_report_sha256: bfab0b444fcd8c86e99952e21de4ea305bc58a24ad25af3190db8ddcf1812e91
+    content_review_sha256: b6fdd5d8cd4ea706de501dcb1919256830e7c3ad0a14e7947eb5b556883b2a14
+    content_verification_sha256: b0f6190580d6e19253eaef1836d5c268ecf3ea38a0d867d2ce9c82d5e5f375ab
+    sample_elapsed_seconds:
+    - 26.267069678986445
+    - 101.52034270501463
+    - 31.063368125993293
+    service_preserved_running: true
+    containers_preserved_running: true
+    api_pid_mx101: 1374728
+    headless_pid_mx102: 766881
+    normal_service_verification:
+      run_id: glm-graph-service-frozen-normal-a6-20261103
+      mx-101: 3ca42350e6a4296a4a59a128544f5c128834a95f712aa9150261d77c1cfb9f25
+      mx-102: 44d74b6af460efbdb890971471f7d7660354b1ccd2c73fd2a8db215c9450aa66
+    source_freeze:
+      root: /public-flash/jinghao/glm5.3-flash/01-environment/glm-graph-final-source-a6-20261103
+      mx-101: cef7cf38ee378c97e4268c50c69ef987441ae5aa43bda6b1ac4cc5b13b162339
+      mx-102: 8766c27e4e20e5d224aa89293196bb7a1809b83d5ffc3fab829c0c017669d95a
+    actual_container_base_images:
+      mx-101:
+        reference: local/qwen3.8-flash:snapshot-20261027-093440
+        id: sha256:d4bf8593e952d46c98a9390deeee2fee025aad953290426d6fedfb34abbe8576
+      mx-102:
+        reference: local/glm5.3-flash:mainline-20261027
+        id: sha256:a6f6bad179f2c6b221225437ae5afd24f74f463966ec3c7d859541279e79b85f
+    new_image_packaged: false
+    gpqa_rerun: false
+    performance_accepted: false
+    full_adaptation_remains_paused: true
+    local_checks:
+      scoped_record_source_service_bindings_passed: true
+      diff_check_passed: true
+      audit_issues_in_this_framework: 0
+      audit_errors_outside_scope: 2
+      audit_historical_warnings: 14
+container_images:
+  mx-101:
+    image_id: sha256:d4bf8593e952d46c98a9390deeee2fee025aad953290426d6fedfb34abbe8576
+    image_reference: local/qwen3.8-flash:snapshot-20261027-093440
+  mx-102:
+    image_id: sha256:a6f6bad179f2c6b221225437ae5afd24f74f463966ec3c7d859541279e79b85f
+    image_reference: local/glm5.3-flash:mainline-20261027

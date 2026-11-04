@@ -1,5 +1,15 @@
 # 双机环境与适配计划（2026-10-27）
 
+## 2026-11-03 GPQA前置复核
+
+用户明确要求先补齐前置再跑全量198题，最新精度门槛为85%。当前仍是mx-101/mx-102原同名容器及批准根；以下10月27日起记录按轮保留，不作为当前TP16/PP1源码的正式通过证据。
+
+官方 `MetaX-MACA/mccl_tests@1e44d4af` 已在原容器内完成24组检查：单机各8卡、双机各1卡、双机各8卡，AllReduce/AllGather/ReduceScatter各含FP32/BF16，64B至64MiB、21个尺寸、warmup5、iterations20、`-c 1`。全部rc0、所有错误计数0；逐rank容器归属、实际MCCL加载路径及哈希、进程退出均已核对。实际为inbond1 Socket，102仅一条25Gbps成员工作；RDMA因bnxt ABI不匹配未验证。未改SDK、驱动、网络或SSH策略。原服务按冻结身份停止以释放测试显卡，原适配容器保持运行。完整命令、带宽/延迟和限制见 [本轮环境身份](environment-identity-gpqa-20261103.md) 及其逐Host原始回执。
+
+当前SDK3.8.2、MCCL2.16.5、MPI4.1.6、Torch2.10.0+metax3.8.2.2、Triton3.6.0+metax3.8.2.2。实测驱动101为3.3.12、102为3.8.1，不沿用早期“两机均3.8.1”的概括。Plugin为7094141e，FG为3eab0949，FGV为ddce1d66；本轮只有限定的import/空白及一处测试未使用分配修正，所有产品AST不变。当前完整补丁与源集合封存于 `01-environment/glm-gpqa-prerequisite-source-a1-20261103/<host>/manifest.json`；101 SHA `ae41c6a746e88ff62bcb8ed6b9f4d061162ee7017a311d56ce073a2997e85f76`，102 SHA `b538cf3265d39dcf5309caf6feb2f9136f4e9f57162909890dfcee0e5a79f740`。vLLM及其继承87项差异保持只读。共享最简脚本仍为b4b959，TP16/PP1、FULL_AND_PIECEWISE、prefix开启；正式eager/graph整模数值与新的sanity/GPQA尚待执行。
+
+新建的101 CPU评测容器 `glm53-gpqa-20261103` 已核对runc、host网络、无GPU设备、仅批准根映射，以及响应缓存/临时文件的独立4GiB tmpfs。通过当前原生runner的数据预检函数离线确认Diamond198题，未发送推理请求，也未将数据检查称为完整服务预检。其镜像仍为官方FlagEval v1不可变ID1396e5d6；新运行不复用旧响应缓存。数据回执为 `01-environment/glm-gpqa-dataset-check-a1-20261103/mx-101/dataset.json`，SHA `98d15a17ce2e402c5b200dbdcad430c51836a522aece848c9460e1c4d901ade7`。
+
 ## 已核实范围
 
 用户要求在当前 `glm5.3-flash` 容器适配 BF16 模型，并授权使用 `mx-101`、`mx-102`。

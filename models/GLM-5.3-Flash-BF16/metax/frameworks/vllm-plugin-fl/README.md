@@ -1,9 +1,15 @@
 # GLM-5.3-Flash-BF16 / MetaX / vllm-plugin-fl
 
+2026-11-03当前：两机原 `glm5.3-flash` 容器的TP16/PP1服务保持运行，使用同一最简 `start-model.sh`（SHA `b4b959abacc49bb51a7984bd1bf2309db06a37239b69e63413a0d037be9ea2c8`），prefix开启。FULL_AND_PIECEWISE功能已打通：实际decode FULL 97次、短prefill PIECEWISE 1次；去掉诊断参数后的2文本+1图像均正常结束且内容审阅通过。每机当前来源242项单元、16项GPU图回归通过，TP16通信图200次变输入重放通过。捕获上限仍为16 token，超限prefill按原生NONE执行。详见[修复、来源和最终回执](adaptation/020-tp16-pp1-startup.md)。正式eager/graph数值验收、GPQA、性能和镜像交付仍未完成/暂停。
+
+2026-11-02结构调整属于历史前置：prefill统一分发与能力判断、Sparse MLA调优候选迁入YAML，当时每机64项Plugin、7项FGV配置/ABI回归通过；其后的新来源和服务已由上述11-03结果覆盖。
+
+2026-11-02旧a6（结构调整前源码，实例已停止）曾通过2文本+1图像，但实际自动降级为PIECEWISE，三请求约235/289/163秒。该历史结果不代表当前来源，也不能与新样本直接作正式性能比较。
+
 范围：`mx-101`、`mx-102`，各8×C550 64GiB，当前 `glm5.3-flash` 容器。
 工作根及容器根均为 `/public-flash/jinghao/glm5.3-flash`；固定profile v7、证据契约v2。
 
-2026-11-01当前状态：Plugin主线 `7094141e` 加必要MetaX兼容修复，TP16/PP1。原stream阻塞已越过，a4加载完120个权重分片；编译产物接口已修复并通过两机测试，MCCL Abort接口单测通过、真实通信重建仍未通过。目前两机全部16卡被外部 `mx8_0`～`mx8_7` DeepSeek服务占用（每卡约57 GiB），需释放资源后继续。服务未就绪、推理请求0；任务进程已清理，原容器运行，未停止外部负载。详见[TP16/PP1定位记录](adaptation/020-tp16-pp1-startup.md)。下述10-28结果均为历史版本，不代表当前代码通过验收。
+2026-11-01历史状态：Plugin主线 `7094141e` 加必要MetaX兼容修复，TP16/PP1；当时stream、编译接口和通信重建仍在定位，两机16卡被外部DeepSeek占用，服务未就绪。后续资源释放及修复见[TP16/PP1定位记录](adaptation/020-tp16-pp1-startup.md)。下述10-28结果均为历史版本，不代表当前代码通过完整验收。
 
 10-28历史版本达到functional：双机同源v13两机各81项Plugin回归、源码审查、原生执行模式及四并发
 sanity gate通过。最终v14共35文件，原33个推理/测试文件不变，补齐README与真实chat示例。

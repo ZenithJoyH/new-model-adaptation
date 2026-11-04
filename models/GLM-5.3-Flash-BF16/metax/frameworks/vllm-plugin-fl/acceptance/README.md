@@ -1,6 +1,12 @@
 # 适配验收计划与状态
 
-2026-11-01：TP16/PP1原stream阻塞已越过；编译产物接口修复的两机测试通过，MCCL Abort接口单测通过、真实重建未通过。目前两机16卡均被外部DeepSeek服务占用，每卡约57 GiB，整模启动/推理验证仍受阻。API未就绪、生成请求0，任务进程退出、原容器运行。详见[当前定位与证据](../adaptation/020-tp16-pp1-startup.md)。以下10-28结果属于历史版本；精度、性能及镜像验收继续暂停。
+2026-11-03最新范围：用户暂停本轮精度评测，未发起GPQA；正常TP16/PP1 FULL_AND_PIECEWISE服务已恢复，健康接口与一次简短生成通过，见[当前启动记录](../adaptation/020-tp16-pp1-startup.md)。本次启动检查不更新正式执行模式、sanity或精度通过状态。
+
+2026-11-03功能范围：双机TP16/PP1的FULL_AND_PIECEWISE已打通，实际97次decode FULL及1次短prefill PIECEWISE；最简共享脚本重启后的2文本+1图像内容均通过原生校验器与独立审阅，服务保留运行。两机各242项单元和16项GPU图回归通过，TP16通信图200次变输入重放通过。该功能验证没有完成当前源码的正式eager/graph logprob对比、GPQA、性能或镜像验收，整体不晋级functional/optimized，见[精确来源与最终回执](../adaptation/020-tp16-pp1-startup.md)。当前捕获上限16 token，较长prefill按原生NONE运行。
+
+2026-11-02结构调整的64+7项回归，以及此前旧a6的PIECEWISE、2文本+1图像结果均为历史；旧实例已由上述11-03新来源实例替换。旧三请求约235/289/163秒，不作为当前性能基线。正式GPQA、性能及镜像交付保持暂停。
+
+2026-11-01历史：当时stream、编译产物和通信重建仍在定位，外部DeepSeek占用16卡，服务未就绪；后续恢复见[定位与证据](../adaptation/020-tp16-pp1-startup.md)。以下10-28结果属于历史版本，不能覆盖当前来源。
 
 10-28历史范围为mx-101/mx-102的vllm-plugin-fl v7、证据契约v2。阶段3源码审查、
 [execution-mode](execution-mode-final-v14.md)及[四并发sanity](sanity-final-v14.md)的原生gate
