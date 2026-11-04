@@ -10,3 +10,6 @@
 - [004：Plugin 兼容分支更新](004-plugin-compatible-release-upgrade.md)：更新至
   release/0.2@8b059122，保留35B独立MoE/GDN补丁；471项局部检查与4个正确短响应通过。
   8010恢复用户现场prefix-disabled/黑名单配置，非003性能配置；新版本端到端性能未测。
+- [005：mx-102 Plugin 编译产物与 MCCL Abort 兼容](005-mx102-plugin-torch210-mccl-compat.md)：
+  plugin28-base 两处接口修复完成，19 项组件回归及原配置代码检查通过；用户 attention 改动保留。
+  独立于历史 mx-59，未重启整模服务或更新验收状态。
