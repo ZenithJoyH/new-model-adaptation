@@ -8,8 +8,8 @@ status: blocked
 validated_hosts: []
 container_image: harbor.baai.ac.cn/flagrelease-public/metax-vllm-0.24.0-pluginfl-tree3.6:xingchen4-0907
 last_verified: '2026-09-23'
-blocker: '人工变更后待复核: architecture, environment, adaptation, execution-mode, sanity,
-  accuracy, performance, evidence, summary, acceptance, retrospective'
+blocker: '人工变更后待复核: environment, adaptation, execution-mode, sanity, accuracy, performance,
+  evidence, summary, acceptance, retrospective'
 target:
   hosts:
   - mx-59
@@ -33,19 +33,19 @@ workflow:
     status: not_started
     evidence: environment/README.md
     last_verified: null
-    blocker: '人工变更后待复核: 2918378ec79d4d1582ef95a7af5a1a91'
+    blocker: '人工变更后待复核: a1132d5cd6b24322a976d888bc60eb75'
     verification: {}
   adaptation:
     status: not_started
     evidence: adaptation/README.md
     last_verified: null
-    blocker: '人工变更后待复核: 2918378ec79d4d1582ef95a7af5a1a91'
+    blocker: '人工变更后待复核: a1132d5cd6b24322a976d888bc60eb75'
     verification: {}
   acceptance:
     status: not_started
     evidence: acceptance/README.md
     last_verified: null
-    blocker: '人工变更后待复核: 2918378ec79d4d1582ef95a7af5a1a91'
+    blocker: '人工变更后待复核: a1132d5cd6b24322a976d888bc60eb75'
     verification: {}
     records: {}
     substeps:
@@ -59,7 +59,7 @@ workflow:
     status: not_started
     evidence: acceptance/README.md
     last_verified: null
-    blocker: '人工变更后待复核: 2918378ec79d4d1582ef95a7af5a1a91'
+    blocker: '人工变更后待复核: a1132d5cd6b24322a976d888bc60eb75'
     verification: {}
 control:
   mode: agent
@@ -153,8 +153,84 @@ control:
     - none
     observed_fields: []
     changed_files: []
-  operator: agent/local-record-maintenance
-  note: 本地契约整理完成；没有远端变更。未选择新的适配或评测，历史人工完成结论保持有效。
+  - id: 0ae2c02544e2411aa757f316cc7eb479
+    at: '2026-11-03T09:12:24.815685+00:00'
+    operation: handoff
+    actor: operator
+    note: 用户接管 mx-104 的 DeepSeek 容器创建，要求 Agent 等待。独立 CPU/NUMA 与异步输出诊断尚未开始。mx-103 本任务
+      DeepSeek API/worker 已释放且容器保留；mx-104 用户确认的 Qwen API/worker 已释放且容器保留。104 准备控制器已终止，未创建
+      DeepSeek 容器，未启动镜像拉取。后续诊断仅限 mxC588-5 与 mx-104；旧结构化 mx-59 目标和验收状态不因本次交接改写。接续前核对人工创建的容器
+      ID、镜像、映射、进程及工作根。
+  - id: a1132d5cd6b24322a976d888bc60eb75
+    at: '2026-11-03T12:32:00.927173+00:00'
+    operation: resume
+    actor: agent
+    note: 用户已在mx-104创建指定digest的DeepSeek容器并交回定位任务；只读核对新容器ID、镜像、原脚本SHA与/data和/public-flash同路径映射。104尚未启动服务；C588原服务仍健康。接续独立16K单变量诊断，目标mxC588-5与mx-104，不再操作mx-103；不提升正式验收状态或改写旧mx-59目标。
+    evidence:
+      path: /private/tmp/dsv4-ab-20261103/human-return.json
+      sha256: 84b5589c53e3d7512c07c1cb4adfb85591413488eaab47fd9698b7dfd734dce7
+    revalidate:
+    - environment
+    - adaptation
+    - execution-mode
+    - sanity
+    - accuracy
+    - performance
+    - evidence
+    - summary
+    - acceptance
+    - retrospective
+    previous_status: blocked
+    retired_records:
+      environment:
+        status: not_started
+        evidence: environment/README.md
+        last_verified: null
+        blocker: '人工变更后待复核: 2918378ec79d4d1582ef95a7af5a1a91'
+        verification: {}
+      adaptation:
+        status: not_started
+        evidence: adaptation/README.md
+        last_verified: null
+        blocker: '人工变更后待复核: 2918378ec79d4d1582ef95a7af5a1a91'
+        verification: {}
+      execution-mode:
+        status: not_started
+        verification: {}
+      sanity:
+        status: not_started
+        verification: {}
+      accuracy:
+        status: not_started
+        verification: {}
+      performance:
+        status: not_started
+        verification: {}
+      evidence:
+        status: not_started
+        verification: {}
+      summary:
+        status: not_started
+        verification: {}
+      acceptance:
+        status: not_started
+        evidence: acceptance/README.md
+        last_verified: null
+        blocker: '人工变更后待复核: 2918378ec79d4d1582ef95a7af5a1a91'
+        verification: {}
+      retrospective:
+        status: not_started
+        evidence: acceptance/README.md
+        last_verified: null
+        blocker: '人工变更后待复核: 2918378ec79d4d1582ef95a7af5a1a91'
+        verification: {}
+    changes:
+    - environment
+    - service
+    observed_fields: []
+    changed_files: []
+  operator: agent
+  note: 用户已在mx-104创建指定digest的DeepSeek容器并交回定位任务；只读核对新容器ID、镜像、原脚本SHA与/data和/public-flash同路径映射。104尚未启动服务；C588原服务仍健康。接续独立16K单变量诊断，目标mxC588-5与mx-104，不再操作mx-103；不提升正式验收状态或改写旧mx-59目标。
 evidence_contract: 2
 profile_snapshot:
   schema_version: 1
