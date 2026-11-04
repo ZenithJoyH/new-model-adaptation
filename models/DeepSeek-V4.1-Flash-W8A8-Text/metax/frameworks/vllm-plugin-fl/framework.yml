@@ -1,0 +1,202 @@
+schema_version: 1
+model: DeepSeek-V4.1-Flash-W8A8-Text
+platform: metax
+framework: vllm-plugin-fl
+profile: framework-profiles/vllm-plugin-fl/profile.yml
+profile_version: 7
+status: blocked
+validated_hosts: []
+container_image: harbor.baai.ac.cn/flagos-inner-models-release/metax-for-vllm-plugin-fl-0.28@sha256:34dfb5c72b60cf0a7c2c1ff0d73c24cc8bc4314b3b0deb36c51306000d85b6f1
+last_verified: null
+blocker: V4.1完整模型/量化/cache接入尚未完成；不得将配置注册和通信前置作为整模通过。
+control:
+  mode: agent
+  history: []
+target:
+  hosts:
+  - mx-102
+  - mx-103
+  container_name: deepseek-v41-text-plugin028-20261103
+workspace:
+  roots:
+  - host_alias: mx-102
+    host_root: /public-flash/jinghao/deepseekV4.1
+    container_root: /public-flash/jinghao/deepseekV4.1
+  - host_alias: mx-103
+    host_root: /public-flash/jinghao/deepseekV4.1
+    container_root: /public-flash/jinghao/deepseekV4.1
+deployment:
+  fingerprint: 55d66b1065e4a37544236260cc3f00dc07962eb2af090aa12a258c11e24dcd5d
+acceptance_plan:
+  service_contract:
+    schema_version: 1
+workflow:
+  architecture:
+    status: passed
+    evidence: ../../../architecture-and-inference.md
+    last_verified: '2026-11-03'
+    blocker: ''
+    verification:
+      run_id: v41-text-architecture-20261103
+      last_verified: '2026-11-03'
+      evidence: ../../../architecture-and-inference.md
+      evidence_sha256: 0466144fad138f63a39646dab004d25d46d24a225618a8151b47e3ad5781c6ff
+      context_sha256: 1586cba6012f35985e5632d69d5aeb3a53f2ed0d7af5df71f40a1a3f1ec90270
+  environment:
+    status: passed
+    evidence: environment/README.md
+    last_verified: '2026-11-03'
+    blocker: ''
+    verification:
+      run_id: v41-text-environment-20261103
+      last_verified: '2026-11-03'
+      evidence: environment/README.md
+      evidence_sha256: 4b2131896053769dd0bd0ba19b694435cc5c909da042e5b5ebbd2ab30fd4653d
+      context_sha256: 53ef801809e7094492a638d681ea0e372c031c6f85b47b0d46da39aa35ca7ec8
+      receipts:
+      - host_alias: mx-102
+        path: 04-runs/mx-102/environment-review-20261103.json
+        sha256: dd492be027c75fc092a4f08e5ee80e3cd0a94531af3eb7a17cb1751df609c079
+      - host_alias: mx-103
+        path: 04-runs/mx-103/environment-review-20261103.json
+        sha256: fba3051a565537e36340dc5c9d1a690782530fce4a081e1a739dc9445187a0b2
+  adaptation:
+    status: in_progress
+    evidence: adaptation/README.md
+    last_verified: null
+    blocker: 完整模型/量化/Engram/共享缓存接入尚未完成。
+    verification: {}
+  acceptance:
+    status: not_started
+    evidence: acceptance/README.md
+    last_verified: null
+    blocker: ''
+    verification: {}
+    records: {}
+    substeps:
+      execution-mode: not_started
+      sanity: not_started
+      accuracy: not_started
+      performance: not_started
+      evidence: not_started
+      summary: not_started
+  retrospective:
+    status: not_started
+    evidence: acceptance/README.md
+    last_verified: null
+    blocker: ''
+    verification: {}
+evidence_contract: 2
+profile_snapshot:
+  schema_version: 1
+  id: vllm-plugin-fl
+  display_name: vLLM + vllm-plugin-FL + FlagGems
+  profile_version: 7
+  status: active
+  platforms:
+  - nvidia
+  - ppu
+  - metax
+  - ascend
+  - mthreads
+  - hygon
+  components:
+  - role: inference_engine
+    name: vllm
+    required: true
+    mutation_policy: read_only
+  - role: platform_adapter
+    name: vllm-plugin-FL
+    required: true
+    mutation_policy: installed_product_code
+  - role: kernel_library
+    name: FlagGems
+    required: true
+    mutation_policy: installed_product_code
+  - role: vllm_kernel_library
+    name: FlagGems-vllm
+    required: false
+    mutation_policy: installed_product_code
+  source_policy:
+    default: read_only
+    writable_roles:
+    - platform_adapter
+    - kernel_library
+    - vllm_kernel_library
+  execution_modes:
+    required:
+    - eager
+    - graph
+    acceptance_primary: graph
+    graph_policy:
+      preference_order:
+      - full
+      - full-and-piecewise
+      - decode-full
+      - piecewise
+      minimum: piecewise
+      level_checks:
+        full:
+        - full_graph
+        full-and-piecewise:
+        - full_and_piecewise_graph
+        decode-full:
+        - decode_full_graph
+        piecewise:
+        - piecewise_graph
+  service:
+    protocols:
+    - openai-chat
+    - openai-completions
+  acceptance:
+    steps:
+      execution-mode:
+        validator: checks
+        checks:
+        - eager
+        - graph
+        - model_inference
+      sanity:
+        validator: checks
+        checks:
+        - reference_consistency
+        - output_health
+        - performance_sanity
+      accuracy:
+        validator: flageval
+        checks:
+        - service_identity
+        - dataset_provenance
+      performance:
+        validator: vllm-performance
+        checks:
+        - service_identity
+        - accuracy_to_performance_transition
+      evidence:
+        validator: checks
+        checks:
+        - source_review
+        - vllm_unchanged
+        - artifacts_complete
+      summary:
+        validator: checks
+        checks:
+        - launcher_syntax
+        - launcher_readiness
+        - launcher_minimal
+        - launcher_self_contained
+        - installed_component_imports
+        - normal_cache_restored
+    accuracy_adapter: flageval-openai
+    performance_adapter: vllm-bench-serve
+    prefix_caching:
+      non_performance: enabled
+      performance: disabled
+      disable_mechanism: --no-enable-prefix-caching
+  documents:
+    workflow: workflow.md
+    acceptance: acceptance.md
+    detailed_workflow: detailed-workflow.md
+    detailed_workflow_zh: detailed-workflow.zh-CN.md
+profile_hash_version: 2
+profile_sha256: 79515b8fbaecbed4c16e17b94607da0da521a69c4745d30ee9691d2e9d9fc72a

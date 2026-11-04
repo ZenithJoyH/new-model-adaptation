@@ -1,0 +1,12 @@
+name: DeepSeek-V4.1-Flash-W8A8-Text
+source:
+  modelscope_id: ''
+  huggingface_id: ''
+  revision: ''
+architecture: DeepseekV41ForCausalLM
+parameter_count: ''
+active_parameter_count: ''
+estimated_weight_size_gb: 769.013987088
+remote_weight_path: /public-flash/models/DeepSeek-V4.1-Flash-W8A8-Text
+status: blocked
+notes: 2026-11-03新任务；W8A8动态INT8文本派生版本，独立于旧V4和NVIDIA V4.1验收。逻辑参数量待本版本核实。
