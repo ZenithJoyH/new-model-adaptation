@@ -71,7 +71,7 @@ Agent 通过根规则读取仓库内 Skill，无需安装全局同名包；该�
 - [GLM-5.3-Flash-BF16](models/GLM-5.3-Flash-BF16/README.md)
 - [Hy4-preview](models/Hy4-preview/README.md)
 - [Qwen3.8-Flash-Next](models/Qwen3.8-Flash-Next/README.md)
-- [XingChen4-29B-A4B](models/XingChen4-29B-A4B/README.md)
+- [Xing4.0-29B-A4B](models/Xing4.0-29B-A4B/README.md)（亦称 XingChen4-29B-A4B）
 - [MiniMax-M3.1](models/MiniMax-M3.1/README.md)（PPU-07：已完成，2026-10-08 用户验收确认）
 
 目录示例：
