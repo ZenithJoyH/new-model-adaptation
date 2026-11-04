@@ -51,6 +51,7 @@
 - plugin:A1/A3/D3：数值算子与 metadata 归属、公开 API/测试交付顺序、固定公开版本/SHA：
 - plugin:F1–F4/F6：真实分发、独立数值参考、改变输入的 capture/replay、当前环境与 CI 证据及未验证项：
 - plugin:F7/G1/G2：格式/lint/pre-commit、英文注释与日志、新模型/厂商 README 支持列表及可运行 example：
+- plugin:H1–H10（涉及量化时）：记录 checkpoint、逐层方法、实际后端及适用的 KV Cache/并行配置，分别列出加载、独立数值对照和端到端质量验证结果：
 - operator:A/B/C：所属库和厂商落点、公开导出/注册/marker、FlagGems 仅 ATen / FlagGems-vllm 提供 vLLM 算子（含非 ATen 融合）的归属核对、各变体和状态/布局/错误契约：
 - operator:D/E：独立参考、FlagGems 直接数值与替换命中分别验证、变输入 graph、autotune 状态恢复和可选能力隔离：
 - operator:F：同条件 baseline/目标 benchmark、核心 workload 与回归、仓库准入、logger/英文/版权、构建与 PR 齐套性：
