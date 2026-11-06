@@ -23,6 +23,14 @@ def audit(root, *, allow_absent_model_roots=False):
     for model in sorted((root / "models").iterdir()):
         if not model.is_dir() or model.name.startswith("_"):
             continue
+        model_files = {"README.md", "model.yml", "architecture-and-inference.md"}
+        model_directories = {"_shared", *workflow.PLATFORMS}
+        for item in model.iterdir():
+            if item.name not in model_files | model_directories:
+                add("error", item, "模型根目录存在未归属的材料或未知平台")
+            elif ((item.name in model_files and not item.is_file())
+                  or (item.name in model_directories and not item.is_dir())):
+                add("error", item, "模型根目录文件/目录类型不符合布局")
         try:
             model_identity(model)
         except ValueError as exc:
@@ -36,7 +44,7 @@ def audit(root, *, allow_absent_model_roots=False):
                     add("warning", item, "_shared 仅允许 Markdown 跨平台分析；需按新标准迁移")
         for platform in workflow.PLATFORMS:
             directory = model / platform
-            if not directory.exists():
+            if not directory.is_dir():
                 continue
             for item in directory.iterdir():
                 if item.name not in {"README.md", "platform.yml", "environment", "adaptation", "acceptance", "frameworks"}:
@@ -187,9 +195,10 @@ def audit(root, *, allow_absent_model_roots=False):
     docs += list((root / "docs").rglob("*.md")) + list((root / "models").rglob("*.md"))
     docs += list((root / "framework-profiles").rglob("*.md"))
     docs += list((root / "skills").rglob("*.md"))
+    docs += list((root / "templates").rglob("*.md"))
     docs += list((root / "test").rglob("README.md"))
     for path in docs:
-        if not path.is_file() or "_template" in path.parts:
+        if not path.is_file():
             continue
         content = re.sub(r"```.*?```", "", path.read_text(encoding="utf-8"), flags=re.S)
         for link in re.findall(r"\[[^\]\n]*\]\(([^)\n]+)\)", content):

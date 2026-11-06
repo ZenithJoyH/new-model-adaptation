@@ -24,6 +24,7 @@ fi
 
 "${python_bin}" -B -m unittest discover -s test/workflow_test -p 'test_*.py'
 "${python_bin}" -B -m unittest discover -s test/operations_test -p 'test_*.py'
+"${python_bin}" -B -m unittest discover -s test/ocr_perf -p 'test_*.py'
 
 "${python_bin}" -B scripts/check_local_operations.py
 

@@ -51,7 +51,11 @@ class SyntaxCheckTests(unittest.TestCase):
                 count = int(bool(expected_flag))
                 self.assertEqual(calls[0], f"inventory|{count}|{expected_flag}")
                 self.assertEqual(calls[-1], f"audit-workspace|{count}|{expected_flag}")
-                self.assertEqual(len(calls), 5)
+                self.assertEqual(calls[1:4], [
+                    f"python|8|-B -m unittest discover -s test/{suite} -p test_*.py"
+                    for suite in ("workflow_test", "operations_test", "ocr_perf")
+                ])
+                self.assertEqual(len(calls), 6)
 
 
 class DiscoveryTests(unittest.TestCase):

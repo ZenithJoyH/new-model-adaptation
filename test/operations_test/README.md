@@ -1,12 +1,13 @@
 # Offline operations regression tests
 
 Run `./scripts/bootstrap-control-node`, then `./scripts/syntax-check` from the
-repository root. The latter includes the workflow/acceptance and operations
+repository root. The latter includes the workflow/acceptance, operations and OCR
 tests, shell syntax checks, public and model-specific playbook syntax checks,
 and the workspace audit. Audit warnings remain outstanding evidence reviews;
 they are not remote verification.
 
-The unit tests use only temporary local files and do not use the operator's SSH
+The unit tests use temporary local files and synthetic localhost HTTP services;
+the test environment must permit loopback listeners. They do not use the operator's SSH
 configuration or contact managed hosts. The GitHub workflow runs
 `./scripts/syntax-check --offline` on an ordinary Linux runner. Offline mode
 validates repository inventory structure and Ansible parsing but deliberately
