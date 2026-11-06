@@ -201,7 +201,9 @@ default locations. Do not introduce service launchers for Python-API-only profil
 For active complete service adaptations, verify each root-level `start-model.sh`
 against the final accepted primary mode, runtime identity, executable permissions,
 syntax, actual readiness, minimal required settings, normal cache behavior and
-root mappings. Logs/results stay in `04-runs/`, evaluation caches in `06-cache/`;
+root mappings. Logs/results stay in `04-runs/`; evaluation caches follow the
+[evaluation cache layout](remote-operations.md#evaluation-cache-layout), including
+the schema 5 worker's run-isolation exception;
 service runtime defaults follow the shared launcher contract. Reference
 its exact paths, SHA-256 and verification date locally. Never stop the container.
 Keep only necessary startup commands/settings in the launcher. Follow the

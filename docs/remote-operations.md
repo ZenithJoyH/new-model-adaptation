@@ -73,7 +73,8 @@ apply to tasks involving those resources; this document does not grant access.
   `02-issues/` for one-off diagnosis, `03-acceptance/` for
   evaluation tools/configuration, `04-runs/` for run output, `05-tmp/` and
   `06-cache/` for temporary or implicit writes, and `07-bugs/` for minimal
-  operator reproducers. Do not create a source-repository subdirectory or mirror
+  operator reproducers. The schema 5 worker exception is defined in
+  [evaluation cache layout](#evaluation-cache-layout). Do not create a source-repository subdirectory or mirror
   under this work root. Product changes belong only in the component and source
   installation/source declared writable by the selected framework profile after
   verifying the service interpreter, package metadata, actual import path and
@@ -102,8 +103,8 @@ apply to tasks involving those resources; this document does not grant access.
   the profile's final accepted primary execution mode and per-Host graph level
   selected through its evidenced stepwise fallback and performance review,
   keep logs/results under `04-runs/`
-  and evaluation caches under `06-cache/` (service runtime caches follow the
-  shared launcher contract below), contain no secrets, and refuse to overwrite an
+  and evaluation caches under the [evaluation cache layout](#evaluation-cache-layout)
+  (service runtime caches follow the shared launcher contract below), contain no secrets, and refuse to overwrite an
   unrelated running service. Keep the launcher minimal: remove diagnostic,
   profiling, tracing, dump, temporary-path, obsolete workaround, duplicated
   default, experimental tuning, and unrelated model/platform settings unless
@@ -141,7 +142,8 @@ apply to tasks involving those resources; this document does not grant access.
   External weights/tokenizers or other deliberately external inputs require an
   explicitly agreed deployment mount and container path; do not silently rely
   on the adaptation host's directories or copy weights without authorization.
-  Evaluation logs/caches use container-writable `04-runs/` and `06-cache/` paths;
+  Evaluation logs use container-writable `04-runs/` paths; evaluation caches follow
+  the [evaluation cache layout](#evaluation-cache-layout);
   service runtime caches follow the verified default-path rule below.
   Verify imports and launch/readiness without `PYTHONPATH` or incidental host
   development mounts. Record required-file paths, mount/image ownership, hashes
@@ -159,6 +161,24 @@ apply to tasks involving those resources; this document does not grant access.
   source cannot be verified,
   stop and report the blocker instead of creating a replacement checkout under
   the work root.
+
+## Evaluation cache layout
+
+General evaluation entrypoints keep run output under `04-runs/<run_id>/` and
+evaluation caches under `06-cache/`, within the approved host/container roots.
+Cache reuse, when supported, still requires the runner's identity checks.
+
+The schema 5 supervised accuracy worker has an explicit isolation exception:
+`output_root`, `cache_root`, `hf_datasets_cache` and helper-managed temporary/cache
+writes must all remain inside its own `04-runs/<run_id>/` directory. This is the
+boundary enforced by `scripts/remote_workspace.py`; the worker rejects sibling
+`06-cache/` paths. Verify the host/evaluator-container mapping and use a new run
+directory. This exception does not authorize other runs, source trees or paths
+outside approved roots, and does not migrate or reuse historical caches.
+See the [worker configuration contract](../test/Accuracy_test/README.md#hy4-新后台准入与部署).
+
+Service runtime cache defaults and the in-memory prefix cache are separate from
+evaluation cache placement; they follow the shared launcher contract below.
 
 ## Shared service launcher
 
@@ -192,8 +212,9 @@ Collect evidence separately; do not add probes or report generation to the launc
   in the environment analysis. This is a narrow exception to the work-root
   cache layout, not general permission to write outside approved paths. If a
   default path is unapproved or unsuitable, obtain approval or retain only the
-  necessary override with its reason. Evaluation caches still use `06-cache/`;
-  prefix caching is a separate runtime feature, not a filesystem directory.
+  necessary override with its reason. Evaluation caches follow the
+  [evaluation cache layout](#evaluation-cache-layout); prefix caching is a separate
+  runtime feature, not a filesystem directory.
 - Record the script path/SHA-256, invocation, effective environment/arguments,
   prefix-cache state and service instance for each test. Accuracy and performance
   use identical script bytes and base configuration; only prefix-cache state

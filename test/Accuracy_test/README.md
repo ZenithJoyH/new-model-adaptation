@@ -1,7 +1,9 @@
 # 精度评测工具
 
-本目录保存可复用的多数据集评测工具和通用配置示例。模型名称、输出路径、任务/数据集、生成参数和验收阈值放在
-`models/<model>/<platform>/acceptance/` 的专用配置中，不修改公共配置承载一次评测。
+本目录保存可复用的多数据集评测工具和通用配置示例。模型名称、输出路径、任务/数据集、
+生成参数和验收阈值放在已批准远端根目录 `03-acceptance/` 的专用配置中；schema 5 后台入口
+按下方契约冻结到本轮运行目录。本地 framework 工作区 `acceptance/` 只记录 Markdown
+计划、摘要及原生文件路径/哈希，不保存配置 JSON 或原始报告，也不修改公共配置承载一次评测。
 
 ## 正式入口
 
@@ -128,7 +130,8 @@ filter 格式要求 `(doc_id, filter)` 唯一、每题 filter 覆盖一致，验
 `config_artifacts`、`task_attempts` 和 `errors` 用于追踪配置、各次尝试及终止原因。
 报告保持原有 schema_version=1 和 passed/failed 字段，以临时文件完整写入后独占发布，
 不会覆盖已有 `acceptance-result.json`；成功重试只绑定最终通过 attempt 的产物。
-可将本轮报告复制到模型平台 acceptance/ 作为 accuracy 证据。
+原生报告及其引用文件保留在批准的远端 `04-runs/<run_id>/`；本地 `acceptance/` 记录
+Markdown 摘要及准确路径/哈希，由框架 gate 读取原件验证，不能仅复制报告 JSON 作为完整证据。
 
 这不是“任何异常必有报告”的保证：创建 run 目录之前的预检失败、SIGKILL、断电、
 存储不可写/不支持所需原子发布操作等可能没有终态文件。文件缺失、残缺或退出非零必须
@@ -186,7 +189,7 @@ macOS 在 leader 已退出的 orphan group 上可能在 TERM 后对 KILL 返回 
 
 `llmrun_parallel.py` 仅用于用户明确指定的多服务、多 shard 场景，不能替代默认正式入口。
 它保留通用评测语义，不输出上述正式验收契约报告。公共 llm_parallel_config.json 中
-api_list 故意留空，复制到模型 acceptance/ 并填写真实服务后使用：
+api_list 故意留空，复制到批准远端根目录的 `03-acceptance/` 并填写真实服务后使用：
 
 ```bash
 python3 llmrun_parallel.py <模型专用并行配置> --preflight-only
@@ -232,7 +235,8 @@ Hy4 fixed c32/c64 的 prepare/start 使用同目录 `hy4_accuracy_tasks.yml`，�
 `evaluator_root/04-runs/run_id`。
 配置只能来自当前 runtime `acceptance.accuracy_config` 的原始字节，必须已有同一显式
 `run_id`，`output_root`、`cache_root` 和 `hf_datasets_cache` 均在本轮容器运行目录内，
-后者必须是绝对路径。不会改旧配置、迁移旧结果或自动复用旧缓存。
+后者必须是绝对路径。这是[评测缓存布局](../../docs/remote-operations.zh-CN.md#评测缓存布局)
+规定的 schema 5 单轮隔离例外，不使用同级 `06-cache/`。不会改旧配置、迁移旧结果或自动复用旧缓存。
 
 新准入要求 `service-state.yml` 中实际 API 监听进程的 `service.pid`（不是 EngineCore）和严格四项
 `service.process_identity: {container_id, boot_id, start_ticks, cmdline_sha256}`；分别来自只读

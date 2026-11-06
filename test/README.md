@@ -1,14 +1,19 @@
 # 新模型适配测试文件
 
-本目录保存每次新模型适配完成前使用的公共测试工具。模型或平台专用的配置、包装脚本和
-简要结果应放回对应的 `models/<model-name>/<platform>/`，避免直接修改公共测试基线。
+本目录保存可复用测试工具。先按所选 profile 确定适用入口；模型或平台专用配置、包装脚本
+放在已批准远端根目录的 `03-acceptance/`，原始结果放在 `04-runs/<run_id>/`。
+本地 framework 工作区的 `acceptance/` 只保存 Markdown 摘要和准确证据引用，不修改公共
+测试基线承载单次任务。目录和缓存要求见[远程操作细则](../docs/remote-operations.zh-CN.md)。
 
 ## 目录
 
 - `perf_test/`：vLLM、SGLang 的推理性能测试和 Profiling 工具。
-- `Accuracy_test/`：精度评测工具；正式流程必须在目标机器上进入基于
-  `harbor.baai.ac.cn/flageval/flageval-llmeval:v1` 镜像的容器，使用 `llmrun.py`
-  执行 GPQA Diamond 评测。
+- `Accuracy_test/`：服务型精度评测工具。正式入口 `llmrun.py` 在适用的 FlagEval 镜像中
+  执行事先冻结的一个或多个 task；GPQA Diamond 只是示例。数据集、完整样本数、指标和阈值
+  按[精度工具契约](Accuracy_test/README.md)与 profile 核实。
+- `ocr_perf/`：OCR 跨平台性能比较工具，不生成正式框架验收回执。
+- `workflow_test/`、`operations_test/`：本地契约与控制工具回归；统一入口
+  `./scripts/syntax-check --offline` 同时运行 `ocr_perf/` 的本地测试。
 - `nccl_test/`：平台通信测试脚本，仅在对应平台和通信后端适用时使用。
 
 ## 数据与结果

@@ -109,7 +109,9 @@ minimal-regression 由框架定向测试承担，只有提供固定案例集时�
 - `gate-check`：使用
   `./scripts/adapt-model <model> --platform <platform> --framework vllm-plugin-fl --hosts <hosts> --steps acceptance --acceptance-substeps performance --check-only --artifact-root <Host>=<可读根>`
   只读核对当前正式精度前置及服务绑定；只要求检查时不得自动重跑精度。
-- 远端配置和包装放 `03-acceptance/`，完整结果放 `04-runs/<run_id>/`，缓存放 `06-cache/`；
+- 远端配置和包装放 `03-acceptance/`，完整结果放 `04-runs/<run_id>/`，缓存遵循
+  [评测缓存布局](remote-operations.zh-CN.md#评测缓存布局)：通用入口使用 `06-cache/`，
+  schema 5 受监督精度入口将缓存隔离在本轮 `04-runs/<run_id>/` 内；
   本地平台 `acceptance/` 只保存 Markdown 摘要和准确路径、哈希、身份与结论。
 
 ## 性能评测映射
@@ -156,7 +158,8 @@ minimal-regression 由框架定向测试承担，只有提供固定案例集时�
   `native.service_launch` 追加跨阶段检查，见[服务证据契约](evidence-contract-v2.md#服务范围与共享启动绑定)。
   同时核验实际进程 argv、必要环境变量和有效配置，不只比较脚本哈希。
 - 性能计划/包装放 `03-acceptance/`，原始 JSON/CSV/stdout/stderr 放
-  `04-runs/<run_id>/`，缓存放 `06-cache/`；本地只保存 Markdown 摘要与准确证据引用。
+  `04-runs/<run_id>/`，缓存遵循[评测缓存布局](remote-operations.zh-CN.md#评测缓存布局)；
+  本地只保存 Markdown 摘要与准确证据引用。
 
 ## 精度定位、Profiling 与算子分析
 
