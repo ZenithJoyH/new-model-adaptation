@@ -15,10 +15,10 @@
    FlagGems-vllm 的包元数据与实际导入路径。有 Git 时记录 revision/diff，否则记录安装版本
    和文件哈希。直接修改已安装组件，普通 site-packages 和 editable 源码均可；禁止通过
    `PYTHONPATH` 或其他导入覆盖选择另一个版本。vLLM 源码及安装目录全程只读。
-2. 开始 FlagGems 接入判断前，在用户授权的现有 FlagGems checkout 中同步最新代码并记录
-   revision；不得在远端工作根目录复制第二份源码仓库。
-   普通安装没有 Git checkout 时，直接修复已安装组件不要求另建 checkout；需要同步升级
-   时先确认兼容版本和现有改动的保留方式，再更新同一安装环境，不得用路径覆盖切换版本。
+2. 开始 FlagGems 接入判断前，核实当前安装版本并只读比对相关上游能力，记录各自 revision
+   和契约差异。按[详细流程](detailed-workflow.zh-CN.md)区分能力检索与按需依赖升级；
+   检索不要求更新到最新分支。必要升级仍须核实授权、固定兼容版本、保留已有改动并复验，
+   不得在远端工作根复制第二份源码仓库或用路径覆盖切换版本。
    允许对已核实的 Plugin、FlagGems、FlagGems-vllm 进行必要产品修复与聚焦测试，
    不扩大到 vLLM 或未声明组件。
 3. 模型语义和平台能力通过 Plugin 现有模型注册、OOT、dispatch、backend、量化、attention、

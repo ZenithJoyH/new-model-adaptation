@@ -13,7 +13,7 @@
   执行运行时验证。
 
 后续实际适配前必须核对目标 checkout 并记录 plugin、vLLM 和 FlagGems revision。
-vLLM 保持只读；FlagGems 同步遵循工作流，plugin 分支/版本调整遵循当前任务边界。
+vLLM 保持只读；FlagGems 能力检索与按需升级遵循工作流，plugin 分支/版本调整遵循当前任务边界。
 本报告中的文件位置和结论不得代替目标适配镜像中的实际检查结果。
 
 实际修改和最终 diff 审查同时遵守 [Plugin 修改与 PR 交付标准](plugin-contribution-policy.md)，
@@ -92,7 +92,7 @@ PlatformFL.check_and_update_config
 | `vllm_fl/patches/` | 模型或版本兼容 hook | 最小化、幂等、具备能力检测的临时兼容层 |
 | `vllm_fl/ops/` | vLLM OOT 层和 MoE 等高层适配 | 把 vLLM 调用导向统一 dispatch |
 | `vllm_fl/dispatch/` | 实现注册、策略、选择、fallback、诊断 | 新增逻辑算子和多 backend 实现的首选框架 |
-| `vllm_fl/dispatch/backends/flaggems/` | FlagGems adapter | 对齐 vLLM 调用契约，调用同步后的 FlagGems 实现 |
+| `vllm_fl/dispatch/backends/flaggems/` | FlagGems adapter | 对齐 vLLM 调用契约，调用已核实安装版本的 FlagGems 实现 |
 | `vllm_fl/dispatch/backends/reference/` | PyTorch 参考实现 | 数值基线、fallback 和单算子对照 |
 | `vllm_fl/dispatch/backends/vendor/` | 芯片专用实现和必要平台 hook | 仅保存确实与 vendor 相关的实现 |
 | `vllm_fl/quantization/` | 量化 scheme、linear/MoE kernel 注册 | W8A8、FP8 或权重布局/scale 契约适配 |
@@ -363,7 +363,8 @@ smoke 目的，不得直接复制为本项目正式服务配置。
 ### 阶段 A：建立事实基线
 
 1. 记录 plugin、vLLM、FlagGems 的 branch、revision 和原始工作区状态；vLLM 保持只读，
-   FlagGems 按工作流同步，plugin 遵循目标分支与当前任务边界，不丢弃已有修改；
+   FlagGems 按工作流核实当前安装及上游能力，必要时升级到固定兼容版本；
+   plugin 遵循目标分支与当前任务边界，不丢弃已有修改；
 2. 核对 plugin/vLLM 版本矩阵，不混用不同 release 的内部 API；
 3. 从模型 config 和实现生成结构、推理链路与关键算子清单；
 4. 建立 native/reference 或已验证平台输出基线；

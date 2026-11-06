@@ -1,5 +1,8 @@
 # 平台适配计划与差距清单
 
+> 本模板仅适用于 `vllm-plugin-fl`；其他 profile 按自己的组件边界、执行模式和验收要求规划。
+> 记录工作区固定的 profile/证据契约版本，不因使用模板升级历史记录。
+
 ## 输入材料
 
 - 模型结构与推理链路分析：
@@ -58,11 +61,16 @@ Plugin，不能使用临时直接调用绕过 Plugin dispatch。
 - 无可用硬件的检查替代、未验证范围和风险：
 - 最终设计自检与 PR 材料：`plugin-change-review.md`（审查必须对应实际 HEAD 和 dirty diff）。
 
-## FlagGems 同步与检索证据
+## FlagGems 固定版本、检索与按需升级证据
 
-- 同步前 remote/branch/upstream/revision/status：
-- fast-forward-only 同步命令：
-- 同步后 revision/status：
+按 `framework-profiles/vllm-plugin-fl/detailed-workflow.md` 区分能力检索与依赖升级；
+检索上游不要求更新当前运行安装，未升级项注明不适用。
+
+- 当前安装版本/导入路径/文件哈希或 remote/branch/upstream/revision/status：
+- 只读比对的上游 revision、已有能力、契约差异及未完成检索：
+- 如需升级：任务必要性、写入授权、固定兼容目标及现有改动保留方案：
+- 实际升级命令、前后版本/文件身份及 Git fast-forward/clean 状态（适用时）：
+- 实际导入、受影响数值/分发/graph 检查及验收失效/复验结果：
 - FlagGems ATen 自动替换命中与直接 `flag_gems.<op>` 数值测试的分别验证：
 - vLLM 非 ATen/融合算子的 FlagGems-vllm 归属与公开 API、配置/注册/marker（不归 FlagGems、不冒充 ATen）：
 - FlagGems-vllm 实际版本/revision、算子检索及兼容性结果：

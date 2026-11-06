@@ -17,6 +17,19 @@ An explicit override resolves only its stated conflict; all other applicable har
 remain binding. Do not resolve an uncovered conflict by silently choosing the weaker rule:
 identify the clauses, pause only the affected action and clarify the unresolved decision.
 
+When maintaining guidance, keep one primary definition for each shared topic:
+
+- Remote write boundaries, remote layout and service launchers: [remote operations policy](remote-operations.md).
+- Phase isolation and completion: this policy; concrete execution and acceptance steps belong to the selected profile.
+- Evidence formats and contract versions: [framework evidence](framework-evidence.md) and its [v2 contract](evidence-contract-v2.md).
+- Implementation requirements: the supplied [Plugin](inference-plugin-development-v1.md) and [operator](operator-development-standard.md) standards, with explicit project applicability overrides.
+
+AGENTS, Skills and guides summarize and link these shared definitions; profiles add their
+applicable steps and framework-specific differences instead of copying the full shared rules.
+Update affected Chinese/English counterparts and templates together, retaining their profile
+and contract-version scope. This maintenance convention neither changes the precedence above
+nor weakens applicable standards or silently upgrades existing workspace contracts.
+
 When required guidance is referenced but absent (for example `optimization.md` or
 `deep_opt.md`), verify the installed source identity/revision, referenced location, tracked
 file list or package contents, and existing equivalent documents. Record the search evidence,

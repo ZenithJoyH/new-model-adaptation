@@ -66,31 +66,30 @@ matching evidence when phase 2 is unselected; do not silently run another phase.
       `environment/environment-analysis.md`. If a dirty tree, revision
       mismatch, or modification-boundary violation becomes an adaptation issue,
       create a numbered Markdown issue record under `adaptation/`.
-   3. **Synchronize FlagGems before operator integration.** Before checking or
-      integrating any FlagGems operator from an existing editable Git installation, update its repository inside
-      the running adaptation container to the latest commit of its intended
-      tracked branch. First verify that writing this checkout is authorized under
-      the remote workspace prerequisite. Without authorization or a verified
-      existing checkout, pause synchronization and report the blocker; do not move
-      the existing tree or create a replacement checkout under the work root.
-      Record the remote, branch, upstream, revision, and
-      working-tree status before updating. Proceed only when the worktree is clean
-      and the intended branch and upstream are unambiguous; fetch and use a
-      fast-forward-only pull, never reset, force-update, or discard local changes.
-      Record the resulting revision and synchronization command in the platform
-      environment analysis or relevant numbered issue. If synchronization cannot
-      complete, report the exact blocker, create a numbered issue record under
-      `adaptation/`, and do not continue operator selection against a stale
-      revision.
-      For ordinary installed distributions without a Git checkout, record the
-      installed version/file identity and upstream operator comparison; direct
-      fixes to that installation are allowed. If a version update is needed,
-      preserve local fixes and update the same installed environment through its
-      supported installation process. Do not create a replacement checkout or
-      use an import-path override to satisfy synchronization.
-      For delivery, pin public operator-library dependencies to a fixed version
-      or commit SHA under D3; synchronizing for discovery does not permit a
-      floating or private dependency in the resulting PR.
+   3. **Inspect operator availability; upgrade only when needed.** Before selecting
+      FlagGems operators, record the installed version/import path and file hashes
+      or Git revision/working-tree status. Inspect that version's APIs and compare
+      relevant upstream implementations read-only, recording the exact upstream
+      revision and contract differences. Checking upstream availability does not
+      require updating the running installation to the latest branch. An unavailable
+      comparison is an explicit evidence gap, not proof that an upstream operator
+      is missing; continue work whose installed-version contracts are established.
+      When a dependency update is necessary for the task, establish its compatible
+      fixed target version, write authorization and impact on existing fixes and
+      acceptance evidence before changing the same installed environment. For a Git
+      update, record remote/branch/upstream/revision/status and proceed only with a
+      clean worktree and unambiguous target; fetch and use a fast-forward-only update
+      to that target. Never reset, force-update or discard local changes. Dirty or
+      ambiguous trees block that update, not independently authorized diagnosis or
+      repairs against the verified current version. Ordinary distributions use the
+      component's supported installation process and preserve existing fixes.
+      Record the update command and resulting identity in the environment analysis
+      or existing numbered issue, verify actual imports and affected numerical,
+      dispatch and graph behavior, and revalidate affected acceptance evidence.
+      Do not move the existing tree, create a replacement checkout under the work
+      root or use import-path overrides. For delivery, pin public operator-library
+      dependencies to a fixed version or commit SHA under D3; upstream comparison
+      does not permit a floating or private dependency in the resulting PR.
    4. **Verify ATen replacement and integrate vLLM operators separately.**
       FlagGems ATen operators use automatic replacement: verify activation, actual
       dispatch, numerical correctness and graph behavior rather than adding a
