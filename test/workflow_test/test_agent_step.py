@@ -1,8 +1,11 @@
 """Journal invariants; native validator integration is tested separately."""
+from concurrent.futures import ThreadPoolExecutor
+from contextlib import contextmanager
 import json
 from pathlib import Path
 import sys
 import tempfile
+import threading
 import time
 import unittest
 from unittest.mock import patch
@@ -55,6 +58,29 @@ class JournalTests(unittest.TestCase):
         spec = self.root / 'spec.json'
         spec.write_text(json.dumps(self.spec))
         return step.begin(spec, path or self.run)
+
+    @contextmanager
+    def pending_update(self, operation, **kwargs):
+        """Hold one real update after its read while another caller enters."""
+        entered, release = threading.Event(), threading.Event()
+        original_read = step.read
+
+        def paused_read(path):
+            record = original_read(path)
+            if not entered.is_set():
+                entered.set()
+                if not release.wait(5):
+                    raise TimeoutError('concurrent test did not release journal reader')
+            return record
+
+        with ThreadPoolExecutor(max_workers=1) as pool, patch.object(step, 'read', paused_read):
+            future = pool.submit(step.update, self.run, operation, **kwargs)
+            try:
+                self.assertTrue(entered.wait(5), 'journal update never reached its read')
+                yield future
+            finally:
+                release.set()
+                future.result(timeout=5)
 
     def test_missing_or_wrong_mode_cannot_create_run(self):
         for choice in ('', 'guess'):
@@ -131,6 +157,66 @@ class JournalTests(unittest.TestCase):
     def test_unique_directory_prevents_replay(self):
         self.begin()
         with self.assertRaises(FileExistsError): self.begin()
+
+    def test_concurrent_observe_cannot_overwrite_finish(self):
+        self.begin()
+        with self.pending_update('finish') as finish:
+            with self.assertRaisesRegex(ValueError, 'run is busy'):
+                step.update(self.run, 'observe', evidence=str(self.evidence), completed=1)
+            with self.assertRaisesRegex(ValueError, 'run is busy'):
+                step.update(self.run, 'check')
+        self.assertEqual(finish.result()['status'], 'passed')
+        record = step.read(self.run / 'run.json')
+        self.assertEqual(record['state'], 'verified')
+        self.assertIn('completion_binding', record)
+        with self.assertRaisesRegex(ValueError, 'already terminal'):
+            step.update(self.run, 'observe', evidence=str(self.evidence), completed=1)
+
+    def test_finish_retry_rechecks_completed_observation(self):
+        self.begin()
+        with self.pending_update('observe', evidence=str(self.evidence), completed=1):
+            with self.assertRaisesRegex(ValueError, 'run is busy'):
+                step.update(self.run, 'finish')
+        self.assertEqual(step.update(self.run, 'finish')['status'], 'passed')
+        record = step.read(self.run / 'run.json')
+        self.assertEqual(record['state'], 'verified')
+        self.assertEqual(record['completed_units'], 1)
+        self.assertEqual(len(record['observations']), 1)
+
+    def test_concurrent_observations_cannot_lose_progress(self):
+        self.begin()
+        with self.pending_update('observe', evidence=str(self.evidence), completed=2):
+            with self.assertRaisesRegex(ValueError, 'run is busy'):
+                step.update(self.run, 'observe', evidence=str(self.evidence), completed=1)
+        with self.assertRaisesRegex(ValueError, 'monotonic'):
+            step.update(self.run, 'observe', evidence=str(self.evidence), completed=1)
+        step.update(self.run, 'observe', evidence=str(self.evidence), completed=3)
+        record = step.read(self.run / 'run.json')
+        self.assertEqual(record['completed_units'], 3)
+        self.assertEqual([item['completed_units'] for item in record['observations']], [2, 3])
+
+    def test_begin_cannot_race_with_fail(self):
+        entered, release = threading.Event(), threading.Event()
+
+        def paused_gate(*args):
+            entered.set()
+            if not release.wait(5):
+                raise TimeoutError('concurrent test did not release preflight')
+            return {'status': 'passed'}
+
+        self.native.side_effect = paused_gate
+        with ThreadPoolExecutor(max_workers=1) as pool:
+            begin = pool.submit(self.begin)
+            try:
+                self.assertTrue(entered.wait(5), 'begin never reached preflight')
+                with self.assertRaisesRegex(ValueError, 'run is busy'):
+                    step.update(self.run, 'fail', note='another caller cannot close an active initializer')
+            finally:
+                release.set()
+                begin.result(timeout=5)
+        self.assertEqual(step.read(self.run / 'run.json')['state'], 'ready')
+        step.update(self.run, 'fail', note='initializer completed and caller reports failure')
+        self.assertEqual(step.read(self.run / 'run.json')['state'], 'failed')
 
 
 if __name__ == '__main__': unittest.main()

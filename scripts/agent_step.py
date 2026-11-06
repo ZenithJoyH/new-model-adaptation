@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import argparse
+from contextlib import contextmanager
+import fcntl
 import hashlib
 import json
 import math
@@ -34,6 +36,20 @@ def write(path, value):
         f.write('\n')
         temporary = Path(f.name)
     temporary.replace(path)
+
+
+@contextmanager
+def _run_lock(directory):
+    """Serialize journal access on the stable directory, not replaced run.json."""
+    fd = os.open(directory, os.O_RDONLY)
+    try:
+        try:
+            fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        except BlockingIOError as exc:
+            raise ValueError('run is busy; inspect the active caller before retrying') from exc
+        yield
+    finally:
+        os.close(fd)
 
 
 def absolute_file(value):
@@ -106,28 +122,29 @@ def begin(spec_path, directory):
         raise ValueError('run-dir must be an explicit approved absolute path')
     # A unique directory prevents accidental replay and evidence overwrite.
     directory.mkdir(parents=False, exist_ok=False)
-    now = time.time()
-    record = {'schema_version': 1, 'spec': spec, 'run_dir': str(directory.resolve()),
-              'skill_dir': str(skill_dir), 'bundle': bundle,
-              'context': context, 'started_at': now, 'last_progress_at': now,
-              'completed_units': 0, 'observations': [], 'state': 'preflight',
-              'acceptance_binding': acceptance_binding(ROOT, spec),
-              'implementation': {str(p): sha(p) for p in
-                  [Path(__file__).resolve(), Path(__file__).with_name('project_gates.py').resolve(),
-                   Path(__file__).with_name('skill_bundle.py').resolve()]}}
-    record['context'].update(record['implementation'])
-    record['context'].update({str(p.resolve()): sha(p) for p in source_files(ROOT, spec)})
-    write(directory / 'run.json', record)
-    try:
-        record['before_results'] = checks(spec, 'before')
-        verify_context(record)
-        record['state'] = 'ready'
-    except Exception as exc:
-        record['state'] = 'preflight_failed'
-        record['reason'] = str(exc)
+    with _run_lock(directory):
+        now = time.time()
+        record = {'schema_version': 1, 'spec': spec, 'run_dir': str(directory.resolve()),
+                  'skill_dir': str(skill_dir), 'bundle': bundle,
+                  'context': context, 'started_at': now, 'last_progress_at': now,
+                  'completed_units': 0, 'observations': [], 'state': 'preflight',
+                  'acceptance_binding': acceptance_binding(ROOT, spec),
+                  'implementation': {str(p): sha(p) for p in
+                      [Path(__file__).resolve(), Path(__file__).with_name('project_gates.py').resolve(),
+                       Path(__file__).with_name('skill_bundle.py').resolve()]}}
+        record['context'].update(record['implementation'])
+        record['context'].update({str(p.resolve()): sha(p) for p in source_files(ROOT, spec)})
         write(directory / 'run.json', record)
-        raise
-    write(directory / 'run.json', record)
+        try:
+            record['before_results'] = checks(spec, 'before')
+            verify_context(record)
+            record['state'] = 'ready'
+        except Exception as exc:
+            record['state'] = 'preflight_failed'
+            record['reason'] = str(exc)
+            write(directory / 'run.json', record)
+            raise
+        write(directory / 'run.json', record)
     return record
 
 
@@ -158,6 +175,12 @@ def decision(record, now=None):
 
 def update(directory, operation, *, evidence=None, completed=None, error=None, note=None):
     directory = Path(directory)
+    with _run_lock(directory):
+        return _update_locked(directory, operation, evidence=evidence, completed=completed,
+                              error=error, note=note)
+
+
+def _update_locked(directory, operation, *, evidence=None, completed=None, error=None, note=None):
     path = directory / 'run.json'
     record = read(path)
     if operation == 'check': return decision(record)
