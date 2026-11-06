@@ -79,7 +79,8 @@ patch/日志摘要。大型原始结果继续保留在批准工作根；note 不
 ## 旧工作区和契约升级
 
 new-framework 默认创建 evidence_contract=2，在 framework.yml 固定 profile 快照和哈希，
-新建/显式升级时使用 `profile_hash_version: 2` 固定验收顺序；旧算法不自动迁移。
+新建/显式升级使用 [v2 契约](evidence-contract-v2.md#固定契约)规定的哈希版本，固定验收顺序
+与必需证据扩展；旧算法不自动迁移。
 普通工作流文案更新不改变既有证据。profile 更新后审计提示可升级，原固定版本仍可核验；
 当时通过与满足最新契约是两个独立结论。旧工作区不自动迁移。
 

@@ -34,6 +34,9 @@ class FrameworkWorkspaceTests(unittest.TestCase):
             shutil.copy2(ROOT / name, root / name)
         shutil.copytree(ROOT / "skills", root / "skills")
         shutil.copytree(ROOT / "inventory", root / "inventory")
+        accuracy = root / "test/Accuracy_test"
+        accuracy.mkdir(parents=True)
+        shutil.copy2(ROOT / "test/Accuracy_test/README.md", accuracy / "README.md")
         platform = root / "models" / "Example" / "ppu"
         platform.mkdir(parents=True)
         model = yaml.safe_load((ROOT / "models" / "_template" / "model.yml").read_text())
@@ -197,7 +200,7 @@ class FrameworkWorkspaceTests(unittest.TestCase):
                 profile = framework_workspace.workspace_profile(root, cfg)
                 steps = [name for name, spec in profile['acceptance']['steps'].items() if not spec.get('optional')]
                 self.assertEqual(list(cfg['workflow']['acceptance']['substeps']), steps)
-                self.assertEqual(cfg['profile_hash_version'], 2)
+                self.assertEqual(cfg['profile_hash_version'], 3)
                 self.assertIn('Acceptance steps: ' + ' -> '.join(steps), result.stdout)
                 self.assertIn('configure exact target hosts and workspace roots in framework.yml', result.stdout)
                 self.assertEqual('formal acceptance and optimized are unavailable' in result.stdout,
@@ -215,7 +218,7 @@ class FrameworkGateTests(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
         self.directory = self.root / 'models/Example/ppu/frameworks/torch-fl'
         self.cfg = framework_workspace.load_yaml(self.directory / 'framework.yml')
-        for key in ('evidence_contract', 'profile_snapshot', 'profile_sha256'):
+        for key in ('evidence_contract', 'profile_snapshot', 'profile_sha256', 'profile_hash_version'):
             self.cfg.pop(key, None)
         _, self.profile = framework_workspace.resolved_profile(self.root, 'torch-fl')
         self.remote = self.root / 'remote'

@@ -9,7 +9,8 @@ from datetime import date
 from pathlib import Path, PurePosixPath
 
 from framework_workspace import (load_yaml, workspace_errors, WORKFLOW_PHASES,
-                                 workspace_profile, profile_contract, require_agent_control, FRAMEWORK_ID_RE)
+                                 workspace_profile, profile_contract, profile_extensions,
+                                 service_contract_enabled, require_agent_control, FRAMEWORK_ID_RE)
 
 DONE = {"passed", "complete"}
 SHA = re.compile(r"[0-9a-f]{64}\Z")
@@ -84,15 +85,17 @@ def context_hash(root, directory, cfg, profile, stage):
         if stage != "architecture":
             scope.update(platform=cfg["platform"], framework=cfg["framework"],
                          contract=profile_contract(profile))
-            if cfg.get("profile_hash_version", 1) == 2:
+            if cfg.get("profile_hash_version", 1) >= 2:
                 scope["acceptance_step_order"] = list(profile["acceptance"]["steps"])
+            if cfg.get("profile_hash_version") == 3:
+                scope["evidence_extensions"] = profile_extensions(profile)
     if stage != "architecture":
         scope.update({key: cfg.get(key) for key in ("target", "workspace", "deployment")})
     if stage not in {"architecture", "environment", "adaptation"}:
         scope["acceptance_plan"] = cfg.get("acceptance_plan")
         if modern and stage in {"execution-mode", "sanity", "accuracy"}:
             keys = ["execution"]
-            if stage != "execution-mode" and "service_contract" in cfg.get("acceptance_plan", {}):
+            if stage != "execution-mode" and service_contract_enabled(cfg):
                 keys.append("service_contract")
             if stage != "execution-mode":
                 keys.append("sanity_manifest_sha256")
@@ -172,7 +175,7 @@ def native_accuracy(reader, native, envelope, cfg):
             require(report.get("service_binding") == frozen.get("service_binding"), "原生精度服务身份与冻结配置不一致")
             require(frozen.get("base_url") == frozen.get("service_binding", {}).get("endpoint"), "精度 endpoint 与服务身份不一致")
             service_binding(reader, report.get("service_binding"), envelope, cfg, envelope["scope"]["host_alias"])
-            if "service_contract" in cfg.get("acceptance_plan", {}):
+            if service_contract_enabled(cfg):
                 from service_acceptance import validate_launch, validate_served_model
                 host = envelope["scope"]["host_alias"]
                 validate_served_model(cfg, host, frozen.get("model_name"))
@@ -256,7 +259,7 @@ def native_performance(reader, native, envelope, cfg):
             request = source["request"]
             require(bound.hostname == request["host"].strip("[]") and (bound.port or 80) == request["port"]
                     and bound.path == request["endpoint"], "性能请求与原生服务身份不一致")
-            if "service_contract" in cfg.get("acceptance_plan", {}):
+            if service_contract_enabled(cfg):
                 from service_acceptance import validate_launch, validate_served_model
                 host = envelope["scope"]["host_alias"]
                 validate_served_model(cfg, host, request.get("model"))
@@ -323,7 +326,7 @@ def native_sanity(reader, report, cfg, host):
                 == result.get("manifest_sha256"), "sanity manifest 未冻结或已变化")
         require(result.get("run_id") == report["run_id"], "sanity run_id 不匹配")
         service_binding(reader, result.get("service_binding"), report, cfg, host)
-        if manifest.get("schema_version") == 2 or "service_contract" in cfg.get("acceptance_plan", {}):
+        if manifest.get("schema_version") == 2 or service_contract_enabled(cfg):
             from service_acceptance import validate_sanity_scope, validate_launch
             validate_sanity_scope(cfg, host, manifest)
             validate_launch(reader, report, cfg, host, "sanity", result["service_binding"])
@@ -366,7 +369,7 @@ def check_receipt(reader, ref, cfg, profile, stage, rec):
             native_sanity(reader, report, cfg, ref["host_alias"])
         if stage == "summary" and profile["status"] == "active":
             delivery(reader, report)
-            if "service_contract" in cfg.get("acceptance_plan", {}):
+            if service_contract_enabled(cfg):
                 from service_acceptance import validate_launch
                 validate_launch(reader, report, cfg, ref["host_alias"], "summary")
     if spec and stage not in {"device", "operators", "wheel"}:
@@ -407,7 +410,7 @@ def verify_record(root, directory, cfg, profile, stage, mounts=None):
     require(context_hash(root, directory, cfg, profile, stage) == rec.get("context_sha256"), f"{stage}: 上下文已变化")
     if stage == "architecture":
         return
-    if stage in {"sanity", "accuracy", "performance", "summary", "acceptance"} and "service_contract" in cfg.get("acceptance_plan", {}):
+    if stage in {"sanity", "accuracy", "performance", "summary", "acceptance"} and service_contract_enabled(cfg):
         from service_acceptance import validate_plan
         validate_plan(cfg, digest(root / "models" / cfg["model"] / "architecture-and-inference.md"))
     hosts = cfg["target"]["hosts"]

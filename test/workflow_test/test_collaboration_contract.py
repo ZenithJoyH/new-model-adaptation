@@ -167,7 +167,7 @@ class HumanControlTests(ModernFixture):
 
     def test_legacy_upgrade_preserves_history_and_requires_revalidation(self):
         self.f.bind('architecture')
-        for k in ('evidence_contract','profile_snapshot','profile_sha256'): self.cfg.pop(k)
+        for k in ('evidence_contract','profile_snapshot','profile_sha256','profile_hash_version'): self.cfg.pop(k)
         self.handoff()
         control.transition(self.f.directory,self.cfg,'upgrade',actor='operator',note='显式升级',root=self.f.root)
         self.assertEqual(self.cfg['evidence_contract'],2)
@@ -237,7 +237,7 @@ class PinnedContractTests(ModernFixture):
         self.handoff()
         control.transition(self.f.directory, self.cfg, 'upgrade', actor='operator',
                            note='显式固定验收顺序', root=self.f.root)
-        self.assertEqual(self.cfg['profile_hash_version'], 2)
+        self.assertEqual(self.cfg['profile_hash_version'], 3)
         self.assertNotEqual(before, gate.context_hash(self.f.root, self.f.directory,
                                                     self.cfg, self.f.profile, 'environment'))
         self.assertEqual(self.cfg['workflow']['architecture']['status'], 'passed')

@@ -36,21 +36,35 @@ def contract_digest(value):
                                     allow_nan=False).encode()).hexdigest()
 
 
-def profile_digest(profile, version=2):
-    """Keep historical hashes readable; new hashes also bind ordered steps."""
+def profile_extensions(profile):
+    """Executable evidence requirements introduced with profile hash v3."""
+    return {"service_contract": 1} if "sanity" in profile["acceptance"]["steps"] else {}
+
+
+def service_contract_enabled(config):
+    """Old contracts opt in; v3 service profiles cannot opt out by omission."""
+    return ("service_contract" in config.get("acceptance_plan", {}) or
+            (config.get("evidence_contract") == 2 and config.get("profile_hash_version") == 3
+             and "service_contract" in profile_extensions(config["profile_snapshot"])))
+
+
+def profile_digest(profile, version=3):
+    """Keep historical hashes readable; bind ordered steps and v3 extensions."""
     contract = profile_contract(profile)
-    if type(version) is not int or version not in (1, 2):
+    if type(version) is not int or version not in (1, 2, 3):
         raise ValueError("unsupported profile_hash_version")
-    if version == 2:
+    if version >= 2:
         contract = {"profile": contract,
                     "acceptance_step_order": list(profile["acceptance"]["steps"])}
+    if version == 3:
+        contract["evidence_extensions"] = profile_extensions(profile)
     return contract_digest(contract)
 
 
 def pin_profile(config, profile):
     config.update(evidence_contract=2, profile_version=profile["profile_version"],
                   profile_snapshot=copy.deepcopy(profile),
-                  profile_hash_version=2, profile_sha256=profile_digest(profile))
+                  profile_hash_version=3, profile_sha256=profile_digest(profile))
     if "sanity" in profile["acceptance"]["steps"]:
         config.setdefault("acceptance_plan", {}).setdefault("service_contract", {"schema_version": 1})
 
@@ -59,6 +73,8 @@ def workspace_profile(root, config):
     if type(config.get("evidence_contract", 1)) is not int:
         raise ValueError("evidence_contract must be an integer")
     if config.get("evidence_contract", 1) == 1:
+        if any(key in config for key in ("profile_snapshot", "profile_sha256", "profile_hash_version")):
+            raise ValueError("pinned profile requires evidence_contract=2; cannot downgrade by omission")
         return resolved_profile(root, config["framework"])[1]
     if config.get("evidence_contract") != 2:
         raise ValueError("unsupported evidence_contract")
@@ -71,6 +87,8 @@ def workspace_profile(root, config):
         raise ValueError("pinned profile identity changed; use an explicit contract upgrade")
     if profile["status"] not in {"active", "experimental"}:
         raise ValueError("pinned profile must be active or experimental")
+    if service_contract_enabled(config) and "service_contract" not in config.get("acceptance_plan", {}):
+        raise ValueError("pinned service_contract is required; use an explicit contract upgrade")
     return profile
 
 

@@ -6,9 +6,13 @@
 ## 固定契约
 
 profile_snapshot、profile_sha256 固定机器可执行要求；documents、display_name 不参与哈希。
-新建或显式升级的工作区使用 `profile_hash_version: 2`，另将 `acceptance.steps` 的有序名称
-序列纳入哈希和非架构阶段上下文，避免 JSON 键排序掩盖验收顺序变化。缺少该字段的旧 v2
-工作区仍按原算法核验，不自动改写哈希/历史回执；通过 workspace-control 显式升级后复核。
+新建或显式升级的工作区使用 `profile_hash_version: 3`。它保留版本 2 对 `acceptance.steps`
+有序名称序列的绑定，并将按固定 profile 推导的 `evidence_extensions` 纳入哈希和非架构阶段
+上下文：包含 sanity 的服务型 profile 固定要求 `service_contract: 1`，其他 profile 为空。
+因此删除服务计划不能退回历史检查；删除或降低哈希版本也不能匹配原有固定哈希。
+带有固定 profile 字段的记录必须声明 `evidence_contract: 2`，省略该字段不能切换为旧契约。
+版本 1（包括缺少版本字段）和版本 2 的旧工作区仍按各自原算法核验，不自动改写哈希或历史
+回执；通过 workspace-control 显式升级后复核。哈希是完整性绑定，不是防篡改签名。
 架构绑定模型身份和证据，其余阶段绑定部署、对应计划及前置回执。performance_targets
 变化不直接改变 accuracy 的上下文。审计按固定版本验证，另提示当前 profile 更新；
 升级须显式执行。optimized 需要 v2 和完整验收（含有效性能测量），不要求预设性能目标；
@@ -99,7 +103,8 @@ nnodes、TP/PP、master和除node-rank/headless外全部推理参数须一致，
 
 新建或通过 `workspace-control upgrade` 显式升级的服务型 profile（含 sanity）会初始化
 `acceptance_plan.service_contract: {schema_version: 1}`。这只是待填写计划，不是通过证据；
-必须在小批量验证前完成冻结。纯 Python API 的 Torch-FL 不增加该计划。已有未使用此扩展
+必须在小批量验证前完成冻结。哈希版本 3 将该扩展固定为必需项，缺失计划即拒绝，不能用
+schema 1 manifest 关闭检查。纯 Python API 的 Torch-FL 不增加该计划。已有未使用此扩展
 的 schema 1 小批量历史回执按原契约读取，不自动迁移或重新判分。启用本扩展时，schema 1
 从实际请求识别模态并与模型能力比对；schema 2（所选 runner 支持时）还需核对声明的 modalities。
 本扩展不改变 runner 原有响应判定方式。已有任务采用新检查前保留旧记录、明确升级，并重新验证受影响验收，不能只补哈希。

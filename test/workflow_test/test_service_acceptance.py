@@ -3,6 +3,7 @@ import copy
 import hashlib
 import json
 from pathlib import Path
+import yaml
 
 from test_collaboration_contract import ModernFixture
 import test_collaboration_contract as fixtures
@@ -10,6 +11,7 @@ import framework_evidence as gate
 import framework_workspace as workspace
 import service_acceptance as service
 import project_gates
+import workspace_control
 
 
 def sanity_scope_fixture():
@@ -246,6 +248,103 @@ class ServiceAcceptanceTests(ModernFixture):
         self.assertEqual(execution, gate.context_hash(self.f.root, self.f.directory, self.cfg, profile, 'execution-mode'))
         self.assertIn(Path(__file__).resolve().parents[2] / 'scripts/service_acceptance.py',
                       project_gates.source_files(Path(__file__).resolve().parents[2], {'before': []}))
+
+
+class ServiceContractVersionTests(ModernFixture):
+    def setUp(self):
+        super().setUp()
+        self.f.profile = workspace.resolved_profile(self.f.root, 'vllm-plugin-fl')[1]
+        directory = self.f.directory.with_name('vllm-plugin-fl')
+        self.f.directory.rename(directory)
+        self.f.directory = directory
+        self.cfg.update(framework='vllm-plugin-fl', profile='framework-profiles/vllm-plugin-fl/profile.yml')
+        workspace.pin_profile(self.cfg, self.f.profile)
+        self.cfg['workflow']['acceptance']['substeps'] = {
+            name: 'not_started' for name in self.f.profile['acceptance']['steps']}
+        freeze_service(self)
+
+    def legacy_sanity(self):
+        # This historical format deliberately has neither image coverage nor a
+        # launch receipt, exposing the former opt-out path through native_sanity.
+        manifest = {'schema_version': 1, 'kind': 'sanity_manifest', 'model': 'other-model',
+                    'concurrency': 1, 'timeout': 30, 'cases': [
+                        {'id': 'text', 'request': {'messages': [{'role': 'user', 'content': 'Hello'}]},
+                         'reference_text': 'answer'}]}
+        ref = self.raw('legacy-manifest.json', manifest)
+        result = {'kind': 'sanity_result', 'status': 'passed', 'run_id': 'sanity-run',
+                  'concurrency': 1, 'manifest_sha256': ref['sha256'],
+                  'service_binding': self.binding('sanity-run'),
+                  'cases': [{'id': 'text', 'error': None,
+                             'response': {'choices': [{'message': {'content': 'answer'}}]}}]}
+        self.cfg['acceptance_plan']['sanity_manifest_sha256'] = ref['sha256']
+        return {'run_id': 'sanity-run', 'service_instance_id': 'service-A',
+                'native': {'manifest': ref, 'sanity': self.raw('legacy-result.json', result)}}
+
+    def test_new_contract_cannot_drop_plan_through_native_or_public_gate(self):
+        report = self.legacy_sanity()
+        del self.cfg['acceptance_plan']['service_contract']
+        with self.assertRaisesRegex(ValueError, 'service_contract'):
+            gate.native_sanity(self.reader, report, self.cfg, 'PPU-01')
+        (self.f.directory / 'framework.yml').write_text(yaml.safe_dump(self.cfg, sort_keys=False))
+        check = dict(kind='framework', model='Example', platform='ppu', framework='vllm-plugin-fl',
+                     hosts=['PPU-01'], steps=['acceptance'], acceptance_substeps=['sanity'],
+                     artifact_roots=self.f.mounts, verify_records=False)
+        with self.assertRaisesRegex(ValueError, 'pinned service_contract'):
+            project_gates.run_check(self.f.root, check, {})
+
+    def test_removing_or_downgrading_version_does_not_disable_pinned_extension(self):
+        for version in (None, 1, 2):
+            with self.subTest(version=version):
+                cfg = copy.deepcopy(self.cfg)
+                del cfg['acceptance_plan']['service_contract']
+                if version is None:
+                    del cfg['profile_hash_version']
+                else:
+                    cfg['profile_hash_version'] = version
+                with self.assertRaisesRegex(ValueError, 'pinned profile identity'):
+                    workspace.workspace_profile(self.f.root, cfg)
+        for version in (None, 1):
+            with self.subTest(evidence_contract=version):
+                cfg = copy.deepcopy(self.cfg)
+                del cfg['acceptance_plan']['service_contract']
+                if version is None:
+                    del cfg['evidence_contract']
+                else:
+                    cfg['evidence_contract'] = version
+                with self.assertRaisesRegex(ValueError, 'pinned profile requires evidence_contract'):
+                    workspace.workspace_profile(self.f.root, cfg)
+
+    def test_historical_hashes_and_schema1_receipts_keep_original_contract(self):
+        report = self.legacy_sanity()
+        del self.cfg['acceptance_plan']['service_contract']
+        for version in (1, 2):
+            with self.subTest(version=version):
+                self.cfg['profile_hash_version'] = version
+                old_input = workspace.profile_contract(self.f.profile)
+                if version == 2:
+                    old_input = {'profile': old_input,
+                                 'acceptance_step_order': list(self.f.profile['acceptance']['steps'])}
+                self.cfg['profile_sha256'] = workspace.contract_digest(old_input)
+                self.assertEqual(workspace.workspace_profile(self.f.root, self.cfg), self.f.profile)
+                gate.native_sanity(self.reader, report, self.cfg, 'PPU-01')
+
+    def test_explicit_upgrade_enables_extension_and_keeps_architecture(self):
+        self.cfg['profile_hash_version'] = 2
+        self.cfg['profile_sha256'] = workspace.profile_digest(self.f.profile, version=2)
+        del self.cfg['acceptance_plan']['service_contract']
+        self.f.bind('architecture')
+        before = gate.context_hash(self.f.root, self.f.directory, self.cfg, self.f.profile, 'environment')
+        self.handoff()
+        workspace_control.transition(self.f.directory, self.cfg, 'upgrade', actor='operator',
+                                     note='显式启用固定服务契约', root=self.f.root)
+        self.assertEqual(self.cfg['profile_hash_version'], 3)
+        self.assertEqual(self.cfg['acceptance_plan']['service_contract'], {'schema_version': 1})
+        self.assertEqual(self.cfg['workflow']['architecture']['status'], 'passed')
+        self.assertNotEqual(before, gate.context_hash(self.f.root, self.f.directory,
+                                                    self.cfg, self.f.profile, 'environment'))
+        del self.cfg['acceptance_plan']['service_contract']
+        with self.assertRaisesRegex(ValueError, 'pinned service_contract'):
+            workspace.workspace_profile(self.f.root, self.cfg)
 
 
 class PartialRetrospectiveTests(ModernFixture):
