@@ -5,6 +5,10 @@
 [远程操作细则](remote-operations.zh-CN.md)，进行远端操作或核验最终启动脚本时必须读取。
 英文规范见 [adaptation-policy.md](adaptation-policy.md)。
 
+执行归属遵循[子 Agent 委派](../AGENTS.zh-CN.md#子-agent-委派)：主 Agent 规划、协调、证据复核和
+验收，除列明的直接执行例外外，可独立交付的分析、实现和测试必须委派。只读、任务较小或执行器
+故障不单独构成接管理由。各选定阶段均按此分工，不改变 profile/源码权限或原生门禁。
+
 ## 规范优先级、文档缺失与阶段门槛
 
 在已授权任务及执行权限边界内，先执行用户当前明确要求和项目适用说明中的显式覆盖；
@@ -15,6 +19,7 @@ workflow 确定具体目录、注册、命令及额外适用门槛。历史分�
 
 维护规范时，每个共用主题保留一个主定义来源：
 
+- Agent 职责与直接执行例外：[仓库委派规则](../AGENTS.zh-CN.md#子-agent-委派)；派发、恢复和记录：[执行说明](agent-execution.md)。
 - 远端写入边界、远端布局及服务启动脚本：[远程操作细则](remote-operations.zh-CN.md)。
 - 阶段隔离与完成条件：本细则；具体执行及验收步骤由所选 profile 定义。
 - 证据格式与契约版本：[框架证据契约](framework-evidence.md)及其 [v2 契约](evidence-contract-v2.md)。

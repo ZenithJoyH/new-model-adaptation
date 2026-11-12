@@ -13,6 +13,12 @@
 [AGENTS.md](AGENTS.md) 保留任务范围、安全边界和必读入口，
 [AGENTS.zh-CN.md](AGENTS.zh-CN.md) 是对应中文版。详细要求按任务加载：
 
+主 Agent 主要负责规划、协调和验收；除[根规则明确的直接执行例外](AGENTS.zh-CN.md#子-agent-委派)外，
+可独立交付的分析、实现和测试必须委派。远端默认使用对应授权 Host 的 `dsh headless`，按恢复规则
+回退到内置子 Agent；纯本地任务在本地委派。执行前分配、例外记录和交接见
+[Agent 执行说明](docs/agent-execution.md#具体执行必须委派)。命令示例或源码写入授权不扩大主 Agent
+直接执行范围，既有 profile、五阶段、安全与验收要求保持不变。
+
 - 本地文档、代码审查和工具维护：读取相关文件及测试，不自动连接服务器。
 - 模型适配：读取[适配细则](docs/adaptation-policy.zh-CN.md)及所选框架的工作流与验收要求。
 - 远端检查、变更或机器清单维护：读取项目内

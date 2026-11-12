@@ -1,5 +1,10 @@
 # Skills 项目入口
 
+执行归属遵循[仓库委派规则](../AGENTS.zh-CN.md#子-agent-委派)及
+[项目映射](../docs/skills-project-contract.md#skill-方法与执行归属)：主 Agent 选择操作、协调和验收，
+除明确例外外，具体分析、实现和测试必须委派。纯本地规则/文档维护保留明确例外，命令或 Skill
+方法不新增远端授权，也不降低原生验收要求。
+
 ## 适配完成后的英文部署文档
 
 [adaptation-deployment-guide](adaptation-deployment-guide/SKILL.md) 在每次适配完成交付时由

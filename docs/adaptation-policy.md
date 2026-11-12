@@ -6,6 +6,13 @@ phase. Code paths are relative to the repository root. Read the
 workspace numbering and final launch-script requirements before remote work or
 final launcher verification.
 
+Execution ownership follows [Subagent delegation](../AGENTS.md#subagent-delegation):
+the main agent plans, coordinates, reviews evidence and accepts results; all
+independently deliverable analysis, implementation and tests must be delegated
+except for the listed direct-action exceptions. Read-only work, small task size
+or executor failure does not independently permit takeover. Apply this to each
+selected phase without changing profile/source permissions or native gates.
+
 ## Guidance precedence, missing documents and gates
 
 Within the authorized task and execution boundaries, apply the user's explicit current
@@ -19,6 +26,7 @@ identify the clauses, pause only the affected action and clarify the unresolved 
 
 When maintaining guidance, keep one primary definition for each shared topic:
 
+- Agent responsibilities and direct-action exceptions: [AGENTS.md](../AGENTS.md#subagent-delegation); dispatch, recovery and records: [execution policy](agent-execution.md).
 - Remote write boundaries, remote layout and service launchers: [remote operations policy](remote-operations.md).
 - Phase isolation and completion: this policy; concrete execution and acceptance steps belong to the selected profile.
 - Evidence formats and contract versions: [framework evidence](framework-evidence.md) and its [v2 contract](evidence-contract-v2.md).

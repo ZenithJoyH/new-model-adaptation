@@ -12,6 +12,20 @@ Hub 提供可参考的独立公共能力；项目原生回执与公共结果格�
 - 能力 ID：`adaptation/accuracy`、`adaptation/performance`，公开操作见各入口的 `interface.json`。
 - 解析顺序：用户当前指令 → 本仓库 `AGENTS.md` → 本契约 → 本地 Skill 方法。
 
+## Skill 方法与执行归属
+
+- Skill 中的“调用”“执行”“分析”和 `run/execute/invoke` 是方法步骤，不指定由主 Agent 亲自执行。
+  本项目遵循 [AGENTS.md 委派要求](../AGENTS.md#subagent-delegation)及
+  [执行说明](agent-execution.md#具体执行必须委派)：除明确例外外，具体分析、实现和测试必须委派。
+- 主 Agent 选择所需操作、冻结目标和契约、规划与分配工作、协调资源、复核产物和原生回执并验收。
+  执行子 Agent 读取适用的本地 Skill 入口及必读引用，按完整方法执行并交付证据；委派不弱化方法、
+  模式、接口、runner 或验收标准，也不触发未选择的适配阶段或部署操作。
+- 远端默认使用对应授权 Host 上的 `dsh headless`，按恢复规则回退到内置子 Agent；纯本地执行在本地
+  委派。入口缺失、配置/权限问题或执行器故障不自动允许主 Agent 接管，不自动安装或扩权。
+- 主 Agent 可按明确例外进行最小只读预检、维护本地规则/文档/记录，以及调用不启动新 workload 的
+  现成原生校验器。深入分析、统计、代码和评测重跑仍须委派；执行者差异不改变实际安装组件修改、
+  禁止 `PYTHONPATH` 覆盖、适配容器保护和人工控制规则。人工产物通过相同原生验收后复用。
+
 ## 运行身份
 
 模型、权重、tokenizer、Host、平台、设备拓扑、容器、服务实例、endpoint、engine、Plugin、

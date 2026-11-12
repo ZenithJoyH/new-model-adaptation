@@ -20,6 +20,10 @@ Profile 只能收紧仓库通用安全边界，不能授权停止适配容器、
 证据要求。draft 仅支持分析和只读调查；experimental 允许已声明的适配和验证能力，
 但不能通过完整正式验收；active 才具备完整验收契约。
 
+Profile 的操作步骤同样遵循[仓库委派规则](../AGENTS.md#subagent-delegation)，不能放宽具体执行
+必须委派及主 Agent 直接执行仅限明确例外的要求。下文“修改实际安装组件”规定源码位置，不指定
+主 Agent 亲自实现，也不允许切换另一份源码或版本。
+
 `installed_product_code` 允许修改容器中实际安装且正常导入的组件，支持普通安装目录与
 editable 源码；禁止通过 `PYTHONPATH` 选择另一份代码。`editable_product_code` 保留给明确
 要求源码构建的 profile。两类组件都必须精确列入 `source_policy.writable_roles`；未声明组件

@@ -5,6 +5,14 @@ or tests on another framework. Read the selected profile's workflow and acceptan
 documents. Its ordered `acceptance.steps`, supported platforms, writable components
 and execution modes determine the actual procedure.
 
+Across all selected phases, follow [Subagent delegation](../AGENTS.md#subagent-delegation)
+and the [execution policy](agent-execution.md#具体执行必须委派). The main agent
+defines goals, assigns work, coordinates resources and accepts evidence; concrete
+analysis, implementation and tests must be delegated except for explicit
+direct-action exceptions. Record assignments and deliveries in existing phase
+plans/issues. Workflow commands and source permissions do not authorize takeover,
+unselected phases or weaker profile-specific acceptance.
+
 - `draft`: architecture and read-only discovery only.
 - `experimental`: implementation and the explicitly declared validation substeps
   are allowed within the approved task; complete formal acceptance is unavailable.

@@ -5,6 +5,15 @@ changes to inventory, group variables, Ansible entrypoints or playbooks. Code
 paths are relative to the repository root. Workspace and launcher requirements
 apply to tasks involving those resources; this document does not grant access.
 
+Follow [Subagent delegation](../AGENTS.md#subagent-delegation) for execution
+ownership. The main agent may perform only its explicit direct-action exceptions,
+including minimum read-only checks, dispatch/observation and authorized emergency
+control. Concrete diagnostics, environment/service changes, implementation and
+tests must be delegated. Direct SSH versus Ansible chooses an execution method,
+not the responsible agent; read-only status or service-change authorization does
+not independently allow main-agent takeover. All source, container, host,
+approval and human-control boundaries below remain binding.
+
 ## Scope
 
 - This repository manages every concrete host alias from the operator's SSH
