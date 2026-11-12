@@ -6,6 +6,8 @@
 - framework profile / 固定版本：
 - 工作区 evidence_contract / 正式精度 formal_contract_version / sanity manifest schema：
 - 本次选定验收子步骤及已核验的前置证据：
+- 执行前工作分配：工作单元、执行子 Agent、输入/预期产物、依赖/资源、预算、成功/停止条件及验收标准（可引用已有计划；主 Agent 验收，具体执行及例外按仓库 `AGENTS.md` 的 `Subagent delegation`）：
+- 阶段交付与复核：子 Agent 已交付/未完成项、主 Agent 直接执行例外类别/原因/范围及验收结果（随阶段更新，可引用已有记录，不改写历史事实）：
 
 除执行模式验收外，后续验收全部使用已通过的 `graph` 模式配置。
 本目录只保存 Markdown 计划与结论；脚本、配置、完整日志、缓存和原始结果保存在用户批准

@@ -66,6 +66,7 @@
 
 ## 验证结果
 
+- 执行子 Agent 已交付/未完成项、原生产物位置、主 Agent 直接执行例外类别/原因/范围及验收结论（可引用已有计划；具体执行及例外按仓库 `AGENTS.md` 的 `Subagent delegation`）：
 - 最小回归：
 - `eager`：
 - `graph` capture/replay：
