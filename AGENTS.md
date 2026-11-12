@@ -19,6 +19,8 @@ agents; [AGENTS.zh-CN.md](AGENTS.zh-CN.md) is the human-readable Chinese version
 - Modify the verified container-installed FlagOS components directly, including
   ordinary package installations and editable sources; never select another copy
   or version through `PYTHONPATH`. Follow the profile's writable component list.
+  This defines the permitted source location, not permission for the main agent
+  to take over implementation; follow the delegation requirements below.
 - Keep code changes PR-ready and scoped to a verified adaptation need. Before
   editing, bound the affected components/files/symbols and tests; justify additions
   and deletions, exclude unrelated refactors, and review each final diff hunk.
@@ -81,6 +83,113 @@ agents; [AGENTS.zh-CN.md](AGENTS.zh-CN.md) is the human-readable Chinese version
   Agent mutations for that workspace. Inspect existing processes before resuming,
   retain human changes and accept their evidence through the same validators.
   Follow [human collaboration](docs/human-collaboration.md).
+
+## Subagent delegation
+
+- Except for the explicit direct-action exceptions below, independently
+  deliverable execution MUST be split into bounded subtasks and delegated.
+  This includes architecture/inference-chain and environment analysis, source
+  and log/trace analysis, diagnosis, code and experiment-script/configuration
+  changes, environment preparation, service launch/adjustment, operator trials,
+  correctness/graph checks, profiling, accuracy/performance runs and statistics.
+  Use `dsh headless` on the exact authorized target host by default, with the
+  recovery path below to a built-in subagent. Delegate local-only execution
+  locally; do not create remote work to satisfy delegation. These duties do not
+  authorize unselected phases, hosts, components or deployment operations.
+- The main agent owns overall planning, dependencies, worker coordination,
+  integration decisions, priorities, resource coordination, observation, evidence
+  review, keep/revert decisions, final acceptance and user communication. Do not
+  hand the entire adaptation to one executor without intermediate review.
+- Before each selected phase or bounded work unit, record its executor, inputs,
+  expected outputs, dependencies/resources, budget and acceptance criteria in the
+  existing phase plan or numbered issue. Assign and dispatch delegable work
+  before executing it; do not complete it first and delegate only afterward.
+  Give each worker the task/issue or experiment ID, verified state, relevant
+  rules/Skills, exact model/platform/profile/phase, authorized hosts, containers,
+  installed import paths, working roots and files/symbols, read/write limits,
+  success/stop conditions, total budget and expected evidence. Workers must not
+  expand scope, recursively delegate, commit or push.
+- Verify the installed `dsh` entry, version and headless arguments before use;
+  do not guess its interface. Grant read-only or bounded-write permissions to
+  match the subtask and preserve command approvals. Container work must run in
+  the assigned container and its verified installed components; host-only
+  results do not substitute for container evidence.
+- Main-agent direct actions are limited to these explicit exceptions, always
+  within existing permissions, source boundaries and human-control rules:
+
+  1. Read project rules, task context and existing delivery summaries for
+     planning, contract definition and decisions.
+  2. Perform the minimum read-only checks needed for dispatch, recovery or
+     resource coordination: connection, identity, permissions, paths, executor
+     entry, processes and resource ownership. Broad source searches, full-log
+     scans, trace parsing and batch statistics remain delegated work.
+  3. Save and dispatch task/control commands, observe progress, collect outputs
+     and coordinate resources. Do not embed main-agent-written product code or
+     experiment scripts in dispatch commands as a substitute for delegation.
+  4. Inspect actual diffs and targeted execution-path/original-evidence samples,
+     verify bindings/receipts, and invoke existing native validators that do
+     not start a new workload. Delegate deeper analysis, repairs and reruns;
+     acceptance review is not permission to redo the execution.
+  5. Maintain local project rules, documentation and records, and run existing
+     document checks for those changes. This excludes implementing product
+     code, experiment scripts or evaluation/control tools under maintenance.
+  6. Perform urgent pause/precisely targeted stop or other necessary emergency
+     control within existing authorization; retain container/service protection
+     and human-takeover requirements.
+  7. Perform a single auxiliary action serving the duties above, requiring no
+     deep analysis, product-source/experiment-configuration change or device
+     experiment. Small task size alone is not an exception; batch small worker
+     tasks and never split continuous execution into small actions to evade delegation.
+- Record each direct action's exception category, reason and scope in the
+  existing task/phase/issue record; a local rules-maintenance task may use its
+  current task explanation. At phase end summarize worker deliveries, unfinished
+  work, direct-action exceptions and main-agent acceptance results, retaining
+  failures and evidence gaps. Do not create a second business ledger or new
+  required YAML schema. There is no mechanical call-count/workload ratio, and
+  no work is repeated to improve a delegation metric. Exception recording adds
+  no approval step and never replaces approvals already required by policy.
+- Run independent subtasks in parallel where host, resource and write constraints
+  permit. Assign clear write ownership and serialize conflicting or dependent
+  changes. The main agent reviews returned results and diffs and accepts completion
+  only when the required checks and evidence support it.
+- Recover before falling back: report the known cause and distinguish transport
+  loss, controller timeout, executor failure and a failed workload/test. Follow
+  [dsh recovery and fallback](docs/agent-execution.md#dsh-恢复与回退).
+  A disconnected SSH client or expired local wait does not prove remote exit.
+  Inspect the original process identity, task children, session, partial changes
+  and artifacts before any replacement. Unknown state or live writers block a
+  new executor. Collect completed results before rerunning work.
+- For long tasks, use an independent remote controller within the approved work
+  root, persist inputs/events/checkpoints, and split work into bounded outputs.
+  Freeze soft observation and total task budgets before launch. A soft deadline
+  with verified progress permits continued observation within the total budget;
+  it does not trigger an automatic kill. Resume an existing session only after
+  its execution has stopped, its checkpoint and unchanged binding are verified,
+  and that installation's resume support is established. Retry a transient failure
+  only with verified absence of side effects and no live execution. Allow at most
+  two recovery attempts; stop mechanical retries after the same error twice.
+- All attempts and fallback share the frozen total budget. Exhaustion requires
+  replanning, not a budget reset; unknown partial effects require reconciliation.
+  If recovery is unavailable or exhausted, automatically continue with a built-in
+  subagent after confirming the old execution and child writers have stopped;
+  no additional confirmation is needed. Transfer only verified state and remaining
+  work. Missing dsh, configuration and permission errors do not justify blind
+  retries, installation or broader permissions. Failed tests/accuracy remain task
+  failures and cannot be hidden by switching executor. Recovery decisions must
+  follow the linked policy and native acceptance requirements.
+  Executor failure, missing capability, paths or permissions do not automatically
+  permit main-agent takeover. If a built-in subagent also cannot do the work,
+  record the capability gap and replan; direct actions remain limited to the
+  explicit exceptions above.
+- Both execution paths obey the same task scope, source permissions, human
+  control and evidence requirements. Use only authorized hosts and work roots;
+  delegation does not authorize remote work for a local-only task or bypass
+  command approvals.
+- Apply this division at the next safe work-unit boundary for ongoing tasks.
+  Check live processes, partial changes, resources and valid evidence first;
+  reuse running/completed checks rather than restarting them just to change
+  executor. Human pause/takeover takes precedence. Carry these scoped rules
+  into an independent worktree's own AGENTS without overwriting unrelated changes.
 
 ## Required reading by task
 
