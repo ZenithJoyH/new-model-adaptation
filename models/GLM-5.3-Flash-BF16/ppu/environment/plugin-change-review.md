@@ -415,3 +415,69 @@ KDA；Qwen 分支只含 `qwen3_8_flash_next` 相关文件和测试。两者均�
 decode FULL graph 7/7、16/16 worker、health 200，smoke 返回 `2`，致命错误 0、容器 restart 0。
 未执行 HY4 整模、GPQA 或正式性能验收，不能据此扩大支持范围或标记 optimized。完整记录见
 [031](../adaptation/031-flaggems-day0-diverged-sync-blocker-20260910.md)。
+
+## 2026-11-06 PR #572 主线冲突与推理链路复核（进行中）
+
+本节记录本地源码和 GitHub 只读核查，不复用上文历史硬件结果作为当前版本通过证据。
+用户要求保留并修复平头哥推理能力，重新梳理链路并消除冲突；不按重复 PR 关闭。
+远端主机、容器和工作根仍待本次明确，尚未连接、修改或重启任何 PPU 服务。
+
+### 已核实的基线与问题
+
+- [PR #572](https://github.com/flagos-ai/vllm-plugin-FL/pull/572) head 为
+  `115ecb8f4888a592055b530475537282ea967a3f`，fork 分支为
+  `ZenithJoyH/vllm-plugin-FL:support-glm5.3-flash`，Draft、`mergeable_state=dirty`。
+  无 discussion/review comment；该 head 的 CI `37724041734` 和 Code Scan
+  `37724041226` 都为 skipped，CLA 成功。工作流显式排除 Draft，不能把跳过当通过。
+- 当前主线为 `087f9b6e89d94f54509fba85ed3d5a7afff96c0f`。PR API 的 base SHA
+  仍显示旧 `95ed8d3`，以独立分支查询和 Git fetch 核实当前主线。
+  主线已包含 [GLM #454](https://github.com/flagos-ai/vllm-plugin-FL/pull/454)
+  的 `7094141` 和 HY4 #453 的 `8b2033e`；旧 PR 的模型实现不能无条件叠加。
+- 在独立临时克隆 `/private/tmp/pr572-repair-20261106`，原 head 初始 clean；
+  `git merge --no-commit --no-ff upstream/main` 复现 10 个冲突文件：README、
+  Plugin init、MLA prefill、dispatch init、FlagGems backend/activation/fused_moe/
+  register_ops、reference activation、platform。没有提交或推送。
+- 仅合并冲突两侧会产生额外运行时错误：旧 GLM/Hy4 注册覆盖主线注册；
+  `silu_and_mul_with_clamp` 的 `default.flagos` / `reference.torch` 重复，且旧
+  `(x, limit, alpha, beta)` 与主线 `(obj, x)` ABI 不同；两个 TopK 注册也与主线
+  `mla_ops.register_mla_operators` 的同名 `default.flagos` 冲突。
+  `OpRegistry.register_impl` 明确拒绝相同 op/impl_id，不能靠注册顺序规避。
+- 主线 GLM 依赖固定 FlagGems-vllm `80a8e9716abed1bac3fc0ba5fd4e9f650ae3f989`。
+  该版本完整 Git tree 含 `_thead/FLA/chunk_kda.py`，但不含旧 PR 探测的
+  `_thead/ops/chunk_kda.py` 和 `_thead/ops/causal_conv1d.py`；旧 capability 探测
+  与该公开版本不匹配。目录缺失不等于公共 API 或通用实现缺失，需继续核对实际导出。
+
+### 主线推理链路与 PPU 待核验边界
+
+| 环节 | 当前主线入口 | PPU 修复/验证重点 |
+| --- | --- | --- |
+| 注册与生命周期 | `register_model → models/glm5/runtime.register_glm5_next_support → ActivationPlan` | 保留唯一模型/config 注册与原子 patch 生命周期，不重新安装旧全局 GLM/Hy4 patch。验证 fresh/spawn、幂等、非目标模型隔离。 |
+| 模型与权重 | `models/glm5/model.py`、`config.py`、`multimodal.py` | 对照真实 BF16 checkpoint 的 architecture、TP 分片、mHC 参数及视觉塔，不能默认降成纯文本。 |
+| KDA prefill/decode | `Glm5NextLinearAttention`、`safe_kda.py → indexer_backend._kpool` | 检查公开 causal-conv、bounded gate、chunk/recurrent KDA 签名；旧 PPU 长 prefill metadata 是否仍必需须按实际调用契约判定。 |
+| Indexer/KPool/tail | `indexer_backend.py → indexer_bf16.py`、`cache.py` | PPU 精度选择、BF16 cache 的物理 stride、有效 slot、pool/tail 顺序；单算子独立参考与 changed-input graph。 |
+| MLA prefill/decode | GLM activation 的 attention override、`dispatch/backends/flaggems/impl/mla.py` | 主线模型构造中的 prefill 临时适配以 `current_platform.is_cuda()` 为条件，而 PlatformFL 仅 NVIDIA 返回 true；PPU 是否走可用 FA2/公开库路径需现场验证。新旧 CUSTOM 注册不能互相占用。 |
+| mHC/clamp | `models/glm5/compile_ops.py → runtime` 的公共策略 binding | 统一主线 `(obj, x)` clamp 和 mHC norm 契约；不得继续重复注册旧能力。数值计算使用 FlagGems-vllm 公开 API。 |
+| MoE | GLM `MoEDispatchDefaults`、既有 fused-MoE dispatch | 保持模型级策略与现有 activation 参数；按 PPU 实际可用 API 选路，执行错误不得换后端重试。 |
+| Native 扩展 | 旧 PR 的 T-Head bootstrap/native loader（主线无该增量） | 先核实是否仍需要三份二进制、真实 ABI/来源和加载顺序；历史 provenance 不是当前安装验证。 |
+| 图执行 | 主线 `prewarm_cached_ops`、模型 custom-op/fake 边界 | 不并存两套 prepare/prewarm 生命周期；验证策略失效、更新输入、输出 sentinel、cache 状态重置与真实 replay。 |
+
+### 修改清单与验证门槛
+
+当前只完成诊断，尚未确认最终产品文件清单。远端核实实际安装组件、revision、dirty
+状态、解释器与映射后，在本节补齐精确符号及必要增删，才修改已安装产品源码。
+
+1. Plugin：优先复用 `models/glm5/` 和已合入 HY4；按调用方/动态注册/测试对照确认
+   旧模型与重复接线的替代关系后移除被替代增量。PPU 特有能力保留在现有 vendor/平台
+   扩展点，不能为消除文本冲突直接丢弃。
+2. FlagGems-vllm：先核对公共算子 API 与当前安装版本；必要的 vLLM 数值修复归该库。
+   FlagGems 仅处理 ATen 自动替换；vLLM 与第三方依赖只读。
+3. 测试：注册/策略/隔离及错误传播 → 受影响算子独立数值 → PPU eager → graph
+   按 `full → full-and-piecewise → decode-full → piecewise` 逐级诊断 → 文本与实际
+   模态请求。保存原始响应、实际后端和代码身份；不能以历史 TP16 或 stub 通过代替。
+4. 本次主线迁移适用 `plugin:A1–A4/B1–B4/C1–C4/D3–D4/E1–E4/F1–F7/G1–G2`；
+   算子变更再按实际范围落实 `operator` 条款。格式、构建、硬件和 CI 未运行项保持
+   未验证；不改历史 acceptance 状态，不宣称 PR 已就绪或 PPU 已恢复正常推理。
+
+需要的环境信息：是否沿用历史 `PPU-13` / `glm5.3-flash` /
+`/mnt/nfs/users/jinghao/glm5.3-flash`，或用户指定其他精确主机、容器与工作根。
+该历史映射及安装源码路径必须重新验证，不能由本地记录推定当前可写身份。

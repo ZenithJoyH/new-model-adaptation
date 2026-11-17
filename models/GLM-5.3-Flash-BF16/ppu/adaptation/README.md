@@ -22,6 +22,7 @@
 - [029：迁移算子从 Thead 候选重分类为 FlagGems dispatch](029-flaggems-dispatch-reclassification-20260910.md)。
 - [030：GLM 与混元复用通用 row-wise top-k dispatch](030-shared-rowwise-topk-20260910.md)。
 - [031：FlagGems day0 分支分叉阻塞剩余算子补齐](031-flaggems-day0-diverged-sync-blocker-20260910.md)。
+- [033：PR #1134 修订、Plugin 依赖对齐与 PPU-166 验证](033-pr1134-review-and-dependency-alignment-20261112.md)。
 
 001、018 与 019 是不同失败签名；不能把 SQLite mitigation、slot 根因修复和生成长度耗尽
 互相替代。
