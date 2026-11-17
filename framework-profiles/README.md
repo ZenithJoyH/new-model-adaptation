@@ -43,6 +43,7 @@ editable 源码；禁止通过 `PYTHONPATH` 选择另一份代码。`editable_pr
 | `vllm-plugin-fl` | `active` | vLLM 服务、vllm-plugin-FL 与 FlagGems 模型适配 |
 | `vllm-native` | `active` | NVIDIA 原生 vLLM 源码树中的模型适配 |
 | `vllm-ppu` | `experimental` | 平头哥原生 vLLM 安装中的模型适配与 eager/graph 定向验证 |
+| `lightx2v-plugin-fl` | `experimental` | MetaX eager Python API 与常驻HTTP音视频任务功能验证；仅Plugin可写，无正式精度/性能adapter |
 | `torch-fl` | `experimental` | PPU 直接集成、算子路由、eager 模型验证，以及可选自包含 wheel |
 
 `new-framework` 接受 active 和 experimental，按 profile 生成各自验收步骤；Torch-FL 不生成

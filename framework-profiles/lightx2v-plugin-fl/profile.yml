@@ -1,0 +1,67 @@
+schema_version: 1
+id: lightx2v-plugin-fl
+display_name: LightX2V Plugin-FL eager API and HTTP tasks on MetaX
+profile_version: 1
+status: experimental
+platforms: [metax]
+components:
+  - role: plugin
+    name: lightx2v-plugin-FL
+    required: true
+    mutation_policy: installed_product_code
+  - role: inference_engine
+    name: LightX2V
+    required: true
+    mutation_policy: read_only
+  - role: operator_library
+    name: FlagGems
+    required: true
+    mutation_policy: read_only
+  - role: fusion_library
+    name: FlagOmni
+    required: true
+    mutation_policy: read_only
+  - role: vendor_torch
+    name: MetaX vendor PyTorch and Triton/FlagTree
+    required: true
+    mutation_policy: read_only
+  - role: platform_runtime
+    name: MetaX MACA, MCCL, driver and runtime
+    required: true
+    mutation_policy: read_only
+  - role: service_dependencies
+    name: Installed HTTP, queue and media dependencies
+    required: true
+    mutation_policy: read_only
+  - role: model_implementation
+    name: Model implementation, configuration assets and weights
+    required: true
+    mutation_policy: read_only
+source_policy:
+  default: read_only
+  writable_roles: [plugin]
+execution_modes:
+  required: [eager]
+  acceptance_primary: eager
+service:
+  protocols: [python-api, http-json-tasks]
+acceptance:
+  steps:
+    functional:
+      validator: checks
+      checks: [policy_binding, native_dispatch, no_silent_fallback, model_residency, request_lifecycle, media_output, resource_state]
+    evidence:
+      validator: checks
+      checks: [source_review, stack_preserved, launcher_binding, limitations_recorded]
+    summary:
+      validator: checks
+      checks: [source_review, limitations_recorded]
+  accuracy_adapter: null
+  performance_adapter: null
+  prefix_caching:
+    non_performance: not_applicable
+    performance: not_applicable
+    disable_mechanism: null
+documents:
+  workflow: workflow.md
+  acceptance: acceptance.md

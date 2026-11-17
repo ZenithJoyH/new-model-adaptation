@@ -1,0 +1,15 @@
+name: MiniMax-H3
+source:
+  modelscope_id: ''
+  huggingface_id: MiniMaxAI/MiniMax-H3
+  revision: ''
+architecture: Joint audio/video diffusion transformer with Qwen3-VL conditioning and
+  video/audio VAEs
+parameter_count: ''
+active_parameter_count: ''
+estimated_weight_size_gb: null
+remote_weight_path: /public-flash/models/MiniMax-H3
+status: not_started
+notes: MetaX LightX2V Plugin-FL experimental HTTP work initialized; historical standalone
+  results are baseline only. Upstream weight revision and full payload checksums are
+  not verified.

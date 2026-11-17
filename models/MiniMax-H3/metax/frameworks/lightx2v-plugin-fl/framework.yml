@@ -1,0 +1,177 @@
+schema_version: 1
+model: MiniMax-H3
+platform: metax
+framework: lightx2v-plugin-fl
+profile: framework-profiles/lightx2v-plugin-fl/profile.yml
+profile_version: 1
+status: not_started
+validated_hosts: []
+container_image: ''
+last_verified: null
+blocker: User paused mx-57 and selected mx-104 on 2026-11-17. The new container and
+  environment are not yet verified; historical mx-57 observations remain scoped to
+  their original host. See adaptation/002-http-operators-and-host-handoff.md.
+control:
+  mode: agent
+  history: []
+target:
+  hosts:
+  - mx-104
+  container_name: minimaxH3
+workspace:
+  roots:
+  - host_alias: mx-104
+    host_root: /public-flash/jinghao/minimaxH3/mx104-20261117
+    container_root: /public-flash/jinghao/minimaxH3/mx104-20261117
+deployment:
+  fingerprint: ''
+acceptance_plan:
+  functional:
+    state: not_frozen
+    mode: eager
+    task: t2av
+    container_id: ''
+    user_service_directory: /public-flash/jinghao/minimaxH3/mx104-20261117
+    startup_config:
+      path: /public-flash/jinghao/minimaxH3/mx104-20261117/config.json
+      sha256: 5121fc6e3841c56d2391905f03f53d0914a32265a7a86ad9affa00ecf76a9c93
+    planned_canonical_launcher: /public-flash/jinghao/minimaxH3/mx104-20261117/start-model.sh
+    default_geometry:
+      height: 544
+      width: 960
+      num_frames: 124
+      infer_steps: 29
+    parallelism:
+      tensor: 4
+      sequence: 2
+      text_world: 8
+    request_concurrency: 1
+    note: mx-104 is selected for continuation; its container, installed components,
+      launcher and device binding are pending verification. The configuration hash
+      is a planned historical input. Preserve mx-57 results and failures as historical
+      evidence; they do not validate mx-104 or establish a native phase pass.
+workflow:
+  architecture:
+    status: not_started
+    evidence: ../../../architecture-and-inference.md
+    last_verified: null
+    blocker: ''
+    verification: {}
+  environment:
+    status: not_started
+    evidence: environment/README.md
+    last_verified: null
+    blocker: ''
+    verification: {}
+  adaptation:
+    status: not_started
+    evidence: adaptation/README.md
+    last_verified: null
+    blocker: ''
+    verification: {}
+  acceptance:
+    status: not_started
+    evidence: acceptance/README.md
+    last_verified: null
+    blocker: ''
+    verification: {}
+    records: {}
+    substeps:
+      functional: not_started
+      evidence: not_started
+      summary: not_started
+  retrospective:
+    status: not_started
+    evidence: acceptance/README.md
+    last_verified: null
+    blocker: ''
+    verification: {}
+evidence_contract: 2
+profile_snapshot:
+  schema_version: 1
+  id: lightx2v-plugin-fl
+  display_name: LightX2V Plugin-FL eager API and HTTP tasks on MetaX
+  profile_version: 1
+  status: experimental
+  platforms:
+  - metax
+  components:
+  - role: plugin
+    name: lightx2v-plugin-FL
+    required: true
+    mutation_policy: installed_product_code
+  - role: inference_engine
+    name: LightX2V
+    required: true
+    mutation_policy: read_only
+  - role: operator_library
+    name: FlagGems
+    required: true
+    mutation_policy: read_only
+  - role: fusion_library
+    name: FlagOmni
+    required: true
+    mutation_policy: read_only
+  - role: vendor_torch
+    name: MetaX vendor PyTorch and Triton/FlagTree
+    required: true
+    mutation_policy: read_only
+  - role: platform_runtime
+    name: MetaX MACA, MCCL, driver and runtime
+    required: true
+    mutation_policy: read_only
+  - role: service_dependencies
+    name: Installed HTTP, queue and media dependencies
+    required: true
+    mutation_policy: read_only
+  - role: model_implementation
+    name: Model implementation, configuration assets and weights
+    required: true
+    mutation_policy: read_only
+  source_policy:
+    default: read_only
+    writable_roles:
+    - plugin
+  execution_modes:
+    required:
+    - eager
+    acceptance_primary: eager
+  service:
+    protocols:
+    - python-api
+    - http-json-tasks
+  acceptance:
+    steps:
+      functional:
+        validator: checks
+        checks:
+        - policy_binding
+        - native_dispatch
+        - no_silent_fallback
+        - model_residency
+        - request_lifecycle
+        - media_output
+        - resource_state
+      evidence:
+        validator: checks
+        checks:
+        - source_review
+        - stack_preserved
+        - launcher_binding
+        - limitations_recorded
+      summary:
+        validator: checks
+        checks:
+        - source_review
+        - limitations_recorded
+    accuracy_adapter: null
+    performance_adapter: null
+    prefix_caching:
+      non_performance: not_applicable
+      performance: not_applicable
+      disable_mechanism: null
+  documents:
+    workflow: workflow.md
+    acceptance: acceptance.md
+profile_hash_version: 3
+profile_sha256: 8d86c2e294ccc4cf0e3dcd166591f0b4c3388ba14f927a131a1d1a9e9554cce4
