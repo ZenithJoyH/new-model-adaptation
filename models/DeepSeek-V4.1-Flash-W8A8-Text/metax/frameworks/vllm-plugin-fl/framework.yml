@@ -8,7 +8,7 @@ status: blocked
 validated_hosts: []
 container_image: harbor.baai.ac.cn/flagos-inner-models-release/metax-for-vllm-plugin-fl-0.28@sha256:34dfb5c72b60cf0a7c2c1ff0d73c24cc8bc4314b3b0deb36c51306000d85b6f1
 last_verified: null
-blocker: V4.1完整模型/量化/cache接入尚未完成；不得将配置注册和通信前置作为整模通过。
+blocker: GPQA原16序列结果86.3636%达到用户86%门槛，64有界验证通过。PR整理5文件及三仓候选材料完成，13项隔离回归、8项恢复sanity通过，原64服务已恢复为v41-pr-cleanup-restored-v1-20261105；完整64精度、正式绑定/性能、D3公开固定依赖、H9高精度对照及最终目标/CI仍未完成，source_review不提升。正式服务契约已按当前64脚本与参数重冻结，16序列原分数保留历史；暂不修复GSM8K。
 control:
   mode: agent
   history: []
@@ -30,6 +30,499 @@ deployment:
 acceptance_plan:
   service_contract:
     schema_version: 1
+    architecture_sha256: 0466144fad138f63a39646dab004d25d46d24a225618a8151b47e3ad5781c6ff
+    required_modalities:
+    - text
+    hosts:
+      mx-102:
+        launcher:
+          path: /public-flash/jinghao/deepseekV4.1/start-model.sh
+          sha256: 364d18c989f8ce0e5e1406e714eb79cd8586af95487512b6c39aaf9845f9bce9
+        argv:
+        - /opt/conda/bin/python3.12
+        - /opt/conda/bin/vllm
+        - serve
+        - /public-flash/models/DeepSeek-V4.1-Flash-W8A8-Text
+        - --tokenizer-mode
+        - deepseek_v41
+        - --reasoning-parser
+        - deepseek_v4
+        - --served-model-name
+        - DeepSeek-V4.1-Flash-W8A8-Text
+        - --tensor-parallel-size
+        - '8'
+        - --pipeline-parallel-size
+        - '2'
+        - --nnodes
+        - '2'
+        - --node-rank
+        - '0'
+        - --master-addr
+        - 192.168.2.102
+        - --master-port
+        - '29621'
+        - --distributed-executor-backend
+        - mp
+        - --dtype
+        - bfloat16
+        - --quantization
+        - fl_w8a8_int8
+        - --kv-cache-dtype
+        - fp8_ds_mla
+        - --block-size
+        - '64'
+        - --kv-cache-memory-bytes
+        - '536870912'
+        - --max-model-len
+        - '50000'
+        - --max-num-batched-tokens
+        - '1024'
+        - --max-num-seqs
+        - '64'
+        - --async-scheduling
+        - --enable-prefix-caching
+        - --compilation-config
+        - '{"cudagraph_mode":"FULL"}'
+        environment:
+          VLLM_HOST_IP: 192.168.2.102
+          VLLM_USE_V2_MODEL_RUNNER: '1'
+          USE_FLAGTUNE: '0'
+          MCCL_SOCKET_IFNAME: inbond1
+          GLOO_SOCKET_IFNAME: inbond1
+          MCCL_IB_HCA: bnxt_roce0,bnxt_roce1,bnxt_roce2,bnxt_roce3
+          MCCL_IB_GID_INDEX: '3'
+          MCCL_IB_DISABLE: '0'
+          MCCL_CROSS_NIC: '1'
+          RDMAV_DRIVERS: /opt/deepseek-v41-runtime/libbnxt_re
+        effective_config:
+          served_model_names:
+          - DeepSeek-V4.1-Flash-W8A8-Text
+          prefix_caching_enabled: true
+          settings:
+            engine_resolved:
+              model: /public-flash/models/DeepSeek-V4.1-Flash-W8A8-Text
+              speculative_config: null
+              tokenizer: /public-flash/models/DeepSeek-V4.1-Flash-W8A8-Text
+              skip_tokenizer_init: false
+              tokenizer_mode: deepseek_v41
+              revision: null
+              tokenizer_revision: null
+              trust_remote_code: false
+              dtype: torch.bfloat16
+              max_seq_len: 50000
+              download_dir: null
+              load_format: auto
+              tensor_parallel_size: 8
+              pipeline_parallel_size: 2
+              data_parallel_size: 1
+              decode_context_parallel_size: 1
+              dcp_comm_backend: ag_rs
+              disable_custom_all_reduce: false
+              quantization: fl_w8a8_int8
+              quantization_config: null
+              enforce_eager: false
+              enable_return_routed_experts: false
+              kv_cache_dtype: fp8_ds_mla
+              device_config: cuda
+              structured_outputs_config:
+                type: StructuredOutputsConfig
+                backend: auto
+                disable_any_whitespace: false
+                disable_additional_properties: false
+                reasoning_parser: deepseek_v4
+                reasoning_parser_plugin: ''
+                enable_in_reasoning: false
+              observability_config:
+                type: ObservabilityConfig
+                show_hidden_metrics_for_version: null
+                otlp_traces_endpoint: null
+                collect_detailed_traces: null
+                kv_cache_metrics: false
+                kv_cache_metrics_sample: 0.01
+                cudagraph_metrics: false
+                enable_layerwise_nvtx_tracing: false
+                enable_mfu_metrics: false
+                enable_mm_processor_stats: false
+                enable_logging_iteration_details: false
+                jit_monitor_mode: warn
+                jit_monitor_verbose: false
+              seed: 0
+              served_model_name: DeepSeek-V4.1-Flash-W8A8-Text
+              enable_chunked_prefill: true
+              pooler_config: null
+              compilation_config:
+                mode: CompilationMode.VLLM_COMPILE
+                debug_dump_path: null
+                cache_dir: ''
+                compile_cache_save_format: binary
+                backend: inductor
+                custom_ops:
+                - none
+                ir_enable_torch_wrap: true
+                splitting_ops:
+                - vllm::unified_attention_with_output
+                - vllm::unified_mla_attention_with_output
+                - vllm::mamba_mixer2
+                - vllm::mamba_mixer
+                - vllm::short_conv
+                - vllm::linear_attention
+                - vllm::qwen_gdn_attention_core
+                - vllm::qwen_gdn_attention_core_fused_norm_packed
+                - vllm::gdn_attention_core_xpu
+                - vllm::olmo_hybrid_gdn_full_forward
+                - vllm::sparse_attn_indexer
+                - vllm::rocm_aiter_sparse_attn_indexer
+                - vllm::deepseek_v4_attention
+                - vllm::hpc_rope_norm_forward
+                - vllm::unified_kv_cache_update
+                - vllm::unified_mla_kv_cache_update
+                compile_mm_encoder: false
+                cudagraph_mm_encoder: false
+                encoder_cudagraph_token_budgets: []
+                encoder_cudagraph_max_vision_items_per_batch: 0
+                encoder_cudagraph_max_frames_per_batch: null
+                compile_sizes: []
+                compile_ranges_endpoints:
+                - 1024
+                inductor_compile_config:
+                  enable_auto_functionalized_v2: false
+                  size_asserts: false
+                  alignment_asserts: false
+                  scalar_asserts: false
+                  combo_kernels: true
+                  benchmark_combo_kernel: true
+                inductor_passes: {}
+                cudagraph_mode: CUDAGraphMode.FULL
+                cudagraph_num_of_warmups: 1
+                cudagraph_capture_sizes:
+                - 1
+                - 2
+                - 4
+                - 8
+                - 16
+                - 24
+                - 32
+                cudagraph_copy_inputs: false
+                cudagraph_specialize_lora: true
+                use_inductor_graph_partition: false
+                pass_config:
+                  fuse_norm_quant: false
+                  fuse_act_quant: false
+                  fuse_attn_quant: false
+                  enable_sp: false
+                  fuse_gemm_comms: false
+                  fuse_allreduce_rms: false
+                  enable_qk_norm_rope_fusion: false
+                  fuse_rope_kvcache_cat_mla: false
+                  fuse_act_padding: false
+                  fuse_qk_norm_rope_kvcache: false
+                max_cudagraph_capture_size: 32
+                dynamic_shapes_config:
+                  type: DynamicShapesType.BACKED
+                  evaluate_guards: false
+                  assume_32_bit_indexing: false
+                local_cache_dir: null
+                fast_moe_cold_start: true
+                static_all_moe_layers: []
+              kernel_config:
+                type: KernelConfig
+                ir_op_priority:
+                  type: IrOpPriorityConfig
+                  rms_norm:
+                  - native
+                  fused_add_rms_norm:
+                  - native
+                enable_flashinfer_autotune: true
+                enable_cutedsl_warmup: true
+                enable_jit_warmup: true
+                enable_bf16x3_router_gemm: false
+                moe_backend: auto
+                linear_backend: auto
+            cache_resolved:
+              _block_size_resolved: 'True'
+              block_size: '64'
+              cache_dtype: fp8_ds_mla
+              gpu_memory_utilization: '0.92'
+              is_attention_free: 'False'
+              kv_cache_dtype_skip_layers: '[]'
+              kv_cache_max_concurrency: '5.548761609907121'
+              kv_cache_memory_bytes: '536870912'
+              kv_cache_size_tokens: '277438'
+              kv_offloading_backend: native
+              kv_offloading_size: None
+              kv_sharing_fast_prefill: 'False'
+              mamba_block_size: None
+              mamba_cache_dtype: auto
+              mamba_cache_mode: none
+              mamba_page_size_padded: None
+              mamba_ssm_cache_dtype: auto
+              num_cpu_blocks: None
+              num_gpu_blocks: '7169'
+              num_gpu_blocks_override: None
+              prefix_caching_hash_algo: sha256
+              prefix_match_unit: None
+              replayssm_buffer_len: '16'
+              skip_page_size_padded: None
+              sliding_window: '128'
+              use_replayssm: 'False'
+              user_specified_block_size: 'True'
+              user_specified_mamba_block_size: 'False'
+            runner: v2
+            model_metadata_sha256:
+              config.json: 5d716883e320def43c473bde82030f13f3b806c4411437975e94b3a29de3c0e7
+              model.safetensors.index.json: 3ca46c734ab2a61daf0821d34cb48f3902f5e81769d5c8faf8c85b620f93b644
+              tokenizer.json: c90dfa01249db1be4245780a052ede752e1361c612ac6d08e2bdada7d599476b
+              tokenizer_config.json: 6ac8c8dc065ed118161d02dd532749ae3f52c243deac27872134fae2f50d8547
+            distributed_role:
+              node_rank: 0
+              headless: false
+      mx-103:
+        launcher:
+          path: /public-flash/jinghao/deepseekV4.1/start-model.sh
+          sha256: 364d18c989f8ce0e5e1406e714eb79cd8586af95487512b6c39aaf9845f9bce9
+        argv:
+        - /opt/conda/bin/python3.12
+        - /opt/conda/bin/vllm
+        - serve
+        - /public-flash/models/DeepSeek-V4.1-Flash-W8A8-Text
+        - --tokenizer-mode
+        - deepseek_v41
+        - --reasoning-parser
+        - deepseek_v4
+        - --served-model-name
+        - DeepSeek-V4.1-Flash-W8A8-Text
+        - --tensor-parallel-size
+        - '8'
+        - --pipeline-parallel-size
+        - '2'
+        - --nnodes
+        - '2'
+        - --node-rank
+        - '1'
+        - --master-addr
+        - 192.168.2.102
+        - --master-port
+        - '29621'
+        - --distributed-executor-backend
+        - mp
+        - --dtype
+        - bfloat16
+        - --quantization
+        - fl_w8a8_int8
+        - --kv-cache-dtype
+        - fp8_ds_mla
+        - --block-size
+        - '64'
+        - --kv-cache-memory-bytes
+        - '536870912'
+        - --max-model-len
+        - '50000'
+        - --max-num-batched-tokens
+        - '1024'
+        - --max-num-seqs
+        - '64'
+        - --async-scheduling
+        - --enable-prefix-caching
+        - --compilation-config
+        - '{"cudagraph_mode":"FULL"}'
+        - --headless
+        environment:
+          VLLM_HOST_IP: 192.168.2.103
+          VLLM_USE_V2_MODEL_RUNNER: '1'
+          USE_FLAGTUNE: '0'
+          MCCL_SOCKET_IFNAME: inbond1
+          GLOO_SOCKET_IFNAME: inbond1
+          MCCL_IB_HCA: bnxt_roce0,bnxt_roce1,bnxt_roce2,bnxt_roce3
+          MCCL_IB_GID_INDEX: '3'
+          MCCL_IB_DISABLE: '0'
+          MCCL_CROSS_NIC: '1'
+          RDMAV_DRIVERS: /opt/deepseek-v41-runtime/libbnxt_re
+        effective_config:
+          served_model_names:
+          - DeepSeek-V4.1-Flash-W8A8-Text
+          prefix_caching_enabled: true
+          settings:
+            engine_resolved:
+              model: /public-flash/models/DeepSeek-V4.1-Flash-W8A8-Text
+              speculative_config: null
+              tokenizer: /public-flash/models/DeepSeek-V4.1-Flash-W8A8-Text
+              skip_tokenizer_init: false
+              tokenizer_mode: deepseek_v41
+              revision: null
+              tokenizer_revision: null
+              trust_remote_code: false
+              dtype: torch.bfloat16
+              max_seq_len: 50000
+              download_dir: null
+              load_format: auto
+              tensor_parallel_size: 8
+              pipeline_parallel_size: 2
+              data_parallel_size: 1
+              decode_context_parallel_size: 1
+              dcp_comm_backend: ag_rs
+              disable_custom_all_reduce: false
+              quantization: fl_w8a8_int8
+              quantization_config: null
+              enforce_eager: false
+              enable_return_routed_experts: false
+              kv_cache_dtype: fp8_ds_mla
+              device_config: cuda
+              structured_outputs_config:
+                type: StructuredOutputsConfig
+                backend: auto
+                disable_any_whitespace: false
+                disable_additional_properties: false
+                reasoning_parser: deepseek_v4
+                reasoning_parser_plugin: ''
+                enable_in_reasoning: false
+              observability_config:
+                type: ObservabilityConfig
+                show_hidden_metrics_for_version: null
+                otlp_traces_endpoint: null
+                collect_detailed_traces: null
+                kv_cache_metrics: false
+                kv_cache_metrics_sample: 0.01
+                cudagraph_metrics: false
+                enable_layerwise_nvtx_tracing: false
+                enable_mfu_metrics: false
+                enable_mm_processor_stats: false
+                enable_logging_iteration_details: false
+                jit_monitor_mode: warn
+                jit_monitor_verbose: false
+              seed: 0
+              served_model_name: DeepSeek-V4.1-Flash-W8A8-Text
+              enable_chunked_prefill: true
+              pooler_config: null
+              compilation_config:
+                mode: CompilationMode.VLLM_COMPILE
+                debug_dump_path: null
+                cache_dir: ''
+                compile_cache_save_format: binary
+                backend: inductor
+                custom_ops:
+                - none
+                ir_enable_torch_wrap: true
+                splitting_ops:
+                - vllm::unified_attention_with_output
+                - vllm::unified_mla_attention_with_output
+                - vllm::mamba_mixer2
+                - vllm::mamba_mixer
+                - vllm::short_conv
+                - vllm::linear_attention
+                - vllm::qwen_gdn_attention_core
+                - vllm::qwen_gdn_attention_core_fused_norm_packed
+                - vllm::gdn_attention_core_xpu
+                - vllm::olmo_hybrid_gdn_full_forward
+                - vllm::sparse_attn_indexer
+                - vllm::rocm_aiter_sparse_attn_indexer
+                - vllm::deepseek_v4_attention
+                - vllm::hpc_rope_norm_forward
+                - vllm::unified_kv_cache_update
+                - vllm::unified_mla_kv_cache_update
+                compile_mm_encoder: false
+                cudagraph_mm_encoder: false
+                encoder_cudagraph_token_budgets: []
+                encoder_cudagraph_max_vision_items_per_batch: 0
+                encoder_cudagraph_max_frames_per_batch: null
+                compile_sizes: []
+                compile_ranges_endpoints:
+                - 1024
+                inductor_compile_config:
+                  enable_auto_functionalized_v2: false
+                  size_asserts: false
+                  alignment_asserts: false
+                  scalar_asserts: false
+                  combo_kernels: true
+                  benchmark_combo_kernel: true
+                inductor_passes: {}
+                cudagraph_mode: CUDAGraphMode.FULL
+                cudagraph_num_of_warmups: 1
+                cudagraph_capture_sizes:
+                - 1
+                - 2
+                - 4
+                - 8
+                - 16
+                - 24
+                - 32
+                cudagraph_copy_inputs: false
+                cudagraph_specialize_lora: true
+                use_inductor_graph_partition: false
+                pass_config:
+                  fuse_norm_quant: false
+                  fuse_act_quant: false
+                  fuse_attn_quant: false
+                  enable_sp: false
+                  fuse_gemm_comms: false
+                  fuse_allreduce_rms: false
+                  enable_qk_norm_rope_fusion: false
+                  fuse_rope_kvcache_cat_mla: false
+                  fuse_act_padding: false
+                  fuse_qk_norm_rope_kvcache: false
+                max_cudagraph_capture_size: 32
+                dynamic_shapes_config:
+                  type: DynamicShapesType.BACKED
+                  evaluate_guards: false
+                  assume_32_bit_indexing: false
+                local_cache_dir: null
+                fast_moe_cold_start: true
+                static_all_moe_layers: []
+              kernel_config:
+                type: KernelConfig
+                ir_op_priority:
+                  type: IrOpPriorityConfig
+                  rms_norm:
+                  - native
+                  fused_add_rms_norm:
+                  - native
+                enable_flashinfer_autotune: true
+                enable_cutedsl_warmup: true
+                enable_jit_warmup: true
+                enable_bf16x3_router_gemm: false
+                moe_backend: auto
+                linear_backend: auto
+            cache_resolved:
+              _block_size_resolved: 'True'
+              block_size: '64'
+              cache_dtype: fp8_ds_mla
+              gpu_memory_utilization: '0.92'
+              is_attention_free: 'False'
+              kv_cache_dtype_skip_layers: '[]'
+              kv_cache_max_concurrency: '5.548761609907121'
+              kv_cache_memory_bytes: '536870912'
+              kv_cache_size_tokens: '277438'
+              kv_offloading_backend: native
+              kv_offloading_size: None
+              kv_sharing_fast_prefill: 'False'
+              mamba_block_size: None
+              mamba_cache_dtype: auto
+              mamba_cache_mode: none
+              mamba_page_size_padded: None
+              mamba_ssm_cache_dtype: auto
+              num_cpu_blocks: None
+              num_gpu_blocks: '7169'
+              num_gpu_blocks_override: None
+              prefix_caching_hash_algo: sha256
+              prefix_match_unit: None
+              replayssm_buffer_len: '16'
+              skip_page_size_padded: None
+              sliding_window: '128'
+              use_replayssm: 'False'
+              user_specified_block_size: 'True'
+              user_specified_mamba_block_size: 'False'
+            runner: v2
+            model_metadata_sha256:
+              config.json: 5d716883e320def43c473bde82030f13f3b806c4411437975e94b3a29de3c0e7
+              model.safetensors.index.json: 3ca46c734ab2a61daf0821d34cb48f3902f5e81769d5c8faf8c85b620f93b644
+              tokenizer.json: c90dfa01249db1be4245780a052ede752e1361c612ac6d08e2bdada7d599476b
+              tokenizer_config.json: 6ac8c8dc065ed118161d02dd532749ae3f52c243deac27872134fae2f50d8547
+            distributed_role:
+              node_rank: 1
+              headless: true
+  execution:
+    max_abs_error: 0.05
+  sanity_manifest_sha256: 3b6c14fa7610a05f45e7c2243a993d2cc983c2f3521e17cf1e1919fb15317460
+  accuracy_config_sha256: 5a4518ed89484afd983962a6e2e42738368b374b356d5583339046d7f486d3f5
 workflow:
   architecture:
     status: passed
@@ -64,7 +557,7 @@ workflow:
     status: in_progress
     evidence: adaptation/README.md
     last_verified: null
-    blocker: 完整模型/量化/Engram/共享缓存接入尚未完成。
+    blocker: 修复后整模型及eager/FULL实测通过；交付规范中的公开依赖版本、H9质量比较和最终源码审查仍待完成。
     verification: {}
   acceptance:
     status: not_started

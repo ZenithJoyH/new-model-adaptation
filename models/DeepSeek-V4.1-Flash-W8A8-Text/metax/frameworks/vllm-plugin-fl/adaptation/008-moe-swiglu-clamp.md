@@ -91,3 +91,48 @@ FGV及Plugin当前精确源码快照的全部适用hooks通过；逐hunk已审�
 该轮同时发现scaled_mm性能回退，控制器在kernel模式门槛处结束，cudagraph模式未运行。
 证据`04-runs/mx-103/components-controlled-benchmark-v13-20261104/{kernel.json,failure.json}`。
 保留失败；原始kernel测量不构成整模吞吐或性能验收结论。
+
+103 v17在矩阵投影优化后完成两种模式，MoE四个形状均获得有效测量：
+kernel最小speedup 0.705954，仍是M1/H64/E4/top2小控制形状，低于0.9；
+cudagraph最小4.740711，全部形状通过该门槛。实际H5120/E384形状同时保留在原始结果中，
+不以最快形状替代失败项。证据`04-runs/mx-103/components-controlled-benchmark-v17-20261104/result.json`，
+SHA-256 `105000f95be70230d451d262f0f584428f6fc0ca496798ceb33452b31b3bdb96`。
+两模式已测并不等于联合通过；保留kernel失败和整模性能未验收状态。
+# 共享专家补充接线
+
+原生DeepseekV4MoE模块已在实际102容器成功导入；其共享MLP使用SiluAndMulWithClamp，
+现有FGV公开silu_and_mul_with_clamp(x,y,limit)与gate/up半张量契约匹配。
+后续限定Plugin新增模型局部activation Module及既有dispatch注册/薄provider，不改原生MoE或全局patch；
+用真实每rank288宽、0/1/8行、clamp越界及新输入graph验证实际公开入口命中。
+该接线尚待硬件验证，原路由专家小控制形状性能失败仍保留。
+## 小批调用开销修复范围
+
+102 CPU诊断`04-runs/mx-102/moe-python-profile-v{2,3}-20261104.json`显示每次小控制形状调用含10次
+Triton JIT调度，其中4次为expert对齐阶段。该诊断不是受控性能放行。既有MetaX fused_moe_kernel已支持
+sorted_token_ids=None的逐路由直接分块，实际E384单token路径已经使用它；E4/top2被密度启发式挡住。
+下一批仅扩展该既有启发式：无expert_map、单token、topk≤8的BF16逐通道INT8 clamp变体允许直接分块。
+保持GEMM、量化、clamp、路由权重与归约顺序，不新增数值kernel；其他变体/多token/映射仍沿原策略。
+限定MetaX fused_experts_impl条件及对应独立CPU INT64/图测试，验证重复路由、-1、映射回退和边界。
+同时按operator:F6规范修正本任务已改的三个厂商公开入口日志前缀（fused专家入口、scaled_int8_quant、
+triton_scaled_mm），仅日志元数据；全部原组件基准和0.9门槛保留并重新受控测量，不改基准或第三方。
+
+v39首轮97项通过，随后新增直接分块测试因只传out、未同时提供两个workspace，被既有契约拒绝；
+不是数值失败。v40仅改测试使用原生返回缓冲，并在graph replay前填NaN；映射无效例明确命中实际路由。
+保持产品条件、CPU INT64参考及原rtol=0.016/atol=0.004不变，重跑完整切片。
+
+v40已通过71例后进程abort。新增测试误把原始topk_ids中的-1当作已支持的无效专家：
+已核对实际moe_align_block_size_no_tle签名没有ignore_invalid_experts，stage1直接按global id计数；
+合法路由id应在[0,E)，EP不可用专家以expert_map中的-1表达。该多token排序分支未被本轮优化改变。
+保留abort原日志；102八卡仍Available、无残留进程，容器运行，无设备重置。
+下一轮仅修正新增测试为合法global id配合负expert_map，并在厂商入口说明既有值域前提；
+不将非法原始id静默clamp/忽略，不把该未支持输入记作防错通过。真实有效路由的数值及图断言保留。
+
+v41两机各217项通过（MetaX MoE、原通用调用方及量化边界），日志
+`04-runs/mx-102/moe-direct-v41-20261104.log`、`04-runs/mx-103/moe-peer-v41-20261104.log`。
+五个既有数值kernel AST保持不变；同时复跑模型切片，102为83项通过，103前一切片83项通过。
+103受控v42保留原六算子/每模式33形状及0.9门槛，双模式全部通过；
+原生结果`04-runs/mx-103/components-controlled-benchmark-v42-20261104/result.json`。
+该结果只覆盖组件组合与toy Engram工作集，不证明实际模型吞吐、精度或PP+async。
+v42结果SHA-256 `3e21967aa7831c5223f4c2a7c221680e4de03d38bc4b28d50ac848af319a6843`，
+49次资源观察、源码前后一致；MoE最小speedup为kernel 1.040376、graph 6.895396。
+先前0.705954失败保留，未移除小控制形状或降低门槛。

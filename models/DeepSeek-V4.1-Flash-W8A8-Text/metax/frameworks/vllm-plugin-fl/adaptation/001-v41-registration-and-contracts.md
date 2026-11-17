@@ -150,3 +150,135 @@ FlagGems-vllm基线为 `f108ba81bf6799ccfe48c86f77cbb3ce117c4179`，现有上述
 
 后续007对mHC收拢增加了MetaX逐项RN边界，原102两组12-case速度比只适用于原冻结v3切片，
 不能用于当前RN版本性能放行。现行版本需重新受控测量，103既有受竞争测量仍不可采信。
+# 整模型后续接入范围
+
+整模型按已固定主线e77daef89e18语义接入实际Plugin，不复制数值kernel。新增模型`model.py`、
+`attention.py`、`compressor.py`、`rope.py`及必要权重映射；补既有dispatch的薄公开算子桥和注册、
+模型注册入口、独立权重映射/拓扑/前向编排测试。沿用已验证cache、V2 state、Engram、projections。
+Attention通过FGV公开Q/KV fused insert、索引Q量化、paged MQA、候选选择/mask、TopK、FlashMLA与RoPE；
+整数logical→physical映射保留Plugin。mHC通过已有公开pre_delayed/post/collapse；MoE复用原生V4模块，
+num_hash_layers固定0，当前不启用EP/sequence parallel、speculation、vision或LoRA接口。
+
+默认TP8×PP2、20/20层，确保KV共享owner留在stage内。每层独立SWA；仅2/8/14/20拥有main/index cache，
+其他层依配置引用owner，indexer仅2/8/14/20/24/28/32/36生成新索引；stage1第20层开始候选池。
+PP传BF16[N,4,5120]与FP32[N,4] pre_mix；Engram注入放在每块pre之前，包含stage第一本地层，
+最终collapse后RMSNorm，无hc_head。ratio2 ring由ModelState request index管理，cache数值由FGV写。
+CPU RoPE配置沿用原生get_rope构造，压缩层theta/YaRN与纯SWA区分，禁用mscale。
+
+权重映射对指定checkpoint逐项处理INT8/FP32 scale、融合wqa/wkv、共享MLP w1/w3、路由expert与attn_sink TP切分；
+只明确跳过vision/aligner/image及MTP，未知文本键或遗漏本地必需参数直接报错。必须先做完整key/shape
+与本地参数映射检查，再真实加载；仅测试映射不代表769GB载荷加载通过。模型注册只在类/接口可导入后进行。
+适用plugin:A1–A4/B1–B4/C1/D3/E1–E4/F1–F4/H1–H10及operator公开契约。
+当前仍未完成注册/整模加载/PP调度、图级别选择及正式验收；后续逐步保留真实失败与证据。
+
+102已安装未注册整模型切片11文件，完整48文件静态上下文通过适用hooks。
+`04-runs/mx-102/model-slices-v1-20261104.log` 76项通过：权重namespace与完整fusion/expert覆盖、
+公开算子capability/转发、模型类与PP/V2接口实际导入、TP分片/disable-TP融合加载、原生GateLinear
+对象保留且FP32数值/新输入graph通过。没有分配整模型参数或运行PP服务。
+原生mHC post读取comb[j,i]，与FGV默认TRANSPOSED一致；原生V4 RoPE类明确保留FP32 cache，
+直接复用构造器，不在Plugin重写频率计算。inverse sin按RoPE族共享，避免逐层复制1M位置buffer。
+
+后续限定MetaX general plugin hook新增惰性模型注册，保留已存在native entry；补metadata注册测试，
+并在真实EngineArgs/ModelConfig中验证选择。Engram阶段缺失history输入应显式拒绝，防止ModelState
+接线遗漏时静默跳过Engram。接着做真实cache/注意力链与模型构造/权重映射检查，再读取完整载荷。
+
+102惰性注册及完整切片78项通过，`04-runs/mx-102/model-registration-v1-20261104.log`；
+103同一切片78项独立通过，`04-runs/mx-103/model-peer-v25-20261104.log`。
+102真实EngineArgs/ModelConfig探测选择本Plugin的DeepseekV41ForCausalLM，BF16/fl_w8a8_int8、
+TP8×PP2/nnodes2/mp、logical block64/fp8_ds_mla、上下文50000、prefix on、async on、V2及FULL均解析通过；
+Inspector判定text-only。证据`04-runs/mx-102/engine-config-probe-v1-20261104.json`，
+仅配置/类解析，无模型构造、权重载荷、GPU整图或PP服务结论。
+镜像支持原生multi-node MP参数，未安装Ray；不为本任务引入Ray依赖。
+
+102注意力前向链4项通过，`04-runs/mx-102/attention-chain-v2-20261104.log`：
+第2/20层、N=4/256，真实公开算子命中、独立CPU FP64注意力参考、缓存保护区和新输入图回放。
+v1测试缺少原生CustomOp构造所需的current VllmConfig上下文，在进入计算前失败；
+v2只修正测试fixture，未改变产品代码或数值容差。该检查隔离TP rank元数据，不证明collective或整模型。
+
+下一步在两台实际适配容器内用原生分布式初始化建立TP8×PP2进程组，构造实际模型并核对
+全部96085个safetensors文件头、明确排除项、本地参数、融合片及专家覆盖/形状/dtype。
+只读取文件头，不读取权重载荷；结果逐rank保留。通过后再实际加载并验证原生MP服务及PP+async。
+
+103相同注意力链4项独立通过，`04-runs/mx-103/attention-chain-peer-v27-20261104.log`。
+构造探针v1的MCCL环境误配见002；v2已建立真实TP/PP communicator，16个rank均进入模型构造，
+但诊断脚本直接调用initialize_model时漏掉原生BaseModelLoader的set_default_torch_dtype，
+使GateLinear按FP32声明并被现有BF16权重契约显式拒绝。v3仅补齐该原生上下文，不修改产品或放宽检查。
+v2逐rank失败和通信初始化/销毁日志保留于`04-runs/constructor-preflight-v2-20261104/`。
+
+v3真实双机16 rank模型构造及全部96085个文件头映射通过，每rank结果`passed=true`、errors空。
+102参数56.2175–56.2181 GiB/卡，103为32.6638 GiB/卡；真实TP/PP组、全部本地参数、融合片及384专家覆盖已核对。
+结果`04-runs/constructor-preflight-v3-20261104/rank-<0..15>.json`；两端诊断退出并销毁通信组，容器保留。
+该结果没有读取权重载荷或运行forward。随后使用原生MP CLI进行真实权重eager服务开发验证，
+TP8×PP2/async/prefix on，50000上下文、2048批token、16序列，gpu_memory_utilization=0.95；
+0.95用于为102实际56.22 GiB参数和运行缓冲区预留空间。此独立eager检查不是graph档位回退或正式验收。
+
+eager-service-v1在原生worker显存预检失败：初始化通信后free=59.43/63.59 GiB，
+0.95要求60.41 GiB，未读取权重。v2仅将gpu_memory_utilization降至0.92、重试使用独立端口与目录，
+保留原失败日志，不修改worker、通信实现或调度开关。真实权重加载与推理仍待该轮结果。
+
+eager-service-v2在102主体加载后失败：严格检查报两层Engram共12参数未加载。
+全文件头原始顺序明确为93364个model键（无Engram）→head.weight→norm及12个Engram键。
+原生AutoWeightsLoader按相邻前缀groupby，inner model的严格load_weights在第一个model分组末
+提前要求全部参数，尚未迭代到后面的Engram。文件头单独映射检查没有覆盖此真实流式分组边界。
+修复限定Plugin model.py顶层load_weights及权重测试：在完整映射流上统一调用既有严格加载器，
+保留全部本地参数、每个融合片、每个专家片和未知/重复键检查；不修改vLLM或忽略Engram。
+新增实际AutoWeightsLoader分组顺序的CPU回归，先复现原失败再修复，并重跑既有权重/模型切片。
+保留v2原生日志；停止本任务对端尚在加载的服务后再安装修复。该问题与PP+async推理无已证实关系。
+
+流式顺序回归在原产品上复现相同12个Engram缺失，`04-runs/mx-102/loader-stream-repro-v1-20261104.log`。
+顶层完整流修复后102原切片及新回归79项通过，`loader-stream-fix-v1-20261104.log`；
+103同切片加注意力链共83项通过，`04-runs/mx-103/loader-stream-peer-v29-20261104.log`。
+完整性检查统一复用原严格loader，未移除遗漏/重复/未知键、融合片及专家片检查。
+原生专家映射helper只扫描base_layer前缀，可用于顶层模型；vLLM保持只读。完整权重重新加载仍待完成。
+构造v3汇总回执`04-runs/constructor-preflight-v3-20261104/review-v1.json`，SHA-256
+`1d8b630796b51fb74988d64ea995b445bcb5b8f1618a2c84bac45d21a5825cbd`，作用范围仍仅构造与文件头。
+
+## V4.1文本编码接入（改前范围）
+
+指定权重目录缺少chat_template；镜像只有DeepSeek V4 tokenizer，其文字版thinking提示
+不同于V4.1的numeric effort/System token，不能以V4替代。主线固定e77daef89e18
+提供`vllm/tokenizers/deepseek_v41.py`（blob3a577172708ed391c8c2771288db63e029422994）
+和`deepseek_v41_encoding.py`（blob841de385cb61a435c09997e151083d655cce4e87）；
+同版renderer registry明确复用DeepseekV4Renderer。现场两项registry均提供公开register，
+ModelConfig/EngineArgs的TokenizerMode均允许str；vLLM保持只读。
+
+限定Plugin：新增`models/deepseek_v41/tokenizer.py`、`encoding.py`移植文本processor；
+现有模型包`__init__.py`增加tokenizer/renderer双注册及失败回滚，已有`register_model`
+在配置解析前调用；新增对应unit test。保留已有native deepseek_v41条目，幂等，
+不覆盖V4/其他tokenizer；本次text profile的非文本content block在编码前明确拒绝。
+验证numeric effort/none/thinking控制、System token、原始text parts分隔、不可变输入、
+BOS/encode转发、真实tokenizer/token ID、公开renderer同步/异步和原生ChatCompletionRequest
+参数传递，并在外部开发探针与只读V4.1 reference encoder对照。
+新代码适用plugin:A2/C1/C2/C3/F1/F4/F7/G1；不是数值kernel，不涉及FGV增量。
+
+文本processor v30精确52文件上下文适用hooks通过；102原生单测33项中30通过、3失败。
+两项揭示renderer实例实际名为`RENDERER_REGISTRY`（`RendererRegistry`是dataclass类型），
+产品双注册引用已纠正；一项测试golden遗漏参考格式中旧assistant的`</think>`，
+修正预期而未改编码逻辑。失败日志`04-runs/mx-102/tokenizer-v30-20261104.log`保留。
+当前模型同目录reference encoder SHA-256
+`502bdaec8a3fd88ebc24c4721a7038fbe42f2063c664638127056107920035c1`
+实际映射low50/high75/max100；e77旧映射low25/high50/xhigh75不适用于本权重，
+移植时仅按当前参考调整numeric映射，明确拒绝额外xhigh。
+V31复测后再同步103；非文本及工具调用前置拒绝，不声明相应服务支持。
+
+V32两机原全部35项通过，52文件上下文静态hooks通过且未修改快照。
+reference v2通过前24组后，在原生请求规范化修改历史reasoning字段时触发探针的
+全链入参不变性断言；tokenizer自身深拷贝及prompt/token ID当时已通过。
+V3仅让原生请求/renderer消费规范化副本，保留tokenizer输入不变与全部56组断言，
+最终56/56通过真实tokenizer、公开registry及同步/异步renderer；原失败保留。
+结果`02-issues/mx-102/tokenizer-reference-v3-20261104/result.json`，
+日志`04-runs/mx-102/tokenizer-reference-v3-20261104.log`。
+
+reasoning v2复用默认thinking parser处理thinking=false时不符合预期；只读对照
+`serving.py:251`及`DeepSeekV4Parser.__init__`确认真实服务逐请求传入
+`chat_template_kwargs`，该探针漏传，不能当作API问题。V3按真实构造传参重测，
+产品与原生parser不变。这里只配置reasoning parser，不启用V4 DSML tool parser。
+
+V31两机原全部33项通过。独立reference预检v1尚未执行容器测试，即被当前reference
+的`Unknown role: developer`拒绝；这不是tokenizer数值或服务失败。主线旧实现允许
+developer但本权重参考未定义，故V32在wrapper中前置拒绝developer/unknown，增加两项
+负例；不猜测映射至system或user。V32 103原全部35项通过，102复测中。
+参考对照v2保留7类有效文本（中英文、system、多段、历史reasoning、中途system、
+空user、相邻user）×8组thinking/effort/drop控制，共56例；另用上述负例验证拒绝边界。
+原生reasoning探针v1误用旧方法名`extract_reasoning_content`，已只读核实0.28接口为
+`extract_reasoning`，仅修正外部探针v2，不修改原生parser；原失败结果保留。

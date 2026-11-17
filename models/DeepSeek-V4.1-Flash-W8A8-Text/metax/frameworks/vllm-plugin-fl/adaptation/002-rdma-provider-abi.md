@@ -32,3 +32,11 @@ SHA-256 `bd024e0d23a7965ac1032c4dbf6214d4e5c0daa20fba231b16dd78e0ee8577f4`。
 此前错误的MPI rank编排和GPU占用时的两rank超时记录保留；释放资源后同配置两rank及16rank通过，见003。
 本结论仅覆盖通信前置；模型、量化、缓存与服务验收仍未完成。
 provider当前在bind mount内，未做镜像打包；交付时仍需容器内部副本及实际交付验证。
+
+2026-11-04真实TP8×PP2构造探针v1在PP communicator初始化失败，未构造模型。
+诊断脚本误传NCCL_*且HCA写成bnxt_re0–3，镜像MCCL实际读取MCCL_*，设备名为bnxt_roce0–3。
+日志bootstrap选择10.3.20.2/10.3.24.2并发生socketStartConnect失败。
+v2按已通过mpi-rank.py中的MCCL_SOCKET_IFNAME=inbond1、MCCL_IB_HCA、GID3、IB_DISABLE=0和CROSS_NIC=1重试；
+保留v1日志/逐rank失败结果，精确停止其102残留诊断进程，适配容器保持运行。
+新旧结果分别位于`04-runs/constructor-preflight-v{1,2}-20261104/`。
+旧provider ABI警告本身不能证明选定兼容provider未生效，需结合实际加载与网络日志判断。

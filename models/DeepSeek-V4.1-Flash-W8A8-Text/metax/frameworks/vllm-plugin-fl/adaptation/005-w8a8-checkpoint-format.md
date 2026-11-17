@@ -210,3 +210,62 @@ v7扩展实际Engram WKV 6144→25600和q_b 1280→4096，修正M=1原先仅有�
 适用项目静态hooks在精确源码快照通过；曾由临时isort未用black profile产生的导出文件排版已恢复，
 最终导出diff只增加三项Engram接口，不保留无关格式改动。
 这仍未覆盖完整MoE clamp、整模权重加载、受控性能或正式验收。
+
+102公开复用诊断已通过`04-runs/mx-102/cast-projection-reuse-v2-20261104/`：
+INT8行scale乘法转BF16在0/7/1024行、512列上逐位一致且输入不变；单独的普通ATen
+mul/cast检查实际命中FlagGems内核（mul1次、to_copy2次），不新增逐ATen Plugin adapter。
+BF16×BF16→FP32的公开triton_scaled_mm显式小tile在[1,5120,32]、[8,5120,512]、
+[128,5120,1024]上与独立CPU FP64参考及新输入graph一致，确认无BF16中间输出。
+这证明可复用能力，不等于wo_a加载器或模型FP32投影已接入。FlagGems源码保持清洁；
+其可选FlagTune模型在预加载阶段因缺少xgboost选择既有默认实现，没有安装或改写第三方依赖。
+
+下一切片限定wo_a的INT8行scale→BF16加载后处理及BF16投影→FP32输出。已盘点FGV当前公开
+dequant文件，仅有KV缓存反量化/gather，不能代替权重行scale；新增薄`dequantize_int8_weight`
+仅组合已验证FlagGems mul/to_copy，新增导出/配置、独立数值/graph及原生Benchmark，不写新kernel。
+Plugin后续在既有LinearMethod/ColumnParallelLinear扩展点声明INT8与FP32 scale参数、TP分片加载，
+加载后经统一dispatch调用该公开入口并换为BF16参数；投影经dispatch复用已验证公开scaled_mm
+FP32输出，不引入执行后fallback。待算子先完成验证再接线；不修改只读vLLM或第三方依赖。
+
+102新反量化接口19项通过，含空维度、strided scale、row padding/offset、非有限数、输入不变与新输入graph，
+日志与索引K联合`04-runs/mx-102/dequant-indexer-peer-v30-20261104.log`（合计53项）。
+Plugin projections-v1：TP8八个rank的native Parameter分片加载和实际wo_a eager/graph十项通过；
+FP32投影测试的观测wrapper未保留函数签名，使能力探测在进入计算前拒绝，停止后续八项。
+只给三个观测wrapper补functools.wraps，不改变产品计算、参考或容限；保留原失败日志并完整重测。
+
+102 projections-v2全部19项通过，证据`04-runs/mx-102/projections-v2-20261104.log`，
+TP8 rank元数据隔离只证明native shard loader，不声称实际collective。FP32投影确认无BF16中间输出；
+共享专家288宽的clamp公开调用及新输入graph通过。Plugin完整40文件静态上下文通过适用hooks。
+103反量化/索引K合计53项独立复测通过，`04-runs/mx-103/weight-dequant-peer-v30-20261104.log`。
+
+103反量化受控原生双模式v31：30次资源观察，源码/控制前后一致；kernel最小speedup0.635731，
+cudagraph最小1.002599，保留0.9门槛且kernel未通过，证据
+`04-runs/mx-103/weight-dequant-controlled-benchmark-v31-20261104/result.json`。
+后续先盘点公开mul_out能否直接按FP32运算生成BF16输出，减少独立cast；不修改FlagGems或写新kernel，
+不将加载阶段性能失败删除或换低门槛。索引K的独立性能通过不覆盖此失败。
+
+公开mul的out分支在当前FlagGems要求out dtype等于FP32运算dtype，不能直接生成BF16；
+其广播路径还先将INT8权重物化FP32，再执行mul和cast，无法用现有薄组合消除三次矩阵读写。
+优化范围限定同一FGV `dequantize_int8_weight` API内部增加一次INT8×FP32 row scale→BF16
+融合kernel，仍属vLLM checkpoint格式转换，不注册ATen替换、不改FlagGems。
+使用libentry/libtuner和NVIDIA/MetaX各自配置，保留全部布局/非有限/空/错误语义；
+新输出每次完整覆盖，无输入或外部state mutation。原19项严格参考补signed-zero及真实kernel命中，
+重跑模型wo_a/graph调用方、完整原生双模式Benchmark；失败与0.9门槛继续保留。
+
+102 fused-v1新signed-zero断言失败（3通过后停止），发现INT8零×负scale的负零符号在普通乘法
+生成路径中被丢失。限定乘法为libdevice.mul_rn后，原19项含signed-zero严格检查全部通过，
+真实投影/加载19项亦通过，日志`04-runs/mx-102/dequant-fused-rn-v2-20261104.log`及
+`04-runs/mx-102/projections-fused-dequant-rn-v2-20261104.log`。
+FGV完整46文件静态上下文七项hooks通过且字节不变；新性能待完成，103暂仍旧组合API。
+103 Plugin四文件peer亦通过原19项，`04-runs/mx-103/projections-peer-v22-20261104.log`。
+
+102融合反量化v33受控原生双模式全部三形状通过：kernel最小speedup2.206349，
+cudagraph最小6.708172，30次资源观察及源码/控制绑定一致，0.9门槛未改。
+证据`04-runs/mx-102/weight-dequant-controlled-benchmark-v33-20261104/result.json`。
+
+整模型接线检查新增两项必要范围：压缩器wkv/wgate融合权重需保留原生MergedColumnParallelLinear
+的分片加载协议，补FP32输出的同类扩展与TP禁用下的分片加载测试；wo_a wrapper显式校验全局shape。
+原生MetaX GateLinear走tier6时先BF16输出再castFP32，不能保证路由分数精度。
+实际分片头确认gate.weight为BF16[384,5120]，主线V4.1需要FP32路由GEMM；
+因此仅替换V4.1该gate实例的LinearMethod，复用已验证FP32 provider，保留Factory持有的同一gate对象及bias引用。
+能力探测在修改前拒绝其他native专用GEMM分支，不修改原生GateLinear源码或做执行后重试；
+补实际GateLinear输出、共享对象、CPU FP64参考及新输入graph测试。

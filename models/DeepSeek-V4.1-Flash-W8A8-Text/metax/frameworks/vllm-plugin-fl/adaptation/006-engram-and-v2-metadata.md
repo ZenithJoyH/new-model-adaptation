@@ -140,3 +140,37 @@ v3原全部加自动替换两项共17项通过，含真实FlagGems copy_计算�
 独立复测95项单测通过（另2项原Ascend skip），79项真实功能检查通过，
 包含17项Engram编排/ATen自动命中、29项V2 metadata及33项W8A8加载/graph。
 日志`04-runs/mx-103/engram-plugin-*-v11-20261104.log`；整体模型、真实TP8 gather和PP+async仍未验证。
+
+103 v17受控原生Benchmark已完成kernel/cudagraph两种模式，最小speedup分别为：
+hash 13.8908/25.8447、INT8 lookup 4.2698/8.4693、gate 5.1342/5.1338，均高于保留的0.9门槛。
+lookup仅65536行的toy工作集，不能支持真实384M行表的带宽/延迟结论。
+证据`04-runs/mx-103/components-controlled-benchmark-v17-20261104/result.json`，SHA-256
+`105000f95be70230d451d262f0f584428f6fc0ca496798ceb33452b31b3bdb96`。
+44次资源观察、前后源码与测量控制绑定一致；联合run仍因MoE小控制形状失败，不标联合通过。
+## 真实TP collective补充检查
+
+后续外部开发探针在两机实际容器、原生TP8×PP2组中调用真实Native V4 MoE（零INT8权重），
+验证实际router/量化/共享专家和TP归约可执行；这不证明完整权重质量。
+102的TP8组另构造真实尺寸的第1层Engram表，仅初始化确定会读取的稀疏行及scale，
+以每head已知不同值检查真实all_gather后的24-head顺序与>4GiB地址，padding行期望0；
+WKV置零时独立检查残差不变。checkpoint始终只读，不读取载荷、不初始化未使用表行。
+执行物放02-issues，逐rank结果放04-runs；不声称该切片覆盖模型PP调度或async服务。
+
+真实TP探针v1在16 rank原生组建立后，调用Native MoE时缺少`set_forward_context`，
+被vLLM既有前置断言拒绝，未证明数值或collective失败；原失败结果保留于
+`04-runs/tp-layer-smoke-v1-20261104/`。根据当前只读`forward_context.py`与
+`moe_runner.py`契约，仅修正外部探针：每次FFN调用建立原生前向上下文，
+不修改Plugin/FGV或vLLM，不放宽输出与实际调用断言；v2重测中。
+
+v2已建立前向上下文，16 rank随后在Native MoE workspace分配时被
+`WorkspaceManager not initialized`拒绝。只读核对`gpu_worker.py:init_device`与
+`workspace.py:init_workspace_manager`后，在外部v3探针补齐相同的单lane初始化；
+保留v2失败，产品源码仍为Plugin v29/FGV v41，vLLM未改。
+
+v3真实TP检查16 rank全部通过：Native V4 MoE逐rank分别执行1/3 token，
+每rank两次实际FGV fused experts与两次TP all-reduce，零权重输出严格为0；
+102构造真实约48M×256行的本rank Engram INT8表，稀疏初始化选定行及scale，
+实际all-gather后的24个head值/顺序与padding0严格一致，零WKV投影保持残差。
+证据`04-runs/tp-layer-smoke-v3-20261104/rank-{0..15}.json`；
+这不是checkpoint载荷、PP模型转发或async服务验收。探针未启用Worker全局FlagGems ATen
+自动替换（结果明确为false），不能据此宣称最终服务的ATen激活已取证。

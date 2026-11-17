@@ -77,3 +77,18 @@ dispatch单元14 passed；实际元数据/生命周期及原Linear/Engram调用�
 日志`04-runs/mx-103/compressor-metadata-{library,unit,functional}-v17-20261104.log`。
 联合manifest SHA-256 `6256f9e4e346998b3f94f56353ec49b92d4431dd29be5b4094e781a12771ed85`。
 双机源码及框架接线已一致，真实整模型与scheduler行为仍未验证。
+
+整模前新增只读风险：request-owned ring只允许新请求偶数computed起点。必须核对真实prefix
+调度是否为“全部prompt命中后重算最后token”返回奇数起点；若如此，不能关闭正常prefix缓存来绕过。
+正在核对旧vLLM的Full/MLA cache spec与prefix block生命周期：一种待验证方案是将8行FP32原始尾
+作为每个逻辑64-token块的辅助cache，由引擎一同保存/复用，并在prefill为每个经过的块保存尾部，
+而非仅保存整个chunk的最后8行。原ratio1/2池化数学和先读旧尾再写状态的顺序须保持。
+这仍是接口调查，尚不授权按未知cache语义改实现；先验证allocator、slot、prefix/preemption契约。
+
+当前固定vLLM revision的只读核对澄清：`KVCacheManager.get_computed_blocks`明确只返回完整块；
+prompt全命中时虽将max hit设为prompt_len-1，但会重算整个末块以保持computed块对齐，
+不是直接返回奇数prompt_len-1。coordinator继续按scheduler block size对齐。
+因此尚无证据要求新增辅助状态cache；保留当前request ring方案，先以实际64-token块的
+allocator/调度测试及整模prefix/preemption验证此结论，不实施上述备选结构。
+
+2026-11-05真实模型诊断补充：V2的is_padding仅由可选MoE路径维护，dummy运行会遗留True。V4.1 ModelState改为根据实际/补齐token数生成自有稳定mask；cache builder同时接收并复制原生已缓存的请求映射。详见[输出与异步诊断](015-output-health-and-pp-async.md)。旧实现负对照4项失败，修复后两机各92项metadata/状态回归通过；不替代真实生成、graph或正式验收。

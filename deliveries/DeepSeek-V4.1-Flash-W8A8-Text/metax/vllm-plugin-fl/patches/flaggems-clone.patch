@@ -1,0 +1,151 @@
+diff --git a/conf/operators.yaml b/conf/operators.yaml
+index d725e82ab..5eb39c7a7 100644
+--- a/conf/operators.yaml
++++ b/conf/operators.yaml
+@@ -3482,6 +3482,17 @@ tensor into the caller-supplied `out` buffer.
+   - Math
+   stages:
+   - beta: '5.3'
++- id: clone
++  description: Copies a tensor while preserving its logical values and requested memory format.
++  for:
++  - clone
++  labels:
++  - aten
++  - KernelGen
++  kind:
++  - Tensor
++  stages:
++  - alpha: '5.5'
+ - id: coalesce
+   description: 'De-duplicates a sparse COO tensor: groups the stored coordinates
+     by their linear index, sorts unique coordinates ascending and sums duplicated
+diff --git a/src/flag_gems/__init__.py b/src/flag_gems/__init__.py
+index 048712085..cdfa690dd 100644
+--- a/src/flag_gems/__init__.py
++++ b/src/flag_gems/__init__.py
+@@ -914,7 +914,7 @@ _FULL_CONFIG = (
+         "clone",
+         clone,
+         None,
+-        (AUTOGRAD_DISPATCH_KEY, torch.library.fallthrough_kernel),
++        (("Autograd" + backend_info.dispatch_key, torch.library.fallthrough_kernel),),
+     ),
+     ("coalesce", coalesce, None, (AUTOGRAD_DISPATCH_KEY,)),
+     ("col2im", col2im),
+diff --git a/tests/test_clone.py b/tests/test_clone.py
+index 7f3a1b8e0..6431765c3 100644
+--- a/tests/test_clone.py
++++ b/tests/test_clone.py
+@@ -1,7 +1,10 @@
++import importlib
++
+ import pytest
+ import torch
+ 
+ import flag_gems
++from flag_gems.runtime import torch_device_fn
+ 
+ from . import accuracy_utils as utils
+ 
+@@ -104,3 +107,100 @@ def test_clone_autograd_non_contiguous():
+     (ref_in_grad,) = torch.autograd.grad(ref_out.sum(), [ref_inp])
+ 
+     utils.gems_assert_close(res_in_grad, ref_in_grad.to(torch.float32), torch.float32)
++
++
++@pytest.mark.clone
++@pytest.mark.parametrize("requires_grad", [False, True])
++def test_clone_registration_preserves_cpu_autograd(requires_grad, monkeypatch):
++    inp = torch.arange(24, dtype=torch.float32).reshape(4, 6).t()
++    inp.requires_grad_(requires_grad)
++    expected = torch.clone(inp)
++    clone_module = importlib.import_module("flag_gems.ops.clone")
++
++    def unexpected_device_copy(*args, **kwargs):
++        pytest.fail("CPU clone must not enter the accelerator implementation")
++
++    monkeypatch.setattr(clone_module, "_launch_copy", unexpected_device_copy)
++    with flag_gems.use_gems(include=["clone"]):
++        result = torch.clone(inp)
++        rng_state = torch.random.get_rng_state()
++        rng_copy = torch.clone(rng_state)
++        if requires_grad:
++            (grad,) = torch.autograd.grad(result.sum(), [inp])
++            torch.testing.assert_close(grad, torch.ones_like(inp), rtol=0, atol=0)
++
++    torch.testing.assert_close(result, expected, rtol=0, atol=0)
++    assert result.stride() == expected.stride()
++    assert result.data_ptr() != inp.data_ptr()
++    torch.testing.assert_close(rng_copy, rng_state, rtol=0, atol=0)
++
++
++@pytest.mark.clone
++@pytest.mark.parametrize("requires_grad", [False, True])
++def test_clone_registration_launches_device_kernel(requires_grad, monkeypatch):
++    inp = torch.arange(257, device=flag_gems.device, dtype=torch.float32)
++    inp.requires_grad_(requires_grad)
++    expected = inp.detach().cpu()
++    clone_module = importlib.import_module("flag_gems.ops.clone")
++    kernel = clone_module._clone_kernel
++    launches = []
++
++    class RecordingKernel:
++        def __getitem__(self, grid):
++            launch = kernel[grid]
++
++            def run(*args, **kwargs):
++                result = launch(*args, **kwargs)
++                launches.append(args[0].device.type)
++                return result
++
++            return run
++
++    monkeypatch.setattr(clone_module, "_clone_kernel", RecordingKernel())
++    with flag_gems.use_gems(include=["clone"]):
++        result = torch.clone(inp)
++        if requires_grad:
++            (grad,) = torch.autograd.grad(result.sum(), [inp])
++            torch.testing.assert_close(grad.cpu(), torch.ones(257), rtol=0, atol=0)
++    torch_device_fn.synchronize()
++
++    assert launches == [torch.device(flag_gems.device).type]
++    torch.testing.assert_close(result.cpu(), expected, rtol=0, atol=0)
++    assert result.data_ptr() != inp.data_ptr()
++
++
++@pytest.mark.clone
++@pytest.mark.skipif(
++    flag_gems.device != "cuda",
++    reason="This regression exercises Inductor on CUDA-compatible accelerators.",
++)
++def test_clone_registration_allows_inductor_rng_preservation():
++    inp = torch.arange(257, device=flag_gems.device, dtype=torch.float32)
++    expected = inp.cpu() + 1
++    compiled = torch.compile(lambda x: x + 1, fullgraph=True)
++    with flag_gems.use_gems(include=["clone"]):
++        result = compiled(inp)
++    torch.testing.assert_close(result.cpu(), expected, rtol=0, atol=0)
++
++
++@pytest.mark.clone
++@pytest.mark.skipif(
++    flag_gems.device != "cuda",
++    reason="This regression exercises the torch.cuda graph API.",
++)
++def test_clone_registration_graph_replays_new_inputs():
++    inp = torch.arange(257, device=flag_gems.device, dtype=torch.float32)
++    with flag_gems.use_gems(include=["clone"]):
++        for _ in range(3):
++            torch.clone(inp)
++        torch_device_fn.synchronize()
++        graph = torch.cuda.CUDAGraph()
++        with torch.cuda.graph(graph):
++            result = torch.clone(inp)
++        for shift in [3, -7]:
++            inp.add_(shift)
++            expected = inp.cpu()
++            result.fill_(float("nan"))
++            graph.replay()
++            torch_device_fn.synchronize()
++            torch.testing.assert_close(result.cpu(), expected, rtol=0, atol=0)
