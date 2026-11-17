@@ -1,0 +1,82 @@
+{
+  "task": "C2 isolated local conflict resolution",
+  "result": "candidate ready for independent review; local static/hooks passed, no merged-runtime device pass claimed",
+  "repo": "/private/tmp/pr989-conflict-20261113/repo",
+  "head": "be8ea5b73e8e386af6ab8f1612f53e18ea46fa48",
+  "merge_parent": "521f05db1bce291a46284c3c3c49564181e5fb91",
+  "merge_base": "d3214ceefc921e688196f916560c24ad805575a9",
+  "tree": "707e2d829d162a3bddff06893ac20b02e8457c88",
+  "state": "Detached HEAD at originalPR head; MERGE_HEAD actualmain, resolution staged/write-tree completed; no commit or push.",
+  "only_relative_main_paths": [
+    "src/flaggems_vllm/runtime/backend/_thead/ops/fused_moe.py",
+    "tests/test_fused_moe.py"
+  ],
+  "all_other_tree_entries_match_main": true,
+  "file_bindings": {
+    "src/flaggems_vllm/runtime/backend/_thead/ops/fused_moe.py": {
+      "sha256": "6dcb542f542b5457977f6f22666f704655d390a18c6d08169527d1278d4141f5",
+      "git_blob_sha1": "d414fc1242f2511a5ab1eb7fc1c8d021fd5abd6a",
+      "bytes": 82370,
+      "syntax_passed": true,
+      "conflict_markers_absent": true
+    },
+    "tests/test_fused_moe.py": {
+      "sha256": "b2911c2198bf3f3d606b0a8801fc48134f756a2f57dc29e7ed8f94b725d540f7",
+      "git_blob_sha1": "48b50ec3eb9f1b2a473be9503f27ebdbc264b4dd",
+      "bytes": 37601,
+      "syntax_passed": true,
+      "conflict_markers_absent": true
+    }
+  },
+  "source_unchanged_from_validated_head": true,
+  "resolution_proof": {
+    "strategy": "Full exact upstream file plus exact original PR625line suffix relativemergebase. No old quantization-policy prelude.",
+    "upstream_prefix_bytes": 12763,
+    "upstream_prefix_sha256": "7558592f4b305b7120955ccad854b1b7b1a6678181d2a17a54898b5729a7071c",
+    "upstream_prefix_byte_identical": true,
+    "upstream_prefix_AST_identical": true,
+    "PR_suffix_bytes": 24838,
+    "PR_suffix_lines": 625,
+    "PR_suffix_sha256": "0883d22278ec540a4776b823cc767ab46cfbbbeff89032ae076bfca7fee57de9",
+    "PR_suffix_byte_identical": true,
+    "PR_suffix_AST_identical": true,
+    "original_references_tolerances_and_tests_preserved": true,
+    "style_did_not_change_prefix_or_suffix": true
+  },
+  "checks": {
+    "unmerged_index_entries": 0,
+    "unstaged_paths": [],
+    "conflict_markers_absent_in_both_payload_files": true,
+    "python_compile_AST_both_files": "passed without imports orpycache",
+    "git_diff_cached_check": 0,
+    "git_diff_worktree_check": 0,
+    "precommit_config": "actual currentmerged .pre-commit-config.yaml",
+    "precommit_tool": "/private/tmp/pr989-opt166-20261112/style-venv/bin/pre-commit",
+    "precommit_log": "/private/tmp/pr989-conflict-20261113/c2-precommit.log",
+    "precommit_exit_code": 0,
+    "applicable_hooks": "trailing-whitespace/EOF/largefiles/flake8/isort/black passed; check-yaml no files skipped",
+    "formatter_changes": false
+  },
+  "diff_numstat_vs_main": "144\t76\tsrc/flaggems_vllm/runtime/backend/_thead/ops/fused_moe.py\n625\t0\ttests/test_fused_moe.py\n",
+  "artifacts": {
+    "tree_payload": "/private/tmp/pr989-conflict-20261113/c2-tree-files.json",
+    "pr_diff": "/private/tmp/pr989-conflict-20261113/c2-pr-diff-vs-main.patch",
+    "test_resolution_diff": "/private/tmp/pr989-conflict-20261113/c2-resolution-tests-vs-head.patch"
+  },
+  "limits": [
+    "No runtime import/test collection/build or GPU workload executed, and no dependency installed.",
+    "Actualmain generic source/reduction/benchmark infrastructure changed; historical166 results do not validate the mergedruntime.",
+    "Keep prior BF16old-hotcache residual+3.81%eager/+3.65%graph and full176/wholemodel/otherhardware/CI limits.",
+    "Unchanged upstreamMarlin implementation/test and allothermain files preserved, not newlyvalidated.",
+    "Mainowns independentacceptance, atomiccommit+expectedhead update and PR disclosure."
+  ],
+  "actions_not_performed": [
+    "Gitcommit",
+    "Gitpush",
+    "GitHubmutation",
+    "PPUremoteoperation",
+    "GPUtest",
+    "dependencyinstallation",
+    "recursive delegation"
+  ]
+}

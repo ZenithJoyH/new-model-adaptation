@@ -1,0 +1,176 @@
+{
+  "operation": "local patch export and native patch check",
+  "baseline_pr_head": "2eeea9aa7e30adb61a81ca8d6afdfee3f19f2713",
+  "patch_sha256": "d857a8448be3aaef506dde26e5eb14479cb905cdfecf44f8411d6920e1e6fc30",
+  "files": [
+    {
+      "path": "src/flaggems_vllm/runtime/backend/_thead/ops/fused_moe.py",
+      "baseline_sha256": "8e9bbf659d9a5b1b4ed431c9103c7a23b4b9a631c5fb5ac8f2aa1c2ecb5484ee",
+      "candidate_sha256": "6dcb542f542b5457977f6f22666f704655d390a18c6d08169527d1278d4141f5",
+      "hunks": 3,
+      "added_lines": 5,
+      "deleted_lines": 1,
+      "applied_sha256": "6dcb542f542b5457977f6f22666f704655d390a18c6d08169527d1278d4141f5"
+    },
+    {
+      "path": "tests/test_fused_moe.py",
+      "baseline_sha256": "951697f7eacd716f0ca919d8c074d1da366964ce3954269acfd8190756d26ad4",
+      "candidate_sha256": "d717de6b26b0174f6fad4636456044df776b12b515de7676170af3233e955802",
+      "hunks": 1,
+      "added_lines": 121,
+      "deleted_lines": 0,
+      "applied_sha256": "d717de6b26b0174f6fad4636456044df776b12b515de7676170af3233e955802"
+    }
+  ],
+  "style": {
+    "source": {
+      "input_sha256": "6dcb542f542b5457977f6f22666f704655d390a18c6d08169527d1278d4141f5",
+      "formatted_sha256": "6dcb542f542b5457977f6f22666f704655d390a18c6d08169527d1278d4141f5",
+      "ast_equal": true
+    },
+    "tests": {
+      "input_sha256": "3594dfce312b774412b65c3cadc669b38e334ff050b2b26d6ea5afb6e3b7b32b",
+      "formatted_sha256": "d717de6b26b0174f6fad4636456044df776b12b515de7676170af3233e955802",
+      "ast_equal": true
+    },
+    "nonformat_change": "Comment only: pair -> GEMM1 weight. No AST or behavior changes."
+  },
+  "style_log": "/private/tmp/pr989-g1-review-r5/precommit-r5.log",
+  "device_confirmation": {
+    "host": "PPU-166",
+    "container": "qwen38-pr989-opt",
+    "physical_device": 8,
+    "retained": true,
+    "source_sha256": "6dcb542f542b5457977f6f22666f704655d390a18c6d08169527d1278d4141f5",
+    "tests_sha256": "d717de6b26b0174f6fad4636456044df776b12b515de7676170af3233e955802",
+    "reviewed_and_installed_hashes_match": true,
+    "final_styled_new_tests_passed": 6,
+    "original_103_passed_at_same_product_source": true,
+    "single_clean_109_run": false,
+    "v1_raw_root": "/mnt/cpfs/baai-ea/flagos/jinghao/qwen3.8-flash/04-runs/pr989-g1-20261112-07",
+    "v2_raw_root": "/mnt/cpfs/baai-ea/flagos/jinghao/qwen3.8-flash/04-runs/pr989-g1-20261112-08",
+    "v1_tests_metadata_correction": "V1 report/status stale6ee is not final evidence; corrected3594 input and AST-equivalent styledd717 used, failed attempts preserved.",
+    "target_full_ms": {
+      "old": {
+        "bf16_op": 3.989822,
+        "bf16_graph": 3.99171,
+        "fp16_op": 4.000222,
+        "fp16_graph": 4.074217
+      },
+      "current": {
+        "bf16_op": 4.212434,
+        "bf16_graph": 4.208536,
+        "fp16_op": 4.210121,
+        "fp16_graph": 4.232983
+      },
+      "candidate": {
+        "bf16_op": 4.141791,
+        "bf16_graph": 4.137384,
+        "fp16_op": 4.145464,
+        "fp16_graph": 4.208644
+      }
+    },
+    "target_vs_current_pct": {
+      "bf16_op": -1.677,
+      "bf16_graph": -1.691,
+      "fp16_op": -1.536,
+      "fp16_graph": -0.575
+    },
+    "target_vs_old_pct": {
+      "bf16_op": 3.809,
+      "bf16_graph": 3.649,
+      "fp16_op": 3.63,
+      "fp16_graph": 3.3
+    },
+    "zero_copy_proof": {
+      "dtype": "bfloat16",
+      "shape": [
+        16,
+        128,
+        3072,
+        1024,
+        4
+      ],
+      "banks": 3,
+      "dispatches": 6,
+      "copy_events": []
+    },
+    "affected_matrix": {
+      "cases": 7,
+      "fresh_processes": 6,
+      "samples_per_arm": 3,
+      "both_half_dtypes": true,
+      "eager_and_graph": true,
+      "no_repeatable_affected_regression": true,
+      "key_speedups_pct": {
+        "3072_topk4": [
+          -1.963,
+          -1.864,
+          -1.74,
+          -1.861
+        ],
+        "7168_I2048_topk4": [
+          -1.558,
+          -1.496,
+          -1.514,
+          -0.761
+        ],
+        "R_eq_E_topk8": [
+          -1.314,
+          -1.093,
+          -1.21,
+          -1.123
+        ],
+        "4096_topk4": [
+          0.186,
+          0.039,
+          0.176,
+          0.068
+        ],
+        "R_gt_E_topk9": [
+          0.055,
+          0.009,
+          0.227,
+          -0.057
+        ],
+        "qwen_narrow": [
+          1.029,
+          0.03,
+          -1.569,
+          -4.148
+        ],
+        "dense_M64": [
+          -0.028,
+          0.027,
+          0.11,
+          0.7
+        ]
+      }
+    },
+    "container_running": true,
+    "own_workloads_exited": true,
+    "ppu8_final_memory_mib": 1,
+    "full176_completed": false,
+    "whole_model_completed": false,
+    "not_verified": "blanket before/after identity of every unrelated installed component; no claim made"
+  },
+  "readiness": "Scoped operator improvement retained; target still +3.809% eager/+3.649% graph versus old hot cache. Not formal PR readiness or complete adaptation.",
+  "superseded_test_hashes_not_used": [
+    "f90cf4541f60a724dc17eea869fc35c3e2f99cb1bc31fef36c2d0c99230e5e3e",
+    "6ee286758b0cef4934bb3ca38c7ce088639fbd7be1469d361ec843c0e23810a1"
+  ],
+  "patch_check": {
+    "command": "git apply --check gemm1-continuation.patch",
+    "working_directory": "/private/tmp/pr989-g1-review-r6/baseline",
+    "exit_code": 0,
+    "result": "passed",
+    "applied_result_hashes_match": true,
+    "git_apply_numstat": "5\t1\tsrc/flaggems_vllm/runtime/backend/_thead/ops/fused_moe.py\n121\t0\ttests/test_fused_moe.py\n"
+  },
+  "publication": {
+    "commit": "be8ea5b73e8e386af6ab8f1612f53e18ea46fa48",
+    "pr_url": "https://github.com/flagos-ai/FlagGems-vllm/pull/989",
+    "exact_device_bytes_published": true,
+    "formal_readiness": false
+  }
+}

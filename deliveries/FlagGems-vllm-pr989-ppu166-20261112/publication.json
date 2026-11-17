@@ -1,0 +1,39 @@
+{
+  "pr_url": "https://github.com/flagos-ai/FlagGems-vllm/pull/989",
+  "published_commit_sha": "2eeea9aa7e30adb61a81ca8d6afdfee3f19f2713",
+  "commit_url": "https://github.com/ZenithJoyH/FlagGems-vllm/commit/2eeea9aa7e30adb61a81ca8d6afdfee3f19f2713",
+  "parent_sha": "c15459df6bf0df043e5e88efebd5d48aca6ebcf9",
+  "tree_sha": "c58306f15aa6b93ae692434c212c4c9b64cc921a",
+  "pr_title": "fix(thead): remove MoE transpose cache and tune original-layout GEMMs",
+  "body_sha256": "11f121f45efec4fe929c7a79499fa2da62afed6963a279117c3c14e1bffc94ba",
+  "body_characters": 61892,
+  "branch": "fix/thead-moe-original-weight-layout-20261023",
+  "repository": "ZenithJoyH/FlagGems-vllm",
+  "fast_forward": true,
+  "expected_head_lease_verified": true,
+  "readback_verified": true,
+  "changed_files": {
+    "src/flaggems_vllm/runtime/backend/_thead/ops/fused_moe.py": {
+      "git_blob_sha": "33c3ff3f2bb38b13173487ad14708c8477a3b5f7",
+      "sha256": "8e9bbf659d9a5b1b4ed431c9103c7a23b4b9a631c5fb5ac8f2aa1c2ecb5484ee"
+    },
+    "tests/test_fused_moe.py": {
+      "git_blob_sha": "3402b6d36e8178c8713bb43d119e99035c6a0b33",
+      "sha256": "951697f7eacd716f0ca919d8c074d1da366964ce3954269acfd8190756d26ad4"
+    }
+  },
+  "pre_commit": {
+    "scope": "two changed files in isolated head export with real package context",
+    "config": "unmodified target .pre-commit-config.yaml",
+    "passed": true,
+    "yaml": "not applicable to the two Python files",
+    "validated_bytes_unchanged": true
+  },
+  "github_checks_observed": {
+    "license/cla": "success",
+    "pull_request_workflow_runs": [],
+    "full_ci_pass_claim": false
+  },
+  "publication_date": "2026-11-12",
+  "client_timezone": "Asia/Shanghai"
+}

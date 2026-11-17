@@ -1,0 +1,84 @@
+{
+  "pr": "https://github.com/flagos-ai/FlagGems-vllm/pull/989",
+  "commit": "845faadfd0af39cf1e2135a3cfba397c7cc19bd5",
+  "tree": "707e2d829d162a3bddff06893ac20b02e8457c88",
+  "parents": [
+    "be8ea5b73e8e386af6ab8f1612f53e18ea46fa48",
+    "521f05db1bce291a46284c3c3c49564181e5fb91"
+  ],
+  "verified_at": "2026-11-13T02:07:39Z",
+  "mergeable": true,
+  "merged": false,
+  "nonforce_expected_head_update": true,
+  "body_readback_equal": true,
+  "device_validation_this_task": "not run",
+  "checks": [
+    {
+      "name": "${{ matrix.backend }} tests and benchmarks",
+      "status": "completed",
+      "conclusion": "skipped",
+      "url": "https://github.com/flagos-ai/FlagGems-vllm/actions/runs/43349521623/job/131637695532"
+    },
+    {
+      "name": "nvidia tests and benchmarks",
+      "status": "completed",
+      "conclusion": "skipped",
+      "url": "https://github.com/flagos-ai/FlagGems-vllm/actions/runs/43349521623/job/131637694775"
+    },
+    {
+      "name": "multi-backend summary",
+      "status": "completed",
+      "conclusion": "success",
+      "url": "https://github.com/flagos-ai/FlagGems-vllm/actions/runs/43349521623/job/131637693355"
+    },
+    {
+      "name": "ascend container smoke test",
+      "status": "completed",
+      "conclusion": "success",
+      "url": "https://github.com/flagos-ai/FlagGems-vllm/actions/runs/43349521623/job/131637693148"
+    },
+    {
+      "name": "metax container smoke test",
+      "status": "queued",
+      "conclusion": null,
+      "url": "https://github.com/flagos-ai/FlagGems-vllm/actions/runs/43349521623/job/131637693100"
+    },
+    {
+      "name": "hygon container smoke test",
+      "status": "in_progress",
+      "conclusion": null,
+      "url": "https://github.com/flagos-ai/FlagGems-vllm/actions/runs/43349521623/job/131637693095"
+    },
+    {
+      "name": "iluvatar container smoke test",
+      "status": "queued",
+      "conclusion": null,
+      "url": "https://github.com/flagos-ai/FlagGems-vllm/actions/runs/43349521623/job/131637693073"
+    },
+    {
+      "name": "mthreads container smoke test",
+      "status": "queued",
+      "conclusion": null,
+      "url": "https://github.com/flagos-ai/FlagGems-vllm/actions/runs/43349521623/job/131637693072"
+    },
+    {
+      "name": "select ci targets",
+      "status": "completed",
+      "conclusion": "success",
+      "url": "https://github.com/flagos-ai/FlagGems-vllm/actions/runs/43349521623/job/131637619693"
+    },
+    {
+      "name": "code style",
+      "status": "completed",
+      "conclusion": "success",
+      "url": "https://github.com/flagos-ai/FlagGems-vllm/actions/runs/43349521623/job/131636908427"
+    },
+    {
+      "name": "rule-check",
+      "status": "completed",
+      "conclusion": "success",
+      "url": "https://github.com/flagos-ai/FlagGems-vllm/actions/runs/43349521407/job/131636907895"
+    }
+  ],
+  "body_sha256": "d08ae49f09b875f3767249831725dd83acbd391890af656aefe97e4ad10043d5"
+}

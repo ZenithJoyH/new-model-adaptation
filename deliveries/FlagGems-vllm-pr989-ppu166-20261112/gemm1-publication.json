@@ -1,0 +1,73 @@
+{
+  "pr_url": "https://github.com/flagos-ai/FlagGems-vllm/pull/989",
+  "repository": "ZenithJoyH/FlagGems-vllm",
+  "branch": "fix/thead-moe-original-weight-layout-20261023",
+  "parent": "2eeea9aa7e30adb61a81ca8d6afdfee3f19f2713",
+  "parent_tree": "c58306f15aa6b93ae692434c212c4c9b64cc921a",
+  "commit": "be8ea5b73e8e386af6ab8f1612f53e18ea46fa48",
+  "tree": "13d48f86d6200efaa0545a0813d35257d09e730e",
+  "expected_head_lease_used": true,
+  "force": false,
+  "verified_head_and_body": true,
+  "files": [
+    {
+      "path": "src/flaggems_vllm/runtime/backend/_thead/ops/fused_moe.py",
+      "sha256": "6dcb542f542b5457977f6f22666f704655d390a18c6d08169527d1278d4141f5",
+      "git_blob": "d414fc1242f2511a5ab1eb7fc1c8d021fd5abd6a",
+      "bytes": 82370,
+      "added": 5,
+      "deleted": 1
+    },
+    {
+      "path": "tests/test_fused_moe.py",
+      "sha256": "d717de6b26b0174f6fad4636456044df776b12b515de7676170af3233e955802",
+      "git_blob": "a74cdb3e63a8caca536b863c0cfb099b894b2edd",
+      "bytes": 31826,
+      "added": 121,
+      "deleted": 0
+    }
+  ],
+  "source_review": "P1 accepted scoped publication; existing exact-byte style/device evidence reused; no new device workload",
+  "description_review": "P2 draft, main reviewed/added commit link and existing-conflict disclosure",
+  "verification_method": "GitData tree readback confirmed both blob hashes/modes/sizes; compare-parent confirmed exactly2 modified files; final PR head and description exact",
+  "earlier_readback_note": "Contents route metadata readback did not parse as expected before branch update; accepted readback used GitData tree, not an unverified contents result.",
+  "description_chars": 13501,
+  "validations_reused": {
+    "original_103_at_same_source": true,
+    "final_styled_new_cases": 6,
+    "single_clean_109": false,
+    "full176_rerun": false,
+    "whole_model": false
+  },
+  "remaining_bf16_target_vs_old_pct": {
+    "eager": 3.809,
+    "graph": 3.649
+  },
+  "zero_copy_scope": {
+    "dtype": "bfloat16",
+    "shape": [
+      16,
+      128,
+      3072,
+      1024,
+      4
+    ],
+    "banks": 3,
+    "gemm_dispatches": 6,
+    "observed_copy_events": 0
+  },
+  "mergeable_state": "dirty",
+  "conflicts_preexisting": true,
+  "merged": false,
+  "review_threads_resolved_by_this_task": false,
+  "observed_statuses": [
+    {
+      "context": "license/cla",
+      "state": "success"
+    }
+  ],
+  "pr_triggered_workflow_runs_observed": [],
+  "workflow_query_scope": "pull-request-triggered runs, first page; not complete CI success",
+  "formal_readiness_claim": false,
+  "description_sha256": "585ff4f5405fb6166ca711d922ab965a59fc6def77b4205b46ceef5c2c0d066b"
+}

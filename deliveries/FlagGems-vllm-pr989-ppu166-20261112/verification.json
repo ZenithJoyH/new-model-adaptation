@@ -1,0 +1,965 @@
+{
+  "source_sha256": "8e9bbf659d9a5b1b4ed431c9103c7a23b4b9a631c5fb5ac8f2aa1c2ecb5484ee",
+  "tests_sha256": "951697f7eacd716f0ca919d8c074d1da366964ce3954269acfd8190756d26ad4",
+  "full_rounds": {
+    "before": [
+      4,
+      11,
+      17
+    ],
+    "current": [
+      5,
+      7,
+      12
+    ],
+    "optimized": [
+      14,
+      18,
+      19
+    ]
+  },
+  "width_rounds": {
+    "before": [
+      11,
+      15,
+      17
+    ],
+    "current": [
+      8,
+      12,
+      16
+    ],
+    "optimized": [
+      14,
+      18,
+      19
+    ]
+  },
+  "numerical_passed": 103,
+  "qwen8_eager_followup": {
+    "method": "ABBA current/optimized/optimized/current, 2 fresh processes per arm,5 native eager samples per dtype/process; independent follow-up, main matrix unchanged",
+    "runs": {
+      "current-r24-qwen8-followup.json": [
+        {
+          "arm": "current",
+          "round": 24,
+          "shape": [
+            8,
+            512,
+            2560,
+            80,
+            10
+          ],
+          "dtype": "torch.bfloat16",
+          "mode": "operator",
+          "samples_ms": [
+            0.33844905226614674,
+            0.33630713586219135,
+            0.3371457212762324,
+            0.3355491308518398,
+            0.3375494466783752
+          ],
+          "median_ms": 0.3371457212762324,
+          "source_sha256": "2049bd6025512f4aa5924ade84a6d1b90de4f3672252154b5f2f7a8db850ce66",
+          "output_health": {
+            "finite": 20480,
+            "elements": 20480
+          }
+        },
+        {
+          "arm": "current",
+          "round": 24,
+          "shape": [
+            8,
+            512,
+            2560,
+            80,
+            10
+          ],
+          "dtype": "torch.float16",
+          "mode": "operator",
+          "samples_ms": [
+            0.34211195484547746,
+            0.3392417027059675,
+            0.3325252779502286,
+            0.3323557755347613,
+            0.3318439150070395
+          ],
+          "median_ms": 0.3325252779502286,
+          "source_sha256": "2049bd6025512f4aa5924ade84a6d1b90de4f3672252154b5f2f7a8db850ce66",
+          "output_health": {
+            "finite": 20480,
+            "elements": 20480
+          }
+        }
+      ],
+      "optimized-r23-qwen8-followup.json": [
+        {
+          "arm": "optimized",
+          "round": 23,
+          "shape": [
+            8,
+            512,
+            2560,
+            80,
+            10
+          ],
+          "dtype": "torch.bfloat16",
+          "mode": "operator",
+          "samples_ms": [
+            0.33526351818671596,
+            0.3346642611716031,
+            0.3395375430373337,
+            0.3410550369613472,
+            0.3365331867574408
+          ],
+          "median_ms": 0.3365331867574408,
+          "source_sha256": "8e9bbf659d9a5b1b4ed431c9103c7a23b4b9a631c5fb5ac8f2aa1c2ecb5484ee",
+          "output_health": {
+            "finite": 20480,
+            "elements": 20480
+          }
+        },
+        {
+          "arm": "optimized",
+          "round": 23,
+          "shape": [
+            8,
+            512,
+            2560,
+            80,
+            10
+          ],
+          "dtype": "torch.float16",
+          "mode": "operator",
+          "samples_ms": [
+            0.33711080681787775,
+            0.33468581295786975,
+            0.334238814870653,
+            0.33275684626064433,
+            0.33786180611881433
+          ],
+          "median_ms": 0.33468581295786975,
+          "source_sha256": "8e9bbf659d9a5b1b4ed431c9103c7a23b4b9a631c5fb5ac8f2aa1c2ecb5484ee",
+          "output_health": {
+            "finite": 20480,
+            "elements": 20480
+          }
+        }
+      ],
+      "optimized-r22-qwen8-followup.json": [
+        {
+          "arm": "optimized",
+          "round": 22,
+          "shape": [
+            8,
+            512,
+            2560,
+            80,
+            10
+          ],
+          "dtype": "torch.bfloat16",
+          "mode": "operator",
+          "samples_ms": [
+            0.3402373587438302,
+            0.34308882849236116,
+            0.3420012887172435,
+            0.3416470681903213,
+            0.3423200819714061
+          ],
+          "median_ms": 0.3420012887172435,
+          "source_sha256": "8e9bbf659d9a5b1b4ed431c9103c7a23b4b9a631c5fb5ac8f2aa1c2ecb5484ee",
+          "output_health": {
+            "finite": 20480,
+            "elements": 20480
+          }
+        },
+        {
+          "arm": "optimized",
+          "round": 22,
+          "shape": [
+            8,
+            512,
+            2560,
+            80,
+            10
+          ],
+          "dtype": "torch.float16",
+          "mode": "operator",
+          "samples_ms": [
+            0.34298889848689673,
+            0.3413118413377999,
+            0.34223228658394805,
+            0.34448266589025933,
+            0.34172921642539383
+          ],
+          "median_ms": 0.34223228658394805,
+          "source_sha256": "8e9bbf659d9a5b1b4ed431c9103c7a23b4b9a631c5fb5ac8f2aa1c2ecb5484ee",
+          "output_health": {
+            "finite": 20480,
+            "elements": 20480
+          }
+        }
+      ],
+      "current-r21-qwen8-followup.json": [
+        {
+          "arm": "current",
+          "round": 21,
+          "shape": [
+            8,
+            512,
+            2560,
+            80,
+            10
+          ],
+          "dtype": "torch.bfloat16",
+          "mode": "operator",
+          "samples_ms": [
+            0.3470866987020662,
+            0.34529806553632364,
+            0.33917268663474104,
+            0.33753766851910094,
+            0.33550683029192285
+          ],
+          "median_ms": 0.33917268663474104,
+          "source_sha256": "2049bd6025512f4aa5924ade84a6d1b90de4f3672252154b5f2f7a8db850ce66",
+          "output_health": {
+            "finite": 20480,
+            "elements": 20480
+          }
+        },
+        {
+          "arm": "current",
+          "round": 21,
+          "shape": [
+            8,
+            512,
+            2560,
+            80,
+            10
+          ],
+          "dtype": "torch.float16",
+          "mode": "operator",
+          "samples_ms": [
+            0.3405322873495458,
+            0.343170209913177,
+            0.341220738303509,
+            0.34224295757225986,
+            0.3404065362024421
+          ],
+          "median_ms": 0.341220738303509,
+          "source_sha256": "2049bd6025512f4aa5924ade84a6d1b90de4f3672252154b5f2f7a8db850ce66",
+          "output_health": {
+            "finite": 20480,
+            "elements": 20480
+          }
+        }
+      ]
+    },
+    "summary": {
+      "torch.bfloat16": {
+        "process_medians_ms": {
+          "current": [
+            0.3371457212762324,
+            0.33917268663474104
+          ],
+          "optimized": [
+            0.3365331867574408,
+            0.3420012887172435
+          ]
+        },
+        "combined_process_median_ms": {
+          "current": 0.3381592039554867,
+          "optimized": 0.33926723773734213
+        },
+        "optimized_vs_current_pct": 0.3276663089144538,
+        "all_samples_ms": {
+          "current": [
+            0.33844905226614674,
+            0.33630713586219135,
+            0.3371457212762324,
+            0.3355491308518398,
+            0.3375494466783752,
+            0.3470866987020662,
+            0.34529806553632364,
+            0.33917268663474104,
+            0.33753766851910094,
+            0.33550683029192285
+          ],
+          "optimized": [
+            0.33526351818671596,
+            0.3346642611716031,
+            0.3395375430373337,
+            0.3410550369613472,
+            0.3365331867574408,
+            0.3402373587438302,
+            0.34308882849236116,
+            0.3420012887172435,
+            0.3416470681903213,
+            0.3423200819714061
+          ]
+        }
+      },
+      "torch.float16": {
+        "process_medians_ms": {
+          "current": [
+            0.3325252779502286,
+            0.341220738303509
+          ],
+          "optimized": [
+            0.33468581295786975,
+            0.34223228658394805
+          ]
+        },
+        "combined_process_median_ms": {
+          "current": 0.3368730081268688,
+          "optimized": 0.3384590497709089
+        },
+        "optimized_vs_current_pct": 0.4708129193428112,
+        "all_samples_ms": {
+          "current": [
+            0.34211195484547746,
+            0.3392417027059675,
+            0.3325252779502286,
+            0.3323557755347613,
+            0.3318439150070395,
+            0.3405322873495458,
+            0.343170209913177,
+            0.341220738303509,
+            0.34224295757225986,
+            0.3404065362024421
+          ],
+          "optimized": [
+            0.33711080681787775,
+            0.33468581295786975,
+            0.334238814870653,
+            0.33275684626064433,
+            0.33786180611881433,
+            0.34298889848689673,
+            0.3413118413377999,
+            0.34223228658394805,
+            0.34448266589025933,
+            0.34172921642539383
+          ]
+        }
+      }
+    }
+  },
+  "large_offset_dtype_proofs": 2,
+  "large_offset_proof": [
+    {
+      "dtype": "torch.bfloat16",
+      "shape": [
+        16,
+        256,
+        7168,
+        2048,
+        8
+      ],
+      "eager": true,
+      "replays": 3,
+      "selected_experts": [
+        0,
+        127,
+        255
+      ],
+      "dispatch": [
+        {
+          "strides": [
+            29360128,
+            7168,
+            1
+          ],
+          "max_expert_offset_elements": 7486832640
+        },
+        {
+          "strides": [
+            14680064,
+            2048,
+            1
+          ],
+          "max_expert_offset_elements": 3743416320
+        }
+      ],
+      "passed": true
+    },
+    {
+      "dtype": "torch.float16",
+      "shape": [
+        16,
+        256,
+        7168,
+        2048,
+        8
+      ],
+      "eager": true,
+      "replays": 3,
+      "selected_experts": [
+        0,
+        127,
+        255
+      ],
+      "dispatch": [
+        {
+          "strides": [
+            29360128,
+            7168,
+            1
+          ],
+          "max_expert_offset_elements": 7486832640
+        },
+        {
+          "strides": [
+            14680064,
+            2048,
+            1
+          ],
+          "max_expert_offset_elements": 3743416320
+        }
+      ],
+      "passed": true
+    }
+  ],
+  "finite_input_overflow_proof": {
+    "dtype": "torch.float16",
+    "shape": [
+      16,
+      128,
+      3072,
+      1024,
+      4
+    ],
+    "inputs_all_finite": true,
+    "eager": true,
+    "replays": [
+      {
+        "replay": 1,
+        "finite": 36864,
+        "positive_inf": 12288,
+        "nan": 0,
+        "passed": true
+      },
+      {
+        "replay": 2,
+        "finite": 49152,
+        "positive_inf": 0,
+        "nan": 0,
+        "passed": true
+      },
+      {
+        "replay": 3,
+        "finite": 36864,
+        "positive_inf": 12288,
+        "nan": 0,
+        "passed": true
+      }
+    ],
+    "independent_oracle": "Exact sparse first projection and uniform power-of-two down weights, CPU FP16 stage rounding, weighted-output rounding",
+    "passed": true
+  },
+  "final_latency_observations": 1584,
+  "split_diagnostic_observations": 72,
+  "code_style": {
+    "black": "24.8.0",
+    "isort": "5.12.0",
+    "flake8": "7.1.0",
+    "whitespace_eof": true
+  },
+  "final_container_audit": {
+    "container": "qwen38-pr989-opt",
+    "container_id": "58e9b3d046ddda1ab16268a627a8db4df2c8d48d32d9c28a3cd8b08c8a03eb37",
+    "running": true,
+    "image": "sha256:3b7ae739419992764bad31d224d343b6effafd3bb1a08e4c18a5e99b0b5a4613",
+    "approved_mount": {
+      "Type": "bind",
+      "Source": "/mnt/cpfs/baai-ea/flagos/jinghao/qwen3.8-flash",
+      "Destination": "/mnt/cpfs/baai-ea/flagos/jinghao/qwen3.8-flash",
+      "Mode": "rw",
+      "RW": true,
+      "Propagation": "rprivate"
+    },
+    "cuda_visible_devices": [
+      "CUDA_VISIBLE_DEVICES=8"
+    ],
+    "source_hashes": {
+      "/opt/FlagGems-vllm/src/flaggems_vllm/runtime/backend/_thead/ops/fused_moe.py": "8e9bbf659d9a5b1b4ed431c9103c7a23b4b9a631c5fb5ac8f2aa1c2ecb5484ee",
+      "/opt/FlagGems-vllm/tests/test_fused_moe.py": "951697f7eacd716f0ca919d8c074d1da366964ce3954269acfd8190756d26ad4",
+      "/opt/FlagGems-vllm/accuracy_result.json": "0a09881bb75ebcfec2d765f9b61390ab7cf71ded73d0df92138923fed1c85770"
+    },
+    "changed_product_python_files": [
+      "/opt/FlagGems-vllm/src/flaggems_vllm/runtime/backend/_thead/ops/fused_moe.py",
+      "/opt/FlagGems-vllm/tests/test_fused_moe.py"
+    ],
+    "source_manifest_only_two_expected_files_changed": true,
+    "no_active_test_or_controller": true,
+    "original_image_accuracy_report_restored": true,
+    "receipt": {
+      "status": "completed",
+      "source_sha256": "8e9bbf659d9a5b1b4ed431c9103c7a23b4b9a631c5fb5ac8f2aa1c2ecb5484ee",
+      "tests_sha256": "951697f7eacd716f0ca919d8c074d1da366964ce3954269acfd8190756d26ad4",
+      "changed": [
+        "/opt/FlagGems-vllm/src/flaggems_vllm/runtime/backend/_thead/ops/fused_moe.py",
+        "/opt/FlagGems-vllm/tests/test_fused_moe.py"
+      ],
+      "tests_match_retained": true
+    }
+  },
+  "identities": [
+    {
+      "suite": "native",
+      "arm": "before",
+      "round": 4,
+      "source_sha256": "807d12ce829343bcd4ef72e809d5c772dd9be4095db6e77adcaacd7810ca0f7e",
+      "public_entry": "flaggems_vllm.runtime.backend._thead.ops.fused_moe.fused_experts_impl",
+      "imports": {
+        "flag_gems": "/opt/FlagGems/src/flag_gems/__init__.py",
+        "flaggems_vllm": "/opt/FlagGems-vllm/src/flaggems_vllm/__init__.py"
+      },
+      "torch": "2.10.0",
+      "triton": "3.6.0",
+      "device": "PPU-ZW810E",
+      "visible_devices": "8",
+      "device_memory": [
+        103099442160,
+        103079215104
+      ],
+      "benchmark_base_sha256": "b7cbf2ab69ebcaf3b445386563aca89feb51ed906bdd326a4458ccfd6dba44bc",
+      "benchmark_source_sha256": "4088e7b0e4a7ba753fcf70de339bf2e04ed98600c481d5d6406bd9a88e6d4caf",
+      "warmup_ms": 100,
+      "repeat_ms": 300
+    },
+    {
+      "suite": "native",
+      "arm": "before",
+      "round": 11,
+      "source_sha256": "807d12ce829343bcd4ef72e809d5c772dd9be4095db6e77adcaacd7810ca0f7e",
+      "public_entry": "flaggems_vllm.runtime.backend._thead.ops.fused_moe.fused_experts_impl",
+      "imports": {
+        "flag_gems": "/opt/FlagGems/src/flag_gems/__init__.py",
+        "flaggems_vllm": "/opt/FlagGems-vllm/src/flaggems_vllm/__init__.py"
+      },
+      "torch": "2.10.0",
+      "triton": "3.6.0",
+      "device": "PPU-ZW810E",
+      "visible_devices": "8",
+      "device_memory": [
+        103099442160,
+        103079215104
+      ],
+      "benchmark_base_sha256": "b7cbf2ab69ebcaf3b445386563aca89feb51ed906bdd326a4458ccfd6dba44bc",
+      "benchmark_source_sha256": "4088e7b0e4a7ba753fcf70de339bf2e04ed98600c481d5d6406bd9a88e6d4caf",
+      "warmup_ms": 100,
+      "repeat_ms": 300
+    },
+    {
+      "suite": "native",
+      "arm": "before",
+      "round": 17,
+      "source_sha256": "807d12ce829343bcd4ef72e809d5c772dd9be4095db6e77adcaacd7810ca0f7e",
+      "public_entry": "flaggems_vllm.runtime.backend._thead.ops.fused_moe.fused_experts_impl",
+      "imports": {
+        "flag_gems": "/opt/FlagGems/src/flag_gems/__init__.py",
+        "flaggems_vllm": "/opt/FlagGems-vllm/src/flaggems_vllm/__init__.py"
+      },
+      "torch": "2.10.0",
+      "triton": "3.6.0",
+      "device": "PPU-ZW810E",
+      "visible_devices": "8",
+      "device_memory": [
+        103099442160,
+        103079215104
+      ],
+      "benchmark_base_sha256": "b7cbf2ab69ebcaf3b445386563aca89feb51ed906bdd326a4458ccfd6dba44bc",
+      "benchmark_source_sha256": "4088e7b0e4a7ba753fcf70de339bf2e04ed98600c481d5d6406bd9a88e6d4caf",
+      "warmup_ms": 100,
+      "repeat_ms": 300
+    },
+    {
+      "suite": "native",
+      "arm": "current",
+      "round": 5,
+      "source_sha256": "2049bd6025512f4aa5924ade84a6d1b90de4f3672252154b5f2f7a8db850ce66",
+      "public_entry": "flaggems_vllm.runtime.backend._thead.ops.fused_moe.fused_experts_impl",
+      "imports": {
+        "flag_gems": "/opt/FlagGems/src/flag_gems/__init__.py",
+        "flaggems_vllm": "/opt/FlagGems-vllm/src/flaggems_vllm/__init__.py"
+      },
+      "torch": "2.10.0",
+      "triton": "3.6.0",
+      "device": "PPU-ZW810E",
+      "visible_devices": "8",
+      "device_memory": [
+        103099442160,
+        103079215104
+      ],
+      "benchmark_base_sha256": "b7cbf2ab69ebcaf3b445386563aca89feb51ed906bdd326a4458ccfd6dba44bc",
+      "benchmark_source_sha256": "4088e7b0e4a7ba753fcf70de339bf2e04ed98600c481d5d6406bd9a88e6d4caf",
+      "warmup_ms": 100,
+      "repeat_ms": 300
+    },
+    {
+      "suite": "native",
+      "arm": "current",
+      "round": 7,
+      "source_sha256": "2049bd6025512f4aa5924ade84a6d1b90de4f3672252154b5f2f7a8db850ce66",
+      "public_entry": "flaggems_vllm.runtime.backend._thead.ops.fused_moe.fused_experts_impl",
+      "imports": {
+        "flag_gems": "/opt/FlagGems/src/flag_gems/__init__.py",
+        "flaggems_vllm": "/opt/FlagGems-vllm/src/flaggems_vllm/__init__.py"
+      },
+      "torch": "2.10.0",
+      "triton": "3.6.0",
+      "device": "PPU-ZW810E",
+      "visible_devices": "8",
+      "device_memory": [
+        103099442160,
+        103079215104
+      ],
+      "benchmark_base_sha256": "b7cbf2ab69ebcaf3b445386563aca89feb51ed906bdd326a4458ccfd6dba44bc",
+      "benchmark_source_sha256": "4088e7b0e4a7ba753fcf70de339bf2e04ed98600c481d5d6406bd9a88e6d4caf",
+      "warmup_ms": 100,
+      "repeat_ms": 300
+    },
+    {
+      "suite": "native",
+      "arm": "current",
+      "round": 12,
+      "source_sha256": "2049bd6025512f4aa5924ade84a6d1b90de4f3672252154b5f2f7a8db850ce66",
+      "public_entry": "flaggems_vllm.runtime.backend._thead.ops.fused_moe.fused_experts_impl",
+      "imports": {
+        "flag_gems": "/opt/FlagGems/src/flag_gems/__init__.py",
+        "flaggems_vllm": "/opt/FlagGems-vllm/src/flaggems_vllm/__init__.py"
+      },
+      "torch": "2.10.0",
+      "triton": "3.6.0",
+      "device": "PPU-ZW810E",
+      "visible_devices": "8",
+      "device_memory": [
+        103099442160,
+        103079215104
+      ],
+      "benchmark_base_sha256": "b7cbf2ab69ebcaf3b445386563aca89feb51ed906bdd326a4458ccfd6dba44bc",
+      "benchmark_source_sha256": "4088e7b0e4a7ba753fcf70de339bf2e04ed98600c481d5d6406bd9a88e6d4caf",
+      "warmup_ms": 100,
+      "repeat_ms": 300
+    },
+    {
+      "suite": "native",
+      "arm": "optimized",
+      "round": 14,
+      "source_sha256": "8e9bbf659d9a5b1b4ed431c9103c7a23b4b9a631c5fb5ac8f2aa1c2ecb5484ee",
+      "public_entry": "flaggems_vllm.runtime.backend._thead.ops.fused_moe.fused_experts_impl",
+      "imports": {
+        "flag_gems": "/opt/FlagGems/src/flag_gems/__init__.py",
+        "flaggems_vllm": "/opt/FlagGems-vllm/src/flaggems_vllm/__init__.py"
+      },
+      "torch": "2.10.0",
+      "triton": "3.6.0",
+      "device": "PPU-ZW810E",
+      "visible_devices": "8",
+      "device_memory": [
+        103099442160,
+        103079215104
+      ],
+      "benchmark_base_sha256": "b7cbf2ab69ebcaf3b445386563aca89feb51ed906bdd326a4458ccfd6dba44bc",
+      "benchmark_source_sha256": "4088e7b0e4a7ba753fcf70de339bf2e04ed98600c481d5d6406bd9a88e6d4caf",
+      "warmup_ms": 100,
+      "repeat_ms": 300
+    },
+    {
+      "suite": "native",
+      "arm": "optimized",
+      "round": 18,
+      "source_sha256": "8e9bbf659d9a5b1b4ed431c9103c7a23b4b9a631c5fb5ac8f2aa1c2ecb5484ee",
+      "public_entry": "flaggems_vllm.runtime.backend._thead.ops.fused_moe.fused_experts_impl",
+      "imports": {
+        "flag_gems": "/opt/FlagGems/src/flag_gems/__init__.py",
+        "flaggems_vllm": "/opt/FlagGems-vllm/src/flaggems_vllm/__init__.py"
+      },
+      "torch": "2.10.0",
+      "triton": "3.6.0",
+      "device": "PPU-ZW810E",
+      "visible_devices": "8",
+      "device_memory": [
+        103099442160,
+        103079215104
+      ],
+      "benchmark_base_sha256": "b7cbf2ab69ebcaf3b445386563aca89feb51ed906bdd326a4458ccfd6dba44bc",
+      "benchmark_source_sha256": "4088e7b0e4a7ba753fcf70de339bf2e04ed98600c481d5d6406bd9a88e6d4caf",
+      "warmup_ms": 100,
+      "repeat_ms": 300
+    },
+    {
+      "suite": "native",
+      "arm": "optimized",
+      "round": 19,
+      "source_sha256": "8e9bbf659d9a5b1b4ed431c9103c7a23b4b9a631c5fb5ac8f2aa1c2ecb5484ee",
+      "public_entry": "flaggems_vllm.runtime.backend._thead.ops.fused_moe.fused_experts_impl",
+      "imports": {
+        "flag_gems": "/opt/FlagGems/src/flag_gems/__init__.py",
+        "flaggems_vllm": "/opt/FlagGems-vllm/src/flaggems_vllm/__init__.py"
+      },
+      "torch": "2.10.0",
+      "triton": "3.6.0",
+      "device": "PPU-ZW810E",
+      "visible_devices": "8",
+      "device_memory": [
+        103099442160,
+        103079215104
+      ],
+      "benchmark_base_sha256": "b7cbf2ab69ebcaf3b445386563aca89feb51ed906bdd326a4458ccfd6dba44bc",
+      "benchmark_source_sha256": "4088e7b0e4a7ba753fcf70de339bf2e04ed98600c481d5d6406bd9a88e6d4caf",
+      "warmup_ms": 100,
+      "repeat_ms": 300
+    },
+    {
+      "suite": "aligned_widths",
+      "arm": "before",
+      "round": 11,
+      "source_sha256": "807d12ce829343bcd4ef72e809d5c772dd9be4095db6e77adcaacd7810ca0f7e",
+      "public_entry": "flaggems_vllm.runtime.backend._thead.ops.fused_moe.fused_experts_impl",
+      "imports": {
+        "flag_gems": "/opt/FlagGems/src/flag_gems/__init__.py",
+        "flaggems_vllm": "/opt/FlagGems-vllm/src/flaggems_vllm/__init__.py"
+      },
+      "torch": "2.10.0",
+      "triton": "3.6.0",
+      "device": "PPU-ZW810E",
+      "visible_devices": "8",
+      "device_memory": [
+        57487185136,
+        103079215104
+      ],
+      "benchmark_base_sha256": "b7cbf2ab69ebcaf3b445386563aca89feb51ed906bdd326a4458ccfd6dba44bc",
+      "benchmark_source_sha256": "4088e7b0e4a7ba753fcf70de339bf2e04ed98600c481d5d6406bd9a88e6d4caf",
+      "warmup_ms": 100,
+      "repeat_ms": 300
+    },
+    {
+      "suite": "aligned_widths",
+      "arm": "before",
+      "round": 15,
+      "source_sha256": "807d12ce829343bcd4ef72e809d5c772dd9be4095db6e77adcaacd7810ca0f7e",
+      "public_entry": "flaggems_vllm.runtime.backend._thead.ops.fused_moe.fused_experts_impl",
+      "imports": {
+        "flag_gems": "/opt/FlagGems/src/flag_gems/__init__.py",
+        "flaggems_vllm": "/opt/FlagGems-vllm/src/flaggems_vllm/__init__.py"
+      },
+      "torch": "2.10.0",
+      "triton": "3.6.0",
+      "device": "PPU-ZW810E",
+      "visible_devices": "8",
+      "device_memory": [
+        103099442160,
+        103079215104
+      ],
+      "benchmark_base_sha256": "b7cbf2ab69ebcaf3b445386563aca89feb51ed906bdd326a4458ccfd6dba44bc",
+      "benchmark_source_sha256": "4088e7b0e4a7ba753fcf70de339bf2e04ed98600c481d5d6406bd9a88e6d4caf",
+      "warmup_ms": 100,
+      "repeat_ms": 300
+    },
+    {
+      "suite": "aligned_widths",
+      "arm": "before",
+      "round": 17,
+      "source_sha256": "807d12ce829343bcd4ef72e809d5c772dd9be4095db6e77adcaacd7810ca0f7e",
+      "public_entry": "flaggems_vllm.runtime.backend._thead.ops.fused_moe.fused_experts_impl",
+      "imports": {
+        "flag_gems": "/opt/FlagGems/src/flag_gems/__init__.py",
+        "flaggems_vllm": "/opt/FlagGems-vllm/src/flaggems_vllm/__init__.py"
+      },
+      "torch": "2.10.0",
+      "triton": "3.6.0",
+      "device": "PPU-ZW810E",
+      "visible_devices": "8",
+      "device_memory": [
+        57490076400,
+        103079215104
+      ],
+      "benchmark_base_sha256": "b7cbf2ab69ebcaf3b445386563aca89feb51ed906bdd326a4458ccfd6dba44bc",
+      "benchmark_source_sha256": "4088e7b0e4a7ba753fcf70de339bf2e04ed98600c481d5d6406bd9a88e6d4caf",
+      "warmup_ms": 100,
+      "repeat_ms": 300
+    },
+    {
+      "suite": "aligned_widths",
+      "arm": "current",
+      "round": 8,
+      "source_sha256": "2049bd6025512f4aa5924ade84a6d1b90de4f3672252154b5f2f7a8db850ce66",
+      "public_entry": "flaggems_vllm.runtime.backend._thead.ops.fused_moe.fused_experts_impl",
+      "imports": {
+        "flag_gems": "/opt/FlagGems/src/flag_gems/__init__.py",
+        "flaggems_vllm": "/opt/FlagGems-vllm/src/flaggems_vllm/__init__.py"
+      },
+      "torch": "2.10.0",
+      "triton": "3.6.0",
+      "device": "PPU-ZW810E",
+      "visible_devices": "8",
+      "device_memory": [
+        103099442160,
+        103079215104
+      ],
+      "benchmark_base_sha256": "b7cbf2ab69ebcaf3b445386563aca89feb51ed906bdd326a4458ccfd6dba44bc",
+      "benchmark_source_sha256": "4088e7b0e4a7ba753fcf70de339bf2e04ed98600c481d5d6406bd9a88e6d4caf",
+      "warmup_ms": 100,
+      "repeat_ms": 300
+    },
+    {
+      "suite": "aligned_widths",
+      "arm": "current",
+      "round": 12,
+      "source_sha256": "2049bd6025512f4aa5924ade84a6d1b90de4f3672252154b5f2f7a8db850ce66",
+      "public_entry": "flaggems_vllm.runtime.backend._thead.ops.fused_moe.fused_experts_impl",
+      "imports": {
+        "flag_gems": "/opt/FlagGems/src/flag_gems/__init__.py",
+        "flaggems_vllm": "/opt/FlagGems-vllm/src/flaggems_vllm/__init__.py"
+      },
+      "torch": "2.10.0",
+      "triton": "3.6.0",
+      "device": "PPU-ZW810E",
+      "visible_devices": "8",
+      "device_memory": [
+        79926892784,
+        103079215104
+      ],
+      "benchmark_base_sha256": "b7cbf2ab69ebcaf3b445386563aca89feb51ed906bdd326a4458ccfd6dba44bc",
+      "benchmark_source_sha256": "4088e7b0e4a7ba753fcf70de339bf2e04ed98600c481d5d6406bd9a88e6d4caf",
+      "warmup_ms": 100,
+      "repeat_ms": 300
+    },
+    {
+      "suite": "aligned_widths",
+      "arm": "current",
+      "round": 16,
+      "source_sha256": "2049bd6025512f4aa5924ade84a6d1b90de4f3672252154b5f2f7a8db850ce66",
+      "public_entry": "flaggems_vllm.runtime.backend._thead.ops.fused_moe.fused_experts_impl",
+      "imports": {
+        "flag_gems": "/opt/FlagGems/src/flag_gems/__init__.py",
+        "flaggems_vllm": "/opt/FlagGems-vllm/src/flaggems_vllm/__init__.py"
+      },
+      "torch": "2.10.0",
+      "triton": "3.6.0",
+      "device": "PPU-ZW810E",
+      "visible_devices": "8",
+      "device_memory": [
+        103099442160,
+        103079215104
+      ],
+      "benchmark_base_sha256": "b7cbf2ab69ebcaf3b445386563aca89feb51ed906bdd326a4458ccfd6dba44bc",
+      "benchmark_source_sha256": "4088e7b0e4a7ba753fcf70de339bf2e04ed98600c481d5d6406bd9a88e6d4caf",
+      "warmup_ms": 100,
+      "repeat_ms": 300
+    },
+    {
+      "suite": "aligned_widths",
+      "arm": "optimized",
+      "round": 14,
+      "source_sha256": "8e9bbf659d9a5b1b4ed431c9103c7a23b4b9a631c5fb5ac8f2aa1c2ecb5484ee",
+      "public_entry": "flaggems_vllm.runtime.backend._thead.ops.fused_moe.fused_experts_impl",
+      "imports": {
+        "flag_gems": "/opt/FlagGems/src/flag_gems/__init__.py",
+        "flaggems_vllm": "/opt/FlagGems-vllm/src/flaggems_vllm/__init__.py"
+      },
+      "torch": "2.10.0",
+      "triton": "3.6.0",
+      "device": "PPU-ZW810E",
+      "visible_devices": "8",
+      "device_memory": [
+        79934178544,
+        103079215104
+      ],
+      "benchmark_base_sha256": "b7cbf2ab69ebcaf3b445386563aca89feb51ed906bdd326a4458ccfd6dba44bc",
+      "benchmark_source_sha256": "4088e7b0e4a7ba753fcf70de339bf2e04ed98600c481d5d6406bd9a88e6d4caf",
+      "warmup_ms": 100,
+      "repeat_ms": 300
+    },
+    {
+      "suite": "aligned_widths",
+      "arm": "optimized",
+      "round": 18,
+      "source_sha256": "8e9bbf659d9a5b1b4ed431c9103c7a23b4b9a631c5fb5ac8f2aa1c2ecb5484ee",
+      "public_entry": "flaggems_vllm.runtime.backend._thead.ops.fused_moe.fused_experts_impl",
+      "imports": {
+        "flag_gems": "/opt/FlagGems/src/flag_gems/__init__.py",
+        "flaggems_vllm": "/opt/FlagGems-vllm/src/flaggems_vllm/__init__.py"
+      },
+      "torch": "2.10.0",
+      "triton": "3.6.0",
+      "device": "PPU-ZW810E",
+      "visible_devices": "8",
+      "device_memory": [
+        79939265776,
+        103079215104
+      ],
+      "benchmark_base_sha256": "b7cbf2ab69ebcaf3b445386563aca89feb51ed906bdd326a4458ccfd6dba44bc",
+      "benchmark_source_sha256": "4088e7b0e4a7ba753fcf70de339bf2e04ed98600c481d5d6406bd9a88e6d4caf",
+      "warmup_ms": 100,
+      "repeat_ms": 300
+    },
+    {
+      "suite": "aligned_widths",
+      "arm": "optimized",
+      "round": 19,
+      "source_sha256": "8e9bbf659d9a5b1b4ed431c9103c7a23b4b9a631c5fb5ac8f2aa1c2ecb5484ee",
+      "public_entry": "flaggems_vllm.runtime.backend._thead.ops.fused_moe.fused_experts_impl",
+      "imports": {
+        "flag_gems": "/opt/FlagGems/src/flag_gems/__init__.py",
+        "flaggems_vllm": "/opt/FlagGems-vllm/src/flaggems_vllm/__init__.py"
+      },
+      "torch": "2.10.0",
+      "triton": "3.6.0",
+      "device": "PPU-ZW810E",
+      "visible_devices": "8",
+      "device_memory": [
+        79933949168,
+        103079215104
+      ],
+      "benchmark_base_sha256": "b7cbf2ab69ebcaf3b445386563aca89feb51ed906bdd326a4458ccfd6dba44bc",
+      "benchmark_source_sha256": "4088e7b0e4a7ba753fcf70de339bf2e04ed98600c481d5d6406bd9a88e6d4caf",
+      "warmup_ms": 100,
+      "repeat_ms": 300
+    }
+  ],
+  "published": true,
+  "baseline_pr_head": "c15459df6bf0df043e5e88efebd5d48aca6ebcf9",
+  "published_pr_head": "2eeea9aa7e30adb61a81ca8d6afdfee3f19f2713",
+  "publication": {
+    "pr_url": "https://github.com/flagos-ai/FlagGems-vllm/pull/989",
+    "published_commit_sha": "2eeea9aa7e30adb61a81ca8d6afdfee3f19f2713",
+    "commit_url": "https://github.com/ZenithJoyH/FlagGems-vllm/commit/2eeea9aa7e30adb61a81ca8d6afdfee3f19f2713",
+    "parent_sha": "c15459df6bf0df043e5e88efebd5d48aca6ebcf9",
+    "tree_sha": "c58306f15aa6b93ae692434c212c4c9b64cc921a",
+    "pr_title": "fix(thead): remove MoE transpose cache and tune original-layout GEMMs",
+    "body_sha256": "11f121f45efec4fe929c7a79499fa2da62afed6963a279117c3c14e1bffc94ba",
+    "body_characters": 61892,
+    "branch": "fix/thead-moe-original-weight-layout-20261023",
+    "repository": "ZenithJoyH/FlagGems-vllm",
+    "fast_forward": true,
+    "expected_head_lease_verified": true,
+    "readback_verified": true,
+    "changed_files": {
+      "src/flaggems_vllm/runtime/backend/_thead/ops/fused_moe.py": {
+        "git_blob_sha": "33c3ff3f2bb38b13173487ad14708c8477a3b5f7",
+        "sha256": "8e9bbf659d9a5b1b4ed431c9103c7a23b4b9a631c5fb5ac8f2aa1c2ecb5484ee"
+      },
+      "tests/test_fused_moe.py": {
+        "git_blob_sha": "3402b6d36e8178c8713bb43d119e99035c6a0b33",
+        "sha256": "951697f7eacd716f0ca919d8c074d1da366964ce3954269acfd8190756d26ad4"
+      }
+    },
+    "pre_commit": {
+      "scope": "two changed files in isolated head export with real package context",
+      "config": "unmodified target .pre-commit-config.yaml",
+      "passed": true,
+      "yaml": "not applicable to the two Python files",
+      "validated_bytes_unchanged": true
+    },
+    "github_checks_observed": {
+      "license/cla": "success",
+      "pull_request_workflow_runs": [],
+      "full_ci_pass_claim": false
+    },
+    "publication_date": "2026-11-12",
+    "client_timezone": "Asia/Shanghai"
+  }
+}
