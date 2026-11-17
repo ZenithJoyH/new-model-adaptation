@@ -4,6 +4,39 @@ This repository supports model bring-up and inference optimization for an exact
 model, hardware platform and framework profile. English instructions are for
 agents; [AGENTS.zh-CN.md](AGENTS.zh-CN.md) is the human-readable Chinese version.
 
+## Agent entry and roles
+
+- Codex and dsh are peer client entry points: the client currently in use is the
+  controller on the current machine. Both share this file, profiles,
+  repository-local Skills and native validators. Follow
+  [the entry guide](docs/agent-entrypoints.md); client-specific discovery, tools
+  and permission settings do not replace project contracts. Local `dsh headless`
+  is not required, and starting one client does not require the other client to
+  be installed.
+- A direct user task starts as `coordinator` (the main agent) unless explicitly
+  assigned a bounded worker task. A dispatched task declares `worker` (the
+  executor/subagent), its coordinator and task binding. Record the role in the
+  current task explanation or existing plan/issue; do not infer it from whether
+  the client is Codex or dsh, and do not add a required business-state schema.
+- The coordinator plans, delegates, coordinates resources, reviews evidence and
+  accepts results. The delegation and main-agent direct-action limits below
+  apply to this role. A worker directly performs the assigned analysis,
+  implementation or checks within the original authorization and explicit task
+  boundaries; it does not reapply the coordinator's duty to delegate or its
+  direct-action exceptions to that assigned execution. Workers must not
+  recursively delegate, expand scope, promote themselves to coordinator, commit
+  or push, or declare overall adaptation acceptance. Missing scope or capability
+  is reported to the coordinator before affected work proceeds.
+- Both roles obey every applicable safety, permission, human-control, source and
+  evidence requirement. Worker delivery is subject to coordinator review and the
+  same native validators; role assignment does not grant new authorization.
+- Before dispatch, prefer and verify the current controller client's actual
+  delegation capabilities, permissions and paths. A built-in subagent means a
+  capability actually exposed by that client, not an assumed Codex API in dsh.
+  If no permitted backend can perform the work, record the gap, stop affected
+  execution and replan. The coordinator may continue only within its explicit
+  direct-action exceptions.
+
 ## Scope and boundaries
 
 - Execute only the work requested by the user. Local documentation, code review
@@ -86,16 +119,21 @@ agents; [AGENTS.zh-CN.md](AGENTS.zh-CN.md) is the human-readable Chinese version
 
 ## Subagent delegation
 
+This section governs coordinator dispatch and direct actions. Workers perform
+their bounded assignments under [Agent entry and roles](#agent-entry-and-roles)
+and retain all shared boundaries and acceptance requirements.
+
 - Except for the explicit direct-action exceptions below, independently
   deliverable execution MUST be split into bounded subtasks and delegated.
   This includes architecture/inference-chain and environment analysis, source
   and log/trace analysis, diagnosis, code and experiment-script/configuration
   changes, environment preparation, service launch/adjustment, operator trials,
   correctness/graph checks, profiling, accuracy/performance runs and statistics.
-  Use `dsh headless` on the exact authorized target host by default, with the
-  recovery path below to a built-in subagent. Delegate local-only execution
-  locally; do not create remote work to satisfy delegation. These duties do not
-  authorize unselected phases, hosts, components or deployment operations.
+  Prefer the current controller client's actual, verified delegation
+  capabilities. Delegate local-only execution locally; remote work remains
+  limited to the exact authorized hosts, work roots and containers. Do not
+  create remote work to satisfy delegation. These duties do not authorize
+  unselected phases, hosts, components or deployment operations.
 - The main agent owns overall planning, dependencies, worker coordination,
   integration decisions, priorities, resource coordination, observation, evidence
   review, keep/revert decisions, final acceptance and user communication. Do not
@@ -109,11 +147,13 @@ agents; [AGENTS.zh-CN.md](AGENTS.zh-CN.md) is the human-readable Chinese version
   installed import paths, working roots and files/symbols, read/write limits,
   success/stop conditions, total budget and expected evidence. Workers must not
   expand scope, recursively delegate, commit or push.
-- Verify the installed `dsh` entry, version and headless arguments before use;
-  do not guess its interface. Grant read-only or bounded-write permissions to
-  match the subtask and preserve command approvals. Container work must run in
-  the assigned container and its verified installed components; host-only
-  results do not substitute for container evidence.
+- Only when remote `dsh headless` execution is explicitly selected, verify its
+  installed entry, version, arguments and permissions on that authorized target;
+  do not guess its interface or require a local headless installation. Grant
+  read-only or bounded-write permissions to match the selected subtask and
+  preserve command approvals. Container work must run in the assigned container
+  and its verified installed components; host-only results do not substitute for
+  container evidence.
 - Main-agent direct actions are limited to these explicit exceptions, always
   within existing permissions, source boundaries and human-control rules:
 
@@ -153,13 +193,15 @@ agents; [AGENTS.zh-CN.md](AGENTS.zh-CN.md) is the human-readable Chinese version
   changes. The main agent reviews returned results and diffs and accepts completion
   only when the required checks and evidence support it.
 - Recover before falling back: report the known cause and distinguish transport
-  loss, controller timeout, executor failure and a failed workload/test. Follow
-  [dsh recovery and fallback](docs/agent-execution.md#dsh-恢复与回退).
+  loss, controller timeout, executor failure and a failed workload/test. When
+  remote dsh execution was selected, follow
+  [dsh recovery and fallback](docs/agent-execution.md#dsh-恢复与回退); this is not
+  a requirement to use or install headless for either controller client.
   A disconnected SSH client or expired local wait does not prove remote exit.
   Inspect the original process identity, task children, session, partial changes
   and artifacts before any replacement. Unknown state or live writers block a
   new executor. Collect completed results before rerunning work.
-- For long tasks, use an independent remote controller within the approved work
+- For long remote tasks, use an independent controller within the approved work
   root, persist inputs/events/checkpoints, and split work into bounded outputs.
   Freeze soft observation and total task budgets before launch. A soft deadline
   with verified progress permits continued observation within the total budget;
@@ -171,18 +213,21 @@ agents; [AGENTS.zh-CN.md](AGENTS.zh-CN.md) is the human-readable Chinese version
 - All attempts and fallback share the frozen total budget. Exhaustion requires
   replanning, not a budget reset; unknown partial effects require reconciliation.
   If recovery is unavailable or exhausted, automatically continue with a built-in
-  subagent after confirming the old execution and child writers have stopped;
-  no additional confirmation is needed. Transfer only verified state and remaining
-  work. Missing dsh, configuration and permission errors do not justify blind
-  retries, installation or broader permissions. Failed tests/accuracy remain task
-  failures and cannot be hidden by switching executor. Recovery decisions must
-  follow the linked policy and native acceptance requirements.
+  subagent only if the current client exposes a suitable backend and its
+  permissions and paths have been verified, after confirming the old execution
+  and child writers have stopped; no additional confirmation is needed. Transfer
+  only verified state and remaining work. A missing selected executor,
+  configuration and permission errors do not justify blind retries, installation
+  or broader permissions.
+  Failed tests/accuracy remain task failures and cannot be hidden by switching
+  executor. Use the local decision helper described in the linked policy; it does
+  not execute recovery or replace native acceptance validators.
   Executor failure, missing capability, paths or permissions do not automatically
-  permit main-agent takeover. If a built-in subagent also cannot do the work,
-  record the capability gap and replan; direct actions remain limited to the
-  explicit exceptions above.
-- Both execution paths obey the same task scope, source permissions, human
-  control and evidence requirements. Use only authorized hosts and work roots;
+  permit main-agent takeover. If a built-in subagent is unavailable or also
+  cannot do the work, record the capability gap, stop affected execution and
+  replan; direct actions remain limited to the explicit exceptions above.
+- All client and executor choices obey the same task scope, source permissions,
+  human control and evidence requirements. Use only authorized hosts and work roots;
   delegation does not authorize remote work for a local-only task or bypass
   command approvals.
 - Apply this division at the next safe work-unit boundary for ongoing tasks.
@@ -200,6 +245,7 @@ Load unrelated workflows only if the user expands the task.
 | Requested work | Required entry |
 | --- | --- |
 | Local documentation, code review or control-tool maintenance | Relevant files and their tests/contracts; use the rows below only if their scope applies. |
+| Running commands through Codex or dsh, or checking client capabilities | [Client entry guide](docs/agent-entrypoints.md); then the rows below that match the operation. |
 | Image release/deployment, adaptation completion handoff or a standalone deployment guide | [Image release and deployment Skill](skills/adaptation-deployment-guide/SKILL.md) and its bundled English template; select the requested operation before executing. |
 | Remote checks/changes, or inventory, group variables, Ansible entrypoint or playbook maintenance | [Remote operations Skill](skills/remote-operations/SKILL.md), then its linked policy. |
 | Any selected model-adaptation phase | [Adaptation policy](docs/adaptation-policy.md), selected profile's workflow/acceptance documents, then [detailed workflow](docs/model-adaptation-workflow.md). |

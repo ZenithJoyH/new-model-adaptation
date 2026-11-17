@@ -2,6 +2,8 @@
 
 本指南说明如何按阶段调用工作流，以及本地记录与远端执行产物如何分离。完整技术要求见
 [详细五阶段工作流程](model-adaptation-workflow.zh-CN.md)。
+Codex 或 dsh 客户端作为当前主机主控时，先按[双端入口说明](agent-entrypoints.md)加载规则、
+明确协调者/执行者角色并核实所需能力；本机不依赖 `dsh headless`。
 
 步骤 2～5 还必须明确 framework profile。现有直接平台记录使用隐式
 `vllm-plugin-fl`；新工作先从 [framework profiles](../framework-profiles/README.md) 选择 active 或 experimental
@@ -30,7 +32,7 @@ profile，并创建独立工作区：
 ```
 
 当前 `adapt-model` 的平台阶段仍包含旧版结构化文件门禁，与精简目录标准不一致，因此步骤
-2～5 暂时不要用它的创建模式。直接在 Codex 中用自然语言提供模型、平台、framework
+2～5 暂时不要用它的创建模式。直接在 Codex 或 dsh 客户端中用自然语言提供模型、平台、framework
 profile、准确 Host 和所选
 阶段；本地布局用 `./scripts/audit-workspace` 检查。不得为通过旧门禁把 YAML 或过程文件放回
 平台目录。

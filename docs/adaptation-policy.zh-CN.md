@@ -227,7 +227,8 @@ draft/不完整 profile 只允许模型分析和只读调查；experimental 允�
   无法读取时不得以 Markdown 代替。
 - 未带 `--framework` 的旧 `adapt-model` 实现仍包含结构化文件门禁。平台步骤 2～5 不得以创建模式运行该
   工具，也不得把它所需的旧 YAML/过程文件重新放回精简平台目录；这些阶段直接使用自然
-  语言请求 Codex，并用 `audit-workspace` 检查本地布局，等待门禁迁移。步骤 1 的结构分析
+  语言请求当前 Codex 或 dsh 主控，按[双端入口说明](agent-entrypoints.md)明确角色，
+  并用 `audit-workspace` 检查本地布局，等待门禁迁移。步骤 1 的结构分析
   初始化仍可使用。
 - 只有所选工作已经真实验证且证据仍然有效，才能更新当前 `framework.yml`；历史隐式记录
   继续更新 `platform.yml`。按

@@ -423,7 +423,8 @@ def verify_record(root, directory, cfg, profile, stage, mounts=None):
             check_receipt(Artifacts(cfg, ref["host_alias"], mounts), ref, cfg, profile, stage, rec)
 
 
-def validate_workspace(root, directory, cfg, profile, mounts=None):
+def validate_workspace(root, directory, cfg, profile, mounts=None, *, historical_hosts=frozenset()):
+    """Validate records; only the local audit supplies historical platform aliases."""
     errors = workspace_errors(cfg, model=directory.parents[2].name, platform=directory.parents[1].name, framework=directory.name)
     if errors:
         return errors
@@ -452,7 +453,8 @@ def validate_workspace(root, directory, cfg, profile, mounts=None):
             require(SHA.fullmatch(cfg.get("deployment", {}).get("fingerprint", "")), "缺少已核实部署指纹")
             if (root / "inventory/hosts.yml").is_file():
                 from adapt_model import inventory_platform_hosts
-                require(set(hosts) <= inventory_platform_hosts(root, cfg["platform"]), "工作区 Host 不属于目标平台")
+                require(set(hosts) <= inventory_platform_hosts(root, cfg["platform"]) | set(historical_hosts),
+                        "工作区 Host 不属于目标平台")
         for stage in [*WORKFLOW_PHASES, *steps]:
             status = state(cfg, stage)
             if status in DONE | {"in_progress"}:

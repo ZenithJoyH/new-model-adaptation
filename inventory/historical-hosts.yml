@@ -1,0 +1,17 @@
+---
+# Historical platform membership from inventory/hosts.yml at Git revision
+# eb4e8f5260d24df039686cd35675c5571d90cd37. This is not an Ansible inventory,
+# an SSH redirect, or evidence that any alias names a current machine.
+# Keep exact source aliases; do not infer renamings.
+schema_version: 1
+platforms:
+  metax:
+    - mxC588-5
+    - mx588-6
+    - mx588-7
+    - mx588-8
+  ppu:
+    - PPU-01
+    - PPU-03
+    - PPU-07
+    - PPU-13

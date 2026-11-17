@@ -19,16 +19,38 @@ approval and human-control boundaries below remain binding.
 - This repository manages every concrete host alias from the operator's SSH
   configuration through `inventory/hosts.yml`. Keep the `managed` group in sync
   when SSH aliases are added or removed.
+- Preserve retired aliases in existing model records and receipts. Record their
+  verified historical platform membership in `inventory/historical-hosts.yml`,
+  with the source revision noted there. Only the read-only `audit-workspace`
+  uses this catalog; execution entrypoints and Ansible still use the current
+  `inventory/hosts.yml`. Unknown or wrong-platform aliases remain errors.
+  Historical membership neither redirects an alias to a new host nor establishes
+  current connectivity or evidence freshness. Keep original results, hashes,
+  paths and Host identities; do not relabel old results as current-host validation.
 - Use Ansible for repeatable or multi-host changes. Direct SSH is acceptable for
   focused, read-only diagnostics.
-- When Codex invokes Ansible, set the working directory to the repository root
-  and use the exact relative entry points `./scripts/ansible`,
+- When Codex or dsh invokes Ansible, set the working directory to the repository
+  root and use the exact relative entry points `./scripts/ansible`,
   `./scripts/playbook`, `./scripts/connectivity-check`,
   `./scripts/accelerator-check`, `./scripts/health-check`, or
-  `./scripts/inventory`. Project rules run the four hardened read-only wrappers
-  outside the sandbox automatically and prompt for the two generic wrappers,
-  because Ansible's local RPC requires a Unix socket. Do not bypass these rules
-  with `.venv/bin/*`, `bash`/`sh` wrappers, absolute paths, or compound commands.
+  `./scripts/inventory`. Do not bypass these entry points with `.venv/bin/*`,
+  `bash`/`sh` wrappers, absolute paths, or compound commands.
+- On Codex, the four hardened read-only wrappers are allowed outside the sandbox
+  automatically and the two generic wrappers require per-command approval.
+- On dsh, keep restricted workspace access and approval enabled. The existing
+  `workspace-write` + `ask` and escalation parameter examples have no recorded
+  client version, tool schema or reproducible runtime validation in this repository;
+  whether the approval card includes full command arguments is also unverified.
+  Verify the current client's interface before use, following the
+  [client entry guide](agent-entrypoints.md#能力与权限核对).
+  Show the full command, target hosts and impact in the conversation or approval
+  request; supplement missing card details in the conversation. Existing explicit
+  authorization of that same full command and scope avoids an extra conversational
+  confirmation, but each generic wrapper invocation still requires native approval.
+  Otherwise obtain one explicit confirmation through native approval after showing
+  the command; if approval cannot be clearly tied to it, obtain conversational
+  confirmation as well. Recheck authorization when the command or scope changes.
+  Do not globally disable approval or broaden permissions to avoid this requirement.
 - Do not hardcode IP addresses, SSH users, bastion details, passwords, tokens,
   or private-key paths. SSH connection details belong in the operator's
   `~/.ssh/config`.

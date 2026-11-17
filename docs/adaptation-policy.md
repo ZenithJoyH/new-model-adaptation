@@ -346,7 +346,8 @@ for independent invocation, draft handling and phase isolation.
 - The legacy `adapt-model` implementation without `--framework` still contains structured-file
   gates. Do not run it in creation mode for platform phases 2 through 5 and do not
   reintroduce its legacy YAML/process files into a compact platform directory.
-  Invoke those phases through a natural-language Codex request and use
+  Invoke those phases through a natural-language request to the current Codex or dsh
+  controller, following [the client entry guide](agent-entrypoints.md), and use
   `audit-workspace` for local layout checks until the gate is migrated. Step 1
   architecture initialization remains safe.
 - Update the selected framework's `framework.yml` only after the work is actually

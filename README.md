@@ -1,7 +1,9 @@
 # 新模型适配工作区
 
 这个仓库用于不同硬件平台和推理框架上的模型跑通、精度验收与性能优化。需要远端执行时，
-以 Codex 所在本机为控制端，通过已有 SSH 别名操作指定服务器；远端无需安装 Codex CLI。
+当前主机上启动的 Codex 或 dsh 客户端作为主控，通过已有 SSH 别名操作指定服务器。
+两端共用项目规则，按[双端入口说明](docs/agent-entrypoints.md)明确角色和核实能力；
+本机不需要安装 `dsh headless`，也不要求远端为此安装 Codex CLI。
 
 适配过程中可以随时[人工接管与交回](docs/human-collaboration.md)：workspace-control 记录
 操作人、现场状态与修改范围；人工已完成且证据有效的结果可直接接续。
@@ -13,9 +15,12 @@
 [AGENTS.md](AGENTS.md) 保留任务范围、安全边界和必读入口，
 [AGENTS.zh-CN.md](AGENTS.zh-CN.md) 是对应中文版。详细要求按任务加载：
 
-主 Agent 主要负责规划、协调和验收；除[根规则明确的直接执行例外](AGENTS.zh-CN.md#子-agent-委派)外，
-可独立交付的分析、实现和测试必须委派。远端默认使用对应授权 Host 的 `dsh headless`，按恢复规则
-回退到内置子 Agent；纯本地任务在本地委派。执行前分配、例外记录和交接见
+协调者（原主 Agent）主要负责规划、协调和验收；除[根规则明确的直接执行例外](AGENTS.zh-CN.md#子-agent-委派)外，
+可独立交付的分析、实现和测试必须委派。执行者按派发边界直接完成子任务，不递归委派。
+优先使用当前主控客户端实际提供且已核实的子任务委派能力；纯本地任务在本地委派，远端操作仍须
+限定授权 Host、工作根和容器。只有明确选用远端 `dsh headless` 时才核实其入口与权限。
+没有可用后端时记录能力缺口并重规划，不据此由协调者接管委派工作。
+执行前分配、例外记录和交接见
 [Agent 执行说明](docs/agent-execution.md#具体执行必须委派)。命令示例或源码写入授权不扩大主 Agent
 直接执行范围，既有 profile、五阶段、安全与验收要求保持不变。
 
@@ -36,6 +41,8 @@
 > 对指定模型在 PPU-01 上执行阶段 2，使用 vllm-plugin-fl profile。
 
 Agent 通过根规则读取仓库内 Skill，无需安装全局同名包；该入口并未注册为全局命令。
+两端均可按[协调者或执行者启动提示](docs/agent-entrypoints.md#启动提示)显式加载同一入口，
+不依赖 dsh 自动发现规则或 Skill；客户端原生权限设置分别核实。
 主机属于 inventory 不代表本次任务可以操作全部主机。拆分只调整读取时机，原有授权、
 目录边界和验收条件继续生效。也可按任务组织独立对话，例如将本地分析与远端执行分开，
 在后续对话中明确模型、平台、框架、Host 和所选阶段。
@@ -150,7 +157,7 @@ FlagEval 镜像内的一个或多个 lm-eval task；GPQA 只是默认示例，�
 
 当前可用 profile 及新增方式见 [framework-profiles/README.md](framework-profiles/README.md)。
 
-## 在 Codex 中按步骤调用适配流程
+## 在 Codex 或 dsh 中按步骤调用适配流程
 
 日常操作入口和证据绑定方法见 [工作流操作指南](docs/workflow-guide.md)。
 先运行 `./scripts/audit-workspace` 检查全仓库结构和历史状态；其中的 warning 表示待复核，
@@ -166,9 +173,12 @@ FlagEval 镜像内的一个或多个 lm-eval task；GPQA 只是默认示例，�
 4. 适配验收（`acceptance`）
 5. 适配复盘（`retrospective`）
 
-不需要使用特殊命令或斜杠指令。在本项目的 Codex 任务中直接说明模型、平台、目标机器和要执行的步骤即可。推荐使用下面的统一模板：
+先按[双端入口说明](docs/agent-entrypoints.md)加载共同规则并核实能力，再在 Codex 或 dsh 的任务中
+说明模型、平台、目标机器和所选步骤，无需项目专用斜杠指令。协调者任务使用下面的模板；
+执行者使用入口说明中的有界派发模板：
 
 ```text
+角色：协调者（coordinator）
 模型：<模型名称>
 平台：<nvidia|ppu|metax|ascend|mthreads|hygon>
 推理框架：<framework profile ID；旧记录可写 vllm-plugin-fl>
@@ -270,22 +280,30 @@ vllm-plugin-fl 的步骤 4 还可以只调用某个验收子步骤，包括执�
 
 ## 当前管理范围
 
-`managed` 总组当前包含 18 个具体主机别名（以本机 SSH 配置和 inventory 核对结果为准）：
+`managed` 总组当前登记 18 个具体主机别名，以 `inventory/hosts.yml` 为准；
+使用 `./scripts/inventory` 核对与本机 SSH 配置的差异：
 
 | 子组 | 主机 |
 |---|---|
 | `nvidia` | `H100-145`、`H100-149` |
-| `metax` | `mx-57`、`mx-58`、`mx-59`、`mx-60`、`mx-101`、`mx-102`、`mx-103`、`mx-104` |
+| `metax` | `mx-57`、`mx-58`、`mx-59`、`mx-60`、`mx-101`、`mx-102`、`mx-103`、`mx-104`、`mx-117`、`mx-118` |
 | `mthreads` | `mthread-07`、`mthread-08` |
 | `ascend` | `910C-120`、`910C-121` |
 | `hygon` | 当前暂无 SSH 别名，已预留平台组 |
-| `ppu` | `PPU-01`、`PPU-03`、`PPU-07`、`PPU-13` |
+| `ppu` | `PPU-166`、`PPU-167` |
+
+旧模型记录中的 `PPU-01`、`PPU-03`、`PPU-07`、`PPU-13` 等是退役别名，保留原记录不批量改写；
+当前执行只使用 `inventory/hosts.yml`，历史归属见 `inventory/historical-hosts.yml`。
 
 SSH 用户、端口、堡垒机和密钥继续由本机 `~/.ssh/config` 管理，仓库中不保存这些信息。
 
 ## 初始化控制端
 
 ### Codex 中的 Ansible 权限
+
+本节仅描述 Codex 的原生权限配置。dsh 客户端同样使用现有项目命令，但须核实它实际支持的
+审批机制；不假定其读取 `.codex/rules`，也不通过关闭审批来兼容。共同边界见
+[双端入口说明](docs/agent-entrypoints.md#能力与权限核对)。
 
 本项目的 Ansible 2.21 控制端需要创建本地 Unix socket；Codex 默认文件沙箱会阻止该
 socket。仓库已在 `.codex/rules/ansible.rules` 中配置分级放行：
@@ -311,6 +329,10 @@ socket。仓库已在 `.codex/rules/ansible.rules` 中配置分级放行：
 ```bash
 PYTHON_BIN=/opt/homebrew/bin/python3.12 ./scripts/bootstrap-control-node
 ```
+
+`DSH_PYTHON` 仅作为后备候选：未设置 `PYTHON_BIN`，且 `python3.13`、`python3.12` 均不可用或
+不满足版本要求时才尝试；其后才尝试通用 `python3` 和 Codex 运行时 Python。
+需要显式指定解释器时仍使用 `PYTHON_BIN`；`DSH_PYTHON` 不覆盖前面已找到的合格解释器。
 
 需要直接使用项目 Python 时激活虚拟环境：
 

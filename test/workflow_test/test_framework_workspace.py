@@ -33,7 +33,15 @@ class FrameworkWorkspaceTests(unittest.TestCase):
         for name in ("AGENTS.md", "AGENTS.zh-CN.md"):
             shutil.copy2(ROOT / name, root / name)
         shutil.copytree(ROOT / "skills", root / "skills")
-        shutil.copytree(ROOT / "inventory", root / "inventory")
+        # Client-specific permission rules are linked from the entry guide.
+        shutil.copytree(ROOT / ".codex", root / ".codex")
+        # Test hosts are synthetic and independent of the operator inventory.
+        (root / "inventory").mkdir()
+        (root / "inventory/hosts.yml").write_text(
+            "all:\n  children:\n    managed:\n      children:\n"
+            "        ppu:\n          hosts: {PPU-01: null}\n",
+            encoding="utf-8",
+        )
         accuracy = root / "test/Accuracy_test"
         accuracy.mkdir(parents=True)
         shutil.copy2(ROOT / "test/Accuracy_test/README.md", accuracy / "README.md")

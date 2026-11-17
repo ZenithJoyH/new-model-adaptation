@@ -13,12 +13,44 @@ import framework_evidence
 from workflow_state import model_identity
 
 
+def historical_platform_hosts(root):
+    """Read an explicit record-audit catalog; never extend the live inventory."""
+    path = Path(root) / "inventory/historical-hosts.yml"
+    if not path.exists():
+        return {}
+    catalog = workflow.load_yaml(path)
+    if (set(catalog) != {"schema_version", "platforms"}
+            or type(catalog.get("schema_version")) is not int
+            or catalog["schema_version"] != 1
+            or not isinstance(catalog.get("platforms"), dict)):
+        raise workflow.WorkflowError("历史主机登记必须包含 schema_version: 1 和 platforms 映射")
+    result, seen = {}, set()
+    for platform, hosts in catalog["platforms"].items():
+        if platform not in workflow.PLATFORMS:
+            raise workflow.WorkflowError(f"历史主机登记包含未知平台: {platform}")
+        if (not isinstance(hosts, list)
+                or not all(isinstance(h, str) and re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9_.-]*", h)
+                           for h in hosts)):
+            raise workflow.WorkflowError(f"历史主机登记 {platform} 必须为准确别名列表")
+        if len(hosts) != len(set(hosts)) or seen.intersection(hosts):
+            raise workflow.WorkflowError("历史主机登记存在重复别名或平台归属冲突")
+        result[platform] = set(hosts)
+        seen.update(hosts)
+    return result
+
+
 def audit(root, *, allow_absent_model_roots=False):
     root = Path(root).resolve()
     findings = []
 
     def add(level, path, message):
         findings.append({"level": level, "path": str(path.relative_to(root)), "message": message})
+
+    try:
+        historical_hosts = historical_platform_hosts(root)
+    except workflow.WorkflowError as exc:
+        add("error", root / "inventory/historical-hosts.yml", str(exc))
+        return findings
 
     for model in sorted((root / "models").iterdir()):
         if not model.is_dir() or model.name.startswith("_"):
@@ -75,7 +107,8 @@ def audit(root, *, allow_absent_model_roots=False):
             try:
                 cfg = workflow.load_yaml(path)
                 inventory_path = root / "inventory/hosts.yml"
-                allowed = workflow.inventory_platform_hosts(root, platform) if inventory_path.is_file() else None
+                allowed = (workflow.inventory_platform_hosts(root, platform) | historical_hosts.get(platform, set())
+                           if inventory_path.is_file() else None)
                 schema_errors = workflow.platform_schema_errors(cfg, platform, allowed)
                 for error in schema_errors:
                     add("error", path, error)
@@ -145,7 +178,10 @@ def audit(root, *, allow_absent_model_roots=False):
                             current = framework_workspace.load_yaml(root / config["profile"])
                             if framework_workspace.profile_digest(current) != framework_workspace.profile_digest(profile):
                                 add("warning", config_path, "按固定契约保留历史验证；当前 profile 已更新，可显式升级")
-                        for error in framework_evidence.validate_workspace(root, framework_dir, config, profile):
+                        for error in framework_evidence.validate_workspace(
+                            root, framework_dir, config, profile,
+                            historical_hosts=historical_hosts.get(platform, set()),
+                        ):
                             add("error", config_path, error)
                     except (ValueError, KeyError, TypeError, AttributeError, OSError) as exc:
                         add("error", config_path, str(exc))
