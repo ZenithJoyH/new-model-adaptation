@@ -10,9 +10,8 @@ agents; [AGENTS.zh-CN.md](AGENTS.zh-CN.md) is the human-readable Chinese version
   controller on the current machine. Both share this file, profiles,
   repository-local Skills and native validators. Follow
   [the entry guide](docs/agent-entrypoints.md); client-specific discovery, tools
-  and permission settings do not replace project contracts. Local `dsh headless`
-  is not required, and starting one client does not require the other client to
-  be installed.
+  and permission settings do not replace project contracts. Either client can
+  serve as the controller independently.
 - A direct user task starts as `coordinator` (the main agent) unless explicitly
   assigned a bounded worker task. A dispatched task declares `worker` (the
   executor/subagent), its coordinator and task binding. Record the role in the
@@ -30,10 +29,9 @@ agents; [AGENTS.zh-CN.md](AGENTS.zh-CN.md) is the human-readable Chinese version
 - Both roles obey every applicable safety, permission, human-control, source and
   evidence requirement. Worker delivery is subject to coordinator review and the
   same native validators; role assignment does not grant new authorization.
-- Before dispatch, prefer and verify the current controller client's actual
-  delegation capabilities, permissions and paths. A built-in subagent means a
-  capability actually exposed by that client, not an assumed Codex API in dsh.
-  If no permitted backend can perform the work, record the gap, stop affected
+- Dispatch through the current controller client's verified built-in subagent
+  capability. Verify permissions and paths against the assignment. If no
+  permitted subagent can perform the work, record the gap, stop affected
   execution and replan. The coordinator may continue only within its explicit
   direct-action exceptions.
 
@@ -129,10 +127,10 @@ and retain all shared boundaries and acceptance requirements.
   and log/trace analysis, diagnosis, code and experiment-script/configuration
   changes, environment preparation, service launch/adjustment, operator trials,
   correctness/graph checks, profiling, accuracy/performance runs and statistics.
-  Prefer the current controller client's actual, verified delegation
-  capabilities. Delegate local-only execution locally; remote work remains
-  limited to the exact authorized hosts, work roots and containers. Do not
-  create remote work to satisfy delegation. These duties do not authorize
+  Delegate local-only execution locally. For authorized remote work, the worker
+  uses the approved project remote-operation entries within the assigned hosts,
+  work roots and containers. Do not create remote work to satisfy delegation.
+  These duties do not authorize
   unselected phases, hosts, components or deployment operations.
 - The main agent owns overall planning, dependencies, worker coordination,
   integration decisions, priorities, resource coordination, observation, evidence
@@ -147,13 +145,10 @@ and retain all shared boundaries and acceptance requirements.
   installed import paths, working roots and files/symbols, read/write limits,
   success/stop conditions, total budget and expected evidence. Workers must not
   expand scope, recursively delegate, commit or push.
-- Only when remote `dsh headless` execution is explicitly selected, verify its
-  installed entry, version, arguments and permissions on that authorized target;
-  do not guess its interface or require a local headless installation. Grant
-  read-only or bounded-write permissions to match the selected subtask and
-  preserve command approvals. Container work must run in the assigned container
-  and its verified installed components; host-only results do not substitute for
-  container evidence.
+- Grant read-only or bounded-write permissions to match the selected subtask
+  and preserve command approvals. Container work must run in the assigned
+  container and its verified installed components. Container evidence must
+  come from that container.
 - Main-agent direct actions are limited to these explicit exceptions, always
   within existing permissions, source boundaries and human-control rules:
 
@@ -192,11 +187,9 @@ and retain all shared boundaries and acceptance requirements.
   permit. Assign clear write ownership and serialize conflicting or dependent
   changes. The main agent reviews returned results and diffs and accepts completion
   only when the required checks and evidence support it.
-- Recover before falling back: report the known cause and distinguish transport
-  loss, controller timeout, executor failure and a failed workload/test. When
-  remote dsh execution was selected, follow
-  [dsh recovery and fallback](docs/agent-execution.md#dsh-恢复与回退); this is not
-  a requirement to use or install headless for either controller client.
+- For [interrupted work](docs/agent-execution.md#执行中断与接续), report the known
+  cause and distinguish transport loss, controller timeout, worker failure and a
+  failed workload/test.
   A disconnected SSH client or expired local wait does not prove remote exit.
   Inspect the original process identity, task children, session, partial changes
   and artifacts before any replacement. Unknown state or live writers block a
@@ -210,22 +203,13 @@ and retain all shared boundaries and acceptance requirements.
   and that installation's resume support is established. Retry a transient failure
   only with verified absence of side effects and no live execution. Allow at most
   two recovery attempts; stop mechanical retries after the same error twice.
-- All attempts and fallback share the frozen total budget. Exhaustion requires
-  replanning, not a budget reset; unknown partial effects require reconciliation.
-  If recovery is unavailable or exhausted, automatically continue with a built-in
-  subagent only if the current client exposes a suitable backend and its
-  permissions and paths have been verified, after confirming the old execution
-  and child writers have stopped; no additional confirmation is needed. Transfer
-  only verified state and remaining work. A missing selected executor,
-  configuration and permission errors do not justify blind retries, installation
-  or broader permissions.
-  Failed tests/accuracy remain task failures and cannot be hidden by switching
-  executor. Use the local decision helper described in the linked policy; it does
-  not execute recovery or replace native acceptance validators.
-  Executor failure, missing capability, paths or permissions do not automatically
-  permit main-agent takeover. If a built-in subagent is unavailable or also
-  cannot do the work, record the capability gap, stop affected execution and
-  replan; direct actions remain limited to the explicit exceptions above.
+- All attempts and reassignment share the frozen total budget. Replan when it is
+  exhausted. After reconciling partial effects and confirming old execution and
+  child writers have stopped, transfer only verified state and remaining work to
+  a suitable built-in subagent. Missing capabilities, configuration or permissions
+  require resolving the gap or replanning. Preserve failed tests and accuracy
+  results and use the same native acceptance validators. The coordinator remains
+  subject to the direct-action exceptions above.
 - All client and executor choices obey the same task scope, source permissions,
   human control and evidence requirements. Use only authorized hosts and work roots;
   delegation does not authorize remote work for a local-only task or bypass
