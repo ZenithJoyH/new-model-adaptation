@@ -145,6 +145,22 @@ and retain all shared boundaries and acceptance requirements.
   installed import paths, working roots and files/symbols, read/write limits,
   success/stop conditions, total budget and expected evidence. Workers must not
   expand scope, recursively delegate, commit or push.
+- Check [existing receipts and in-flight
+  work](docs/agent-execution.md#优先复用有效回执) before dispatch or launch.
+  Within the same selected phase and authorization/write boundary, bundle related
+  judgment-based steps for one worker, with explicit gates, stop conditions and
+  evidence. Split for an independent review, a different approval/write boundary,
+  a blocked dependency, or useful isolated parallel work. Within an open work
+  unit, keep the same worker when its context is still useful and continuation
+  is safe. Send only changed inputs and outstanding work.
+- Use the smallest context that carries the verified task contract. For a
+  self-contained Codex dispatch, explicitly use `fork_turns: "none"` when the
+  available tool supports it. Follow the [client entry guide](docs/agent-entrypoints.md#委派上下文)
+  when history is essential or inheritance controls differ.
+- Close the worker turn at delivery or a stop condition. Give each new phase or
+  work unit its own bounded dispatch when delegation is needed. Follow the
+  [worker handoff rules](docs/agent-execution.md#执行者收尾与交接) for targeted
+  corrections, blocked work and ownership of work still running.
 - Grant read-only or bounded-write permissions to match the selected subtask
   and preserve command approvals. Container work must run in the assigned
   container and its verified installed components. Container evidence must
@@ -195,7 +211,10 @@ and retain all shared boundaries and acceptance requirements.
   and artifacts before any replacement. Unknown state or live writers block a
   new executor. Collect completed results before rerunning work.
 - For long remote tasks, use an independent controller within the approved work
-  root, persist inputs/events/checkpoints, and split work into bounded outputs.
+  root and persist inputs, events and bounded checkpoints. Use one status observer
+  per run, favor native events or existing status tools, and follow
+  [the observation rules](docs/agent-execution.md#按事件观察) for checkpoints,
+  stall/failure and user decisions. Keep any user-requested update cadence.
   Freeze soft observation and total task budgets before launch. A soft deadline
   with verified progress permits continued observation within the total budget;
   it does not trigger an automatic kill. Resume an existing session only after
